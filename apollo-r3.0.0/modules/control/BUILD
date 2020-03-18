@@ -41,7 +41,7 @@ cc_binary(
     srcs = ["main.cc"],
     deps = [
         ":control_lib",
-        "//external:gflags",
+        #"//external:gflags",
         "//modules/control/common",
     ],
 )

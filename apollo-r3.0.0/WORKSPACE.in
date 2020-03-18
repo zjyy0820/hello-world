@@ -17,10 +17,10 @@ http_archive(
     url = "file:///home/tmp/gflags-2.2.0.tar.gz",
 )
 
-bind(
-    name = "gflags",
-    actual = "@com_github_gflags_gflags//:gflags",
-)
+#bind(
+#    name = "gflags",
+#    actual = "@com_github_gflags_gflags//:gflags",
+#)
 
 # glog
 new_http_archive(
