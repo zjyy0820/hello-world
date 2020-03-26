@@ -14,8 +14,7 @@
  * limitations under the License.
  *****************************************************************************/
 
-#ifndef MODULES_CONTROL_COMMON_CONTROL_GFLAGS_H_
-#define MODULES_CONTROL_COMMON_CONTROL_GFLAGS_H_
+#pragma once
 
 #include "gflags/gflags.h"
 
@@ -23,8 +22,6 @@
 DECLARE_string(control_conf_file);
 
 DECLARE_double(control_test_duration);
-
-DECLARE_string(control_adapter_config_filename);
 
 DECLARE_bool(enable_csv_debug);
 
@@ -50,7 +47,10 @@ DECLARE_bool(enable_slope_offset);
 
 DECLARE_double(lock_steer_speed);
 
-DECLARE_bool(enable_navigation_mode_handlilng);
-DECLARE_bool(enable_persistent_estop);
+DECLARE_bool(enable_navigation_mode_error_filter);
+DECLARE_bool(enable_navigation_mode_position_update);
 
-#endif  // MODULES_CONTROL_COMMON_CONTROL_GFLAGS_H_
+DECLARE_int32(chassis_pending_queue_size);
+DECLARE_int32(planning_pending_queue_size);
+DECLARE_int32(localization_pending_queue_size);
+DECLARE_int32(pad_msg_pending_queue_size);

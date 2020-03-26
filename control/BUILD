@@ -3,25 +3,15 @@ load("//tools:cpplint.bzl", "cpplint")
 package(default_visibility = ["//visibility:public"])
 
 cc_library(
-    name = "lib_pad_terminal",
-    deps = [
-        "//modules/control/common",
-    ],
-)
-
-cc_library(
     name = "control_lib",
     srcs = [
-        "control.cc",
     ],
-    hdrs = glob([
-        "*.h",
-    ]),
     deps = [
+        "//cyber",
+        "//external:gflags",
         "//modules/canbus/proto:canbus_proto",
         "//modules/common",
-        "//modules/common:apollo_app",
-        "//modules/common/adapters:adapter_manager",
+        "//modules/common/adapters:adapter_gflags",
         "//modules/common/monitor_log",
         "//modules/common/time",
         "//modules/common/util",
@@ -32,29 +22,40 @@ cc_library(
         "//modules/perception/proto:perception_proto",
         "//modules/planning/proto:planning_proto",
         "//modules/prediction/proto:prediction_proto",
-        "@ros//:ros_common",
     ],
+    copts = ['-DMODULE_NAME=\\"control\\"'],
+)
+
+cc_library(
+    name = "control_component_lib",
+    srcs = [
+        "control_component.cc",
+    ],
+    hdrs = [
+        "control_component.h",
+    ],
+    deps = [
+        ":control_lib",
+    ],
+    copts = ['-DMODULE_NAME=\\"control\\"'],
 )
 
 cc_binary(
-    name = "control",
-    srcs = ["main.cc"],
-    deps = [
-        ":control_lib",
-        "//external:gflags",
-        "//modules/control/common",
-    ],
+    name = "libcontrol_component.so",
+    deps = [":control_component_lib"],
+    linkshared = True,
+    linkstatic = False,
 )
 
 cc_test(
-    name = "control_test",
+    name = "control_component_test",
     size = "small",
     srcs = [
-        "control_test.cc",
+        "control_component_test.cc",
     ],
     data = ["//modules/control:control_testdata"],
     deps = [
-        ":control_lib",
+        ":control_component_lib",
         "@gtest//:main",
     ],
 )

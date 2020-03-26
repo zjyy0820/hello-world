@@ -19,8 +19,7 @@
  * @brief Defines the TrajectoryAnalyzer class.
  */
 
-#ifndef MODULES_CONTROL_COMMON_TRAJECTORY_ANALYZER_H_
-#define MODULES_CONTROL_COMMON_TRAJECTORY_ANALYZER_H_
+#pragma once
 
 #include <vector>
 
@@ -61,7 +60,7 @@ class TrajectoryAnalyzer {
   ~TrajectoryAnalyzer() = default;
 
   /**
-   * @brief get sequence number of the trajecotry
+   * @brief get sequence number of the trajectory
    * @return sequence number.
    */
   unsigned int seq_num() { return seq_num_; }
@@ -139,5 +138,3 @@ class TrajectoryAnalyzer {
 
 }  // namespace control
 }  // namespace apollo
-
-#endif  // MODULES_CONTROL_COMMON_TRAJECTORY_ANALYZER_H_

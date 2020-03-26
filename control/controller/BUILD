@@ -8,7 +8,7 @@ cc_library(
     hdrs = [
         "controller.h",
     ],
-    deps = [],
+    copts = ['-DMODULE_NAME=\\"control\\"'],
 )
 
 cc_library(
@@ -21,7 +21,7 @@ cc_library(
     ],
     deps = [
         ":controller_interface",
-        "//modules/common:log",
+        "//cyber",
         "//modules/common/configs:vehicle_config_helper",
         "//modules/common/filters:digital_filter",
         "//modules/common/filters:digital_filter_coefficients",
@@ -29,7 +29,7 @@ cc_library(
         "//modules/common/math:euler_angles_zxy",
         "//modules/common/math:geometry",
         "//modules/common/math:lqr",
-        "//modules/common/proto:common_proto",
+        "//modules/common/proto:geometry_proto",
         "//modules/common/status",
         "//modules/common/time",
         "//modules/control/common:control_gflags",
@@ -38,6 +38,7 @@ cc_library(
         "//modules/control/proto:control_proto",
         "@eigen",
     ],
+    copts = ['-DMODULE_NAME=\\"control\\"'],
 )
 
 cc_library(
@@ -50,7 +51,7 @@ cc_library(
     ],
     deps = [
         ":controller_interface",
-        "//modules/common:log",
+        "//cyber",
         "//modules/common/configs:vehicle_config_helper",
         "//modules/common/filters:digital_filter",
         "//modules/common/filters:digital_filter_coefficients",
@@ -63,6 +64,7 @@ cc_library(
         "//modules/control/common:trajectory_analyzer",
         "//modules/localization/common:localization_common",
     ],
+    copts = ['-DMODULE_NAME=\\"control\\"'],
 )
 
 cc_library(
@@ -75,7 +77,7 @@ cc_library(
     ],
     deps = [
         ":controller_interface",
-        "//modules/common:log",
+        "//cyber",
         "//modules/common/configs:vehicle_config_helper",
         "//modules/common/filters:digital_filter",
         "//modules/common/filters:digital_filter_coefficients",
@@ -83,7 +85,7 @@ cc_library(
         "//modules/common/math:euler_angles_zxy",
         "//modules/common/math:geometry",
         "//modules/common/math:lqr",
-        "//modules/common/proto:common_proto",
+        "//modules/common/proto:geometry_proto",
         "//modules/common/status",
         "//modules/common/time",
         "//modules/control/common:control_gflags",
@@ -93,6 +95,7 @@ cc_library(
         "//modules/control/proto:control_proto",
         "@eigen",
     ],
+    copts = ['-DMODULE_NAME=\\"control\\"'],
 )
 
 cc_library(
@@ -105,6 +108,7 @@ cc_library(
         ":mpc_controller",
         "@eigen",
     ],
+    copts = ['-DMODULE_NAME=\\"control\\"'],
 )
 
 cc_library(
@@ -120,14 +124,14 @@ cc_library(
         ":lat_controller",
         ":lon_controller",
         ":mpc_controller",
+        "//cyber",
         "//modules/canbus/proto:canbus_proto",
-        "//modules/common:log",
         "//modules/common/time",
         "//modules/common/util:factory",
         "//modules/control/proto:control_proto",
         "//modules/planning/proto:planning_proto",
-        "@ros//:ros_common",
     ],
+    copts = ['-DMODULE_NAME=\\"control\\"'], 
 )
 
 cc_test(
@@ -136,10 +140,10 @@ cc_test(
     srcs = [
         "lon_controller_test.cc",
     ],
-    data = ["//modules/control:control_testdata"],
+    data = ["//modules/control/testdata:control_testdata"],
     deps = [
         ":lon_controller",
-        "//modules/common:log",
+        "//cyber",
         "//modules/common/time",
         "//modules/common/util",
         "//modules/common/vehicle_state:vehicle_state_provider",
@@ -156,10 +160,10 @@ cc_test(
     srcs = [
         "lat_controller_test.cc",
     ],
-    data = ["//modules/control:control_testdata"],
+    data = ["//modules/control/testdata:control_testdata"],
     deps = [
         ":lat_controller",
-        "//modules/common:log",
+        "//cyber",
         "//modules/common/time",
         "//modules/common/util",
         "//modules/common/vehicle_state:vehicle_state_provider",
@@ -176,10 +180,10 @@ cc_test(
     srcs = [
         "mpc_controller_test.cc",
     ],
-    data = ["//modules/control:control_testdata"],
+    data = ["//modules/control/testdata:control_testdata"],
     deps = [
         ":mpc_controller",
-        "//modules/common:log",
+        "//cyber",
         "//modules/common/time",
         "//modules/common/util",
         "//modules/common/vehicle_state:vehicle_state_provider",

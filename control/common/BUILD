@@ -10,6 +10,7 @@ cc_library(
     hdrs = [
         "control_gflags.h",
     ],
+    copts = ['-DMODULE_NAME=\\"control\\"'],
     deps = [
         "//external:gflags",
     ],
@@ -23,6 +24,7 @@ cc_library(
     hdrs = [
         "hysteresis_filter.h",
     ],
+    copts = ['-DMODULE_NAME=\\"control\\"'],
 )
 
 cc_library(
@@ -33,8 +35,9 @@ cc_library(
     hdrs = [
         "interpolation_1d.h",
     ],
+    copts = ['-DMODULE_NAME=\\"control\\"'],
     deps = [
-        "//modules/common:log",
+        "//cyber",
         "@eigen//:eigen",
     ],
 )
@@ -47,8 +50,9 @@ cc_library(
     hdrs = [
         "interpolation_2d.h",
     ],
+    copts = ['-DMODULE_NAME=\\"control\\"'],
     deps = [
-        "//modules/common:log",
+        "//cyber",
         "@eigen//:eigen",
     ],
 )
@@ -61,8 +65,9 @@ cc_library(
     hdrs = [
         "pid_controller.h",
     ],
+    copts = ['-DMODULE_NAME=\\"control\\"'],
     deps = [
-        "//modules/common:log",
+        "//cyber",
         "//modules/control/proto:control_proto",
     ],
 )
@@ -72,12 +77,13 @@ cc_library(
     srcs = [
         "pid_BC_controller.cc",
     ],
+    copts = ['-DMODULE_NAME=\\"control\\"'],
     hdrs = [
         "pid_BC_controller.h",
     ],
     deps = [
         ":pid_controller",
-        "//modules/common:log",
+        "//cyber",
         "//modules/common/math",
         "//modules/control/proto:control_proto",
     ],
@@ -91,9 +97,10 @@ cc_library(
     hdrs = [
         "pid_IC_controller.h",
     ],
+    copts = ['-DMODULE_NAME=\\"control\\"'],
     deps = [
         ":pid_controller",
-        "//modules/common:log",
+        "//cyber",
         "//modules/common/math",
         "//modules/control/proto:control_proto",
     ],
@@ -107,8 +114,9 @@ cc_library(
     hdrs = [
         "trajectory_analyzer.h",
     ],
+    copts = ['-DMODULE_NAME=\\"control\\"'],
     deps = [
-        "//modules/common:log",
+        "//cyber",
         "//modules/common/math:linear_interpolation",
         "//modules/common/math:search",
         "//modules/common/proto:pnc_point_proto",
@@ -127,6 +135,7 @@ cc_library(
         ":pid_controller",
         ":trajectory_analyzer",
     ],
+    copts = ['-DMODULE_NAME=\\"control\\"'], 
 )
 
 cc_test(
@@ -147,10 +156,10 @@ cc_test(
     srcs = [
         "interpolation_1d_test.cc",
     ],
-    data = ["//modules/control:control_testdata"],
+    data = ["//modules/control/testdata:control_testdata"],
     deps = [
         ":interpolation_1d",
-        "//modules/common:log",
+        "//cyber",
         "//modules/common/util",
         "//modules/control/proto:control_proto",
         "@gtest//:main",
@@ -163,10 +172,10 @@ cc_test(
     srcs = [
         "interpolation_2d_test.cc",
     ],
-    data = ["//modules/control:control_testdata"],
+    data = ["//modules/control/testdata:control_testdata"],
     deps = [
         ":interpolation_2d",
-        "//modules/common:log",
+        "//cyber",
         "//modules/common/util",
         "//modules/control/proto:control_proto",
         "@gtest//:main",
@@ -179,7 +188,7 @@ cc_test(
     srcs = [
         "pid_controller_test.cc",
     ],
-    data = ["//modules/control:control_testdata"],
+    data = ["//modules/control/testdata:control_testdata"],
     deps = [
         ":pid_controller",
         "//modules/common/util",
@@ -194,7 +203,7 @@ cc_test(
     srcs = [
         "pid_BC_controller_test.cc",
     ],
-    data = ["//modules/control:control_testdata"],
+    data = ["//modules/control/testdata:control_testdata"],
     deps = [
         ":pid_BC_controller",
         "//modules/common/util",
@@ -209,7 +218,7 @@ cc_test(
     srcs = [
         "pid_IC_controller_test.cc",
     ],
-    data = ["//modules/control:control_testdata"],
+    data = ["//modules/control/testdata:control_testdata"],
     deps = [
         ":pid_IC_controller",
         "//modules/common/util",

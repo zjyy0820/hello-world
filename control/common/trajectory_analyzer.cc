@@ -20,7 +20,7 @@
 #include <cmath>
 #include <utility>
 
-#include "modules/common/log.h"
+#include "cyber/common/log.h"
 #include "modules/common/math/linear_interpolation.h"
 #include "modules/common/math/math_utils.h"
 #include "modules/common/math/search.h"
@@ -65,6 +65,8 @@ TrajectoryAnalyzer::TrajectoryAnalyzer(
 
 PathPoint TrajectoryAnalyzer::QueryMatchedPathPoint(const double x,
                                                     const double y) const {
+  CHECK_GT(trajectory_points_.size(), 0);
+
   double d_min = PointDistanceSquare(trajectory_points_.front(), x, y);
   size_t index_min = 0;
 
@@ -175,6 +177,8 @@ TrajectoryPoint TrajectoryAnalyzer::QueryNearestPointByRelativeTime(
 
 TrajectoryPoint TrajectoryAnalyzer::QueryNearestPointByPosition(
     const double x, const double y) const {
+  CHECK_GT(trajectory_points_.size(), 0);
+
   double d_min = PointDistanceSquare(trajectory_points_.front(), x, y);
   size_t index_min = 0;
 

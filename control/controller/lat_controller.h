@@ -19,8 +19,7 @@
  * @brief Defines the LatController class.
  */
 
-#ifndef MODULES_CONTROL_CONTROLLER_LAT_CONTROLLER_H_
-#define MODULES_CONTROL_CONTROLLER_LAT_CONTROLLER_H_
+#pragma once
 
 #include <fstream>
 #include <memory>
@@ -104,6 +103,9 @@ class LatController : public Controller {
  protected:
   void UpdateState(SimpleLateralDebug *debug);
 
+  // logic for reverse driving mode
+  void UpdateDrivingOrientation();
+
   void UpdateMatrix();
 
   void UpdateMatrixCompound();
@@ -147,7 +149,7 @@ class LatController : public Controller {
   // rotational inertia
   double iz_ = 0.0;
   // the ratio between the turn of the steering wheel and the turn of the wheels
-  double steer_transmission_ratio_ = 0.0;
+  double steer_ratio_ = 0.0;
   // the maximum turn of steer
   double steer_single_direction_max_degree_ = 0.0;
 
@@ -204,6 +206,8 @@ class LatController : public Controller {
 
   const std::string name_;
 
+  double query_relative_time_;
+
   double pre_steer_angle_ = 0.0;
 
   double minimum_speed_protection_ = 0.1;
@@ -215,9 +219,11 @@ class LatController : public Controller {
   double init_vehicle_y_ = 0.0;
 
   double init_vehicle_heading_ = 0.0;
+
+  double min_turn_radius_ = 0.0;
+
+  double driving_orientation_ = 0.0;
 };
 
 }  // namespace control
 }  // namespace apollo
-
-#endif  // MODULES_CONTROL_CONTROLLER_LATERAL_CONTROLLER_H_

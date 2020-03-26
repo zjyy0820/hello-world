@@ -16,11 +16,9 @@
 
 #include "modules/control/common/control_gflags.h"
 
-DEFINE_string(control_conf_file, "modules/control/conf/lincoln.pb.txt",
+DEFINE_string(control_conf_file,
+              "/apollo/modules/control/conf/control_conf.pb.txt",
               "default control conf data file");
-
-DEFINE_string(control_adapter_config_filename,
-              "modules/control/conf/adapter.conf", "The adapter config file");
 
 DEFINE_bool(enable_csv_debug, false, "True to write out csv debug file.");
 DEFINE_bool(enable_speed_station_preview, true, "enable speed/station preview");
@@ -56,9 +54,16 @@ DEFINE_bool(enable_slope_offset, false, "Enable slope offset compensation");
 DEFINE_double(lock_steer_speed, 0.081,
               "Minimum speed to lock the steer, in m/s");
 
-DEFINE_bool(enable_navigation_mode_handlilng, false,
-            "Enable special handling for navigation mode");
+DEFINE_bool(enable_navigation_mode_error_filter, false,
+            "Enable error_filter for navigation mode");
 
-DEFINE_bool(enable_persistent_estop, false,
-            "True to persistent keep estop status, "
-            "pad reset can reset the estop status.");
+DEFINE_bool(enable_navigation_mode_position_update, true,
+            "Enable position update for navigation mode");
+
+DEFINE_int32(chassis_pending_queue_size, 10, "Max chassis pending queue size");
+DEFINE_int32(planning_pending_queue_size, 10,
+             "Max planning pending queue size");
+DEFINE_int32(localization_pending_queue_size, 10,
+             "Max localization pending queue size");
+DEFINE_int32(pad_msg_pending_queue_size, 10,
+             "Max pad message pending queue size");

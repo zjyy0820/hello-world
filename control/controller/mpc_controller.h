@@ -19,8 +19,7 @@
  * @brief Defines the MPCController class.
  */
 
-#ifndef MODULES_CONTROL_CONTROLLER_MPC_CONTROLLER_H_
-#define MODULES_CONTROL_CONTROLLER_MPC_CONTROLLER_H_
+#pragma once
 
 #include <fstream>
 #include <memory>
@@ -125,6 +124,8 @@ class MPCController : public Controller {
 
   void CloseLogFile();
 
+  double Wheel2SteerPct(const double wheel_angle);
+
   // vehicle parameter
   common::VehicleParam vehicle_param_;
 
@@ -156,9 +157,11 @@ class MPCController : public Controller {
   // rotational inertia
   double iz_ = 0.0;
   // the ratio between the turn of the steering wheel and the turn of the wheels
-  double steer_transmission_ratio_ = 0.0;
+  double steer_ratio_ = 0.0;
   // the maximum turn of steer
   double steer_single_direction_max_degree_ = 0.0;
+  // the maximum turn of vehicle wheel
+  double wheel_single_direction_max_degree_ = 0.0;
 
   // limit steering to maximum theoretical lateral acceleration
   double max_lat_acc_ = 0.0;
@@ -251,5 +254,3 @@ class MPCController : public Controller {
 
 }  // namespace control
 }  // namespace apollo
-
-#endif  // MODULES_CONTROL_CONTROLLER_MPC_CONTROLLER_H_
