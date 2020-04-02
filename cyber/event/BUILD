@@ -4,14 +4,10 @@ package(default_visibility = ["//visibility:public"])
 
 cc_library(
     name = "perf_event_cache",
-    srcs = [
-        "perf_event_cache.cc",
-    ],
-    hdrs = [
-        "perf_event_cache.h",
-    ],
+    srcs = ["perf_event_cache.cc"],
+    hdrs = ["perf_event_cache.h"],
     deps = [
-        "perf_event",
+        ":perf_event",
         "//cyber:state",
         "//cyber/base:bounded_queue",
         "//cyber/common:global_data",

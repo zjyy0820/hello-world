@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "gtest/gtest_prod.h"
 #include "modules/canbus/proto/chassis_detail.pb.h"
 #include "modules/drivers/canbus/can_comm/protocol_data.h"
 
@@ -31,6 +32,7 @@ class Llcmotioncommandfeedback122
   Llcmotioncommandfeedback122();
   void Parse(const std::uint8_t* bytes, int32_t length,
              ChassisDetail* chassis) const override;
+  FRIEND_TEST(Motioncommandfeedback1_22_test, General);
 
  private:
   // config detail: {'description': 'Steering angle setpoint (after limits)',

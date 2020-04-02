@@ -37,8 +37,8 @@ namespace gnss {
 
 class RawStream {
  public:
-  explicit RawStream(const config::Config& config,
-                     const std::shared_ptr<apollo::cyber::Node>& node);
+  RawStream(const config::Config& config,
+            const std::shared_ptr<apollo::cyber::Node>& node);
   ~RawStream();
   bool Init();
 
@@ -96,8 +96,7 @@ class RawStream {
   std::unique_ptr<std::ofstream> gpsbin_stream_ = nullptr;
 
   std::shared_ptr<apollo::cyber::Node> node_ = nullptr;
-  std::shared_ptr<apollo::cyber::Writer<StreamStatus>> stream_writer_ =
-      nullptr;
+  std::shared_ptr<apollo::cyber::Writer<StreamStatus>> stream_writer_ = nullptr;
   std::shared_ptr<apollo::cyber::Writer<RawData>> raw_writer_ = nullptr;
   std::shared_ptr<apollo::cyber::Writer<RawData>> rtcm_writer_ = nullptr;
   std::shared_ptr<apollo::cyber::Reader<RawData>> gpsbin_reader_ = nullptr;

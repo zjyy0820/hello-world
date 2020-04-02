@@ -30,13 +30,14 @@ ReedShepp::ReedShepp(const common::VehicleParam& vehicle_param,
   max_kappa_ = std::tan(vehicle_param_.max_steer_angle() /
                         vehicle_param_.steer_ratio()) /
                vehicle_param_.wheel_base();
+  AINFO_IF(FLAGS_enable_parallel_hybrid_a) << "parallel REEDShepp";
 }
 
-std::pair<double, double> ReedShepp::calc_tau_omega(const double& u,
-                                                    const double& v,
-                                                    const double& xi,
-                                                    const double& eta,
-                                                    const double& phi) {
+std::pair<double, double> ReedShepp::calc_tau_omega(const double u,
+                                                    const double v,
+                                                    const double xi,
+                                                    const double eta,
+                                                    const double phi) {
   double delta = common::math::NormalizeAngle(u - v);
   double A = std::sin(u) - std::sin(delta);
   double B = std::cos(u) - std::cos(delta) - 1.0;
@@ -58,7 +59,7 @@ bool ReedShepp::ShortestRSP(const std::shared_ptr<Node3d> start_node,
                             std::shared_ptr<ReedSheppPath> optimal_path) {
   std::vector<ReedSheppPath> all_possible_paths;
   if (!GenerateRSPs(start_node, end_node, &all_possible_paths)) {
-    AERROR << "Fail to generate different combination of Reed Shepp "
+    ADEBUG << "Fail to generate different combination of Reed Shepp "
               "paths";
     return false;
   }
@@ -66,8 +67,9 @@ bool ReedShepp::ShortestRSP(const std::shared_ptr<Node3d> start_node,
   double optimal_path_length = std::numeric_limits<double>::infinity();
   size_t optimal_path_index = 0;
   size_t paths_size = all_possible_paths.size();
-  for (size_t i = 0; i < paths_size; i++) {
-    if (all_possible_paths.at(i).total_length < optimal_path_length) {
+  for (size_t i = 0; i < paths_size; ++i) {
+    if (all_possible_paths.at(i).total_length > 0 &&
+        all_possible_paths.at(i).total_length < optimal_path_length) {
       optimal_path_index = i;
       optimal_path_length = all_possible_paths.at(i).total_length;
     }
@@ -75,7 +77,7 @@ bool ReedShepp::ShortestRSP(const std::shared_ptr<Node3d> start_node,
 
   if (!GenerateLocalConfigurations(start_node, end_node,
                                    &(all_possible_paths[optimal_path_index]))) {
-    AERROR << "Fail to generate local configurations(x, y, phi) in ShortestRSP";
+    ADEBUG << "Fail to generate local configurations(x, y, phi) in SetRSP";
     return false;
   }
 
@@ -85,15 +87,20 @@ bool ReedShepp::ShortestRSP(const std::shared_ptr<Node3d> start_node,
                end_node->GetY()) > 1e-3 ||
       std::abs(all_possible_paths[optimal_path_index].phi.back() -
                end_node->GetPhi()) > 1e-3) {
-    AERROR << "RSP end position not right";
+    ADEBUG << "RSP end position not right";
     for (size_t i = 0;
-         i < all_possible_paths[optimal_path_index].segs_types.size(); i++) {
-      AERROR << "types are "
+         i < all_possible_paths[optimal_path_index].segs_types.size(); ++i) {
+      ADEBUG << "types are "
              << all_possible_paths[optimal_path_index].segs_types[i];
     }
+    ADEBUG << "x, y, phi are: "
+           << all_possible_paths[optimal_path_index].x.back() << ", "
+           << all_possible_paths[optimal_path_index].y.back() << ", "
+           << all_possible_paths[optimal_path_index].phi.back();
+    ADEBUG << "end x, y, phi are: " << end_node->GetX() << ", "
+           << end_node->GetY() << ", " << end_node->GetPhi();
     return false;
   }
-
   (*optimal_path).x = all_possible_paths[optimal_path_index].x;
   (*optimal_path).y = all_possible_paths[optimal_path_index].y;
   (*optimal_path).phi = all_possible_paths[optimal_path_index].phi;
@@ -110,9 +117,17 @@ bool ReedShepp::ShortestRSP(const std::shared_ptr<Node3d> start_node,
 bool ReedShepp::GenerateRSPs(const std::shared_ptr<Node3d> start_node,
                              const std::shared_ptr<Node3d> end_node,
                              std::vector<ReedSheppPath>* all_possible_paths) {
-  if (!GenerateRSP(start_node, end_node, all_possible_paths)) {
-    AERROR << "Fail to generate general profile of different RSPs";
-    return false;
+  if (FLAGS_enable_parallel_hybrid_a) {
+    // AINFO << "parallel hybrid a*";
+    if (!GenerateRSPPar(start_node, end_node, all_possible_paths)) {
+      ADEBUG << "Fail to generate general profile of different RSPs";
+      return false;
+    }
+  } else {
+    if (!GenerateRSP(start_node, end_node, all_possible_paths)) {
+      AERROR << "Fail to generate general profile of different RSPs";
+      return false;
+    }
   }
   return true;
 }
@@ -129,31 +144,31 @@ bool ReedShepp::GenerateRSP(const std::shared_ptr<Node3d> start_node,
   double x = (c * dx + s * dy) * max_kappa_;
   double y = (-s * dx + c * dy) * max_kappa_;
   if (!SCS(x, y, dphi, all_possible_paths)) {
-    AERROR << "Fail at SCS";
+    ADEBUG << "Fail at SCS";
   }
   if (!CSC(x, y, dphi, all_possible_paths)) {
-    AERROR << "Fail at CSC";
+    ADEBUG << "Fail at CSC";
   }
   if (!CCC(x, y, dphi, all_possible_paths)) {
-    AERROR << "Fail at CCC";
+    ADEBUG << "Fail at CCC";
   }
   if (!CCCC(x, y, dphi, all_possible_paths)) {
-    AERROR << "Fail at CCCC";
+    ADEBUG << "Fail at CCCC";
   }
   if (!CCSC(x, y, dphi, all_possible_paths)) {
-    AERROR << "Fail at CCSC";
+    ADEBUG << "Fail at CCSC";
   }
   if (!CCSCC(x, y, dphi, all_possible_paths)) {
-    AERROR << "Fail at CCSCC";
+    ADEBUG << "Fail at CCSCC";
   }
-  if (all_possible_paths->size() == 0) {
-    AERROR << "No path generated by certain two configurations";
+  if (all_possible_paths->empty()) {
+    ADEBUG << "No path generated by certain two configurations";
     return false;
   }
   return true;
 }
 
-bool ReedShepp::SCS(const double& x, const double& y, const double& phi,
+bool ReedShepp::SCS(const double x, const double y, const double phi,
                     std::vector<ReedSheppPath>* all_possible_paths) {
   RSPParam SLS_param;
   SLS(x, y, phi, &SLS_param);
@@ -161,22 +176,23 @@ bool ReedShepp::SCS(const double& x, const double& y, const double& phi,
   char SLS_types[] = "SLS";
   if (SLS_param.flag &&
       !SetRSP(3, SLS_lengths, SLS_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with SLS_param";
+    ADEBUG << "Fail at SetRSP with SLS_param";
     return false;
   }
+
   RSPParam SRS_param;
   SLS(x, -y, -phi, &SRS_param);
   double SRS_lengths[3] = {SRS_param.t, SRS_param.u, SRS_param.v};
   char SRS_types[] = "SRS";
   if (SRS_param.flag &&
       !SetRSP(3, SRS_lengths, SRS_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with SRS_param";
+    ADEBUG << "Fail at SetRSP with SRS_param";
     return false;
   }
   return true;
 }
 
-bool ReedShepp::CSC(const double& x, const double& y, const double& phi,
+bool ReedShepp::CSC(const double x, const double y, const double phi,
                     std::vector<ReedSheppPath>* all_possible_paths) {
   RSPParam LSL1_param;
   LSL(x, y, phi, &LSL1_param);
@@ -184,7 +200,7 @@ bool ReedShepp::CSC(const double& x, const double& y, const double& phi,
   char LSL1_types[] = "LSL";
   if (LSL1_param.flag &&
       !SetRSP(3, LSL1_lengths, LSL1_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LSL_param";
+    ADEBUG << "Fail at SetRSP with LSL_param";
     return false;
   }
 
@@ -194,7 +210,7 @@ bool ReedShepp::CSC(const double& x, const double& y, const double& phi,
   char LSL2_types[] = "LSL";
   if (LSL2_param.flag &&
       !SetRSP(3, LSL2_lengths, LSL2_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LSL2_param";
+    ADEBUG << "Fail at SetRSP with LSL2_param";
     return false;
   }
 
@@ -204,7 +220,7 @@ bool ReedShepp::CSC(const double& x, const double& y, const double& phi,
   char LSL3_types[] = "RSR";
   if (LSL3_param.flag &&
       !SetRSP(3, LSL3_lengths, LSL3_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LSL3_param";
+    ADEBUG << "Fail at SetRSP with LSL3_param";
     return false;
   }
 
@@ -214,7 +230,7 @@ bool ReedShepp::CSC(const double& x, const double& y, const double& phi,
   char LSL4_types[] = "RSR";
   if (LSL4_param.flag &&
       !SetRSP(3, LSL4_lengths, LSL4_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LSL4_param";
+    ADEBUG << "Fail at SetRSP with LSL4_param";
     return false;
   }
 
@@ -224,7 +240,7 @@ bool ReedShepp::CSC(const double& x, const double& y, const double& phi,
   char LSR1_types[] = "LSR";
   if (LSR1_param.flag &&
       !SetRSP(3, LSR1_lengths, LSR1_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LSR1_param";
+    ADEBUG << "Fail at SetRSP with LSR1_param";
     return false;
   }
 
@@ -234,7 +250,7 @@ bool ReedShepp::CSC(const double& x, const double& y, const double& phi,
   char LSR2_types[] = "LSR";
   if (LSR2_param.flag &&
       !SetRSP(3, LSR2_lengths, LSR2_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LSR2_param";
+    ADEBUG << "Fail at SetRSP with LSR2_param";
     return false;
   }
 
@@ -244,7 +260,7 @@ bool ReedShepp::CSC(const double& x, const double& y, const double& phi,
   char LSR3_types[] = "RSL";
   if (LSR3_param.flag &&
       !SetRSP(3, LSR3_lengths, LSR3_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LSR3_param";
+    ADEBUG << "Fail at SetRSP with LSR3_param";
     return false;
   }
 
@@ -254,13 +270,13 @@ bool ReedShepp::CSC(const double& x, const double& y, const double& phi,
   char LSR4_types[] = "RSL";
   if (LSR4_param.flag &&
       !SetRSP(3, LSR4_lengths, LSR4_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LSR4_param";
+    ADEBUG << "Fail at SetRSP with LSR4_param";
     return false;
   }
   return true;
 }
 
-bool ReedShepp::CCC(const double& x, const double& y, const double& phi,
+bool ReedShepp::CCC(const double x, const double y, const double phi,
                     std::vector<ReedSheppPath>* all_possible_paths) {
   RSPParam LRL1_param;
   LRL(x, y, phi, &LRL1_param);
@@ -268,7 +284,7 @@ bool ReedShepp::CCC(const double& x, const double& y, const double& phi,
   char LRL1_types[] = "LRL";
   if (LRL1_param.flag &&
       !SetRSP(3, LRL1_lengths, LRL1_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRL_param";
+    ADEBUG << "Fail at SetRSP with LRL_param";
     return false;
   }
 
@@ -278,7 +294,7 @@ bool ReedShepp::CCC(const double& x, const double& y, const double& phi,
   char LRL2_types[] = "LRL";
   if (LRL2_param.flag &&
       !SetRSP(3, LRL2_lengths, LRL2_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRL2_param";
+    ADEBUG << "Fail at SetRSP with LRL2_param";
     return false;
   }
 
@@ -288,7 +304,7 @@ bool ReedShepp::CCC(const double& x, const double& y, const double& phi,
   char LRL3_types[] = "RLR";
   if (LRL3_param.flag &&
       !SetRSP(3, LRL3_lengths, LRL3_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRL3_param";
+    ADEBUG << "Fail at SetRSP with LRL3_param";
     return false;
   }
 
@@ -298,7 +314,7 @@ bool ReedShepp::CCC(const double& x, const double& y, const double& phi,
   char LRL4_types[] = "RLR";
   if (LRL4_param.flag &&
       !SetRSP(3, LRL4_lengths, LRL4_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRL4_param";
+    ADEBUG << "Fail at SetRSP with LRL4_param";
     return false;
   }
 
@@ -312,7 +328,7 @@ bool ReedShepp::CCC(const double& x, const double& y, const double& phi,
   char LRL5_types[] = "LRL";
   if (LRL5_param.flag &&
       !SetRSP(3, LRL5_lengths, LRL5_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRL5_param";
+    ADEBUG << "Fail at SetRSP with LRL5_param";
     return false;
   }
 
@@ -322,7 +338,7 @@ bool ReedShepp::CCC(const double& x, const double& y, const double& phi,
   char LRL6_types[] = "LRL";
   if (LRL6_param.flag &&
       !SetRSP(3, LRL6_lengths, LRL6_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRL6_param";
+    ADEBUG << "Fail at SetRSP with LRL6_param";
     return false;
   }
 
@@ -332,7 +348,7 @@ bool ReedShepp::CCC(const double& x, const double& y, const double& phi,
   char LRL7_types[] = "RLR";
   if (LRL7_param.flag &&
       !SetRSP(3, LRL7_lengths, LRL7_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRL7_param";
+    ADEBUG << "Fail at SetRSP with LRL7_param";
     return false;
   }
 
@@ -342,13 +358,13 @@ bool ReedShepp::CCC(const double& x, const double& y, const double& phi,
   char LRL8_types[] = "RLR";
   if (LRL8_param.flag &&
       !SetRSP(3, LRL8_lengths, LRL8_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRL8_param";
+    ADEBUG << "Fail at SetRSP with LRL8_param";
     return false;
   }
   return true;
 }
 
-bool ReedShepp::CCCC(const double& x, const double& y, const double& phi,
+bool ReedShepp::CCCC(const double x, const double y, const double phi,
                      std::vector<ReedSheppPath>* all_possible_paths) {
   RSPParam LRLRn1_param;
   LRLRn(x, y, phi, &LRLRn1_param);
@@ -357,7 +373,7 @@ bool ReedShepp::CCCC(const double& x, const double& y, const double& phi,
   char LRLRn1_types[] = "LRLR";
   if (LRLRn1_param.flag &&
       !SetRSP(4, LRLRn1_lengths, LRLRn1_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRLRn_param";
+    ADEBUG << "Fail at SetRSP with LRLRn_param";
     return false;
   }
 
@@ -368,7 +384,7 @@ bool ReedShepp::CCCC(const double& x, const double& y, const double& phi,
   char LRLRn2_types[] = "LRLR";
   if (LRLRn2_param.flag &&
       !SetRSP(4, LRLRn2_lengths, LRLRn2_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRLRn2_param";
+    ADEBUG << "Fail at SetRSP with LRLRn2_param";
     return false;
   }
 
@@ -379,7 +395,7 @@ bool ReedShepp::CCCC(const double& x, const double& y, const double& phi,
   char LRLRn3_types[] = "RLRL";
   if (LRLRn3_param.flag &&
       !SetRSP(4, LRLRn3_lengths, LRLRn3_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRLRn3_param";
+    ADEBUG << "Fail at SetRSP with LRLRn3_param";
     return false;
   }
 
@@ -390,7 +406,7 @@ bool ReedShepp::CCCC(const double& x, const double& y, const double& phi,
   char LRLRn4_types[] = "RLRL";
   if (LRLRn4_param.flag &&
       !SetRSP(4, LRLRn4_lengths, LRLRn4_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRLRn4_param";
+    ADEBUG << "Fail at SetRSP with LRLRn4_param";
     return false;
   }
 
@@ -401,7 +417,7 @@ bool ReedShepp::CCCC(const double& x, const double& y, const double& phi,
   char LRLRp1_types[] = "LRLR";
   if (LRLRp1_param.flag &&
       !SetRSP(4, LRLRp1_lengths, LRLRp1_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRLRp1_param";
+    ADEBUG << "Fail at SetRSP with LRLRp1_param";
     return false;
   }
 
@@ -412,7 +428,7 @@ bool ReedShepp::CCCC(const double& x, const double& y, const double& phi,
   char LRLRp2_types[] = "LRLR";
   if (LRLRp2_param.flag &&
       !SetRSP(4, LRLRp2_lengths, LRLRp2_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRLRp2_param";
+    ADEBUG << "Fail at SetRSP with LRLRp2_param";
     return false;
   }
 
@@ -423,7 +439,7 @@ bool ReedShepp::CCCC(const double& x, const double& y, const double& phi,
   char LRLRp3_types[] = "RLRL";
   if (LRLRp3_param.flag &&
       !SetRSP(4, LRLRp3_lengths, LRLRp3_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRLRp3_param";
+    ADEBUG << "Fail at SetRSP with LRLRp3_param";
     return false;
   }
 
@@ -434,13 +450,13 @@ bool ReedShepp::CCCC(const double& x, const double& y, const double& phi,
   char LRLRp4_types[] = "RLRL";
   if (LRLRp4_param.flag &&
       !SetRSP(4, LRLRp4_lengths, LRLRp4_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRLRp4_param";
+    ADEBUG << "Fail at SetRSP with LRLRp4_param";
     return false;
   }
   return true;
 }
 
-bool ReedShepp::CCSC(const double& x, const double& y, const double& phi,
+bool ReedShepp::CCSC(const double x, const double y, const double phi,
                      std::vector<ReedSheppPath>* all_possible_paths) {
   RSPParam LRSL1_param;
   LRLRn(x, y, phi, &LRSL1_param);
@@ -449,7 +465,7 @@ bool ReedShepp::CCSC(const double& x, const double& y, const double& phi,
   char LRSL1_types[] = "LRSL";
   if (LRSL1_param.flag &&
       !SetRSP(4, LRSL1_lengths, LRSL1_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRSL1_param";
+    ADEBUG << "Fail at SetRSP with LRSL1_param";
     return false;
   }
 
@@ -460,7 +476,7 @@ bool ReedShepp::CCSC(const double& x, const double& y, const double& phi,
   char LRSL2_types[] = "LRSL";
   if (LRSL2_param.flag &&
       !SetRSP(4, LRSL2_lengths, LRSL2_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRSL2_param";
+    ADEBUG << "Fail at SetRSP with LRSL2_param";
     return false;
   }
 
@@ -471,7 +487,7 @@ bool ReedShepp::CCSC(const double& x, const double& y, const double& phi,
   char LRSL3_types[] = "RLSR";
   if (LRSL3_param.flag &&
       !SetRSP(4, LRSL3_lengths, LRSL3_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRSL3_param";
+    ADEBUG << "Fail at SetRSP with LRSL3_param";
     return false;
   }
 
@@ -482,7 +498,7 @@ bool ReedShepp::CCSC(const double& x, const double& y, const double& phi,
   char LRSL4_types[] = "RLSR";
   if (LRSL4_param.flag &&
       !SetRSP(4, LRSL4_lengths, LRSL4_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRSL4_param";
+    ADEBUG << "Fail at SetRSP with LRSL4_param";
     return false;
   }
 
@@ -493,7 +509,7 @@ bool ReedShepp::CCSC(const double& x, const double& y, const double& phi,
   char LRSR1_types[] = "LRSR";
   if (LRSR1_param.flag &&
       !SetRSP(4, LRSR1_lengths, LRSR1_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRSR1_param";
+    ADEBUG << "Fail at SetRSP with LRSR1_param";
     return false;
   }
 
@@ -504,7 +520,7 @@ bool ReedShepp::CCSC(const double& x, const double& y, const double& phi,
   char LRSR2_types[] = "LRSR";
   if (LRSR2_param.flag &&
       !SetRSP(4, LRSR2_lengths, LRSR2_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRSR2_param";
+    ADEBUG << "Fail at SetRSP with LRSR2_param";
     return false;
   }
 
@@ -515,7 +531,7 @@ bool ReedShepp::CCSC(const double& x, const double& y, const double& phi,
   char LRSR3_types[] = "RLSL";
   if (LRSR3_param.flag &&
       !SetRSP(4, LRSR3_lengths, LRSR3_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRSR3_param";
+    ADEBUG << "Fail at SetRSP with LRSR3_param";
     return false;
   }
 
@@ -526,7 +542,7 @@ bool ReedShepp::CCSC(const double& x, const double& y, const double& phi,
   char LRSR4_types[] = "RLSL";
   if (LRSR4_param.flag &&
       !SetRSP(4, LRSR4_lengths, LRSR4_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRSR4_param";
+    ADEBUG << "Fail at SetRSP with LRSR4_param";
     return false;
   }
 
@@ -541,7 +557,7 @@ bool ReedShepp::CCSC(const double& x, const double& y, const double& phi,
   char LRSL5_types[] = "LSRL";
   if (LRSL5_param.flag &&
       !SetRSP(4, LRSL5_lengths, LRSL5_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRLRn_param";
+    ADEBUG << "Fail at SetRSP with LRLRn_param";
     return false;
   }
 
@@ -552,7 +568,7 @@ bool ReedShepp::CCSC(const double& x, const double& y, const double& phi,
   char LRSL6_types[] = "LSRL";
   if (LRSL6_param.flag &&
       !SetRSP(4, LRSL6_lengths, LRSL6_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRSL6_param";
+    ADEBUG << "Fail at SetRSP with LRSL6_param";
     return false;
   }
 
@@ -563,7 +579,7 @@ bool ReedShepp::CCSC(const double& x, const double& y, const double& phi,
   char LRSL7_types[] = "RSLR";
   if (LRSL7_param.flag &&
       !SetRSP(4, LRSL7_lengths, LRSL7_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRSL7_param";
+    ADEBUG << "Fail at SetRSP with LRSL7_param";
     return false;
   }
 
@@ -574,7 +590,7 @@ bool ReedShepp::CCSC(const double& x, const double& y, const double& phi,
   char LRSL8_types[] = "RSLR";
   if (LRSL8_param.flag &&
       !SetRSP(4, LRSL8_lengths, LRSL8_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRSL8_param";
+    ADEBUG << "Fail at SetRSP with LRSL8_param";
     return false;
   }
 
@@ -585,7 +601,7 @@ bool ReedShepp::CCSC(const double& x, const double& y, const double& phi,
   char LRSR5_types[] = "RSRL";
   if (LRSR5_param.flag &&
       !SetRSP(4, LRSR5_lengths, LRSR5_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRSR5_param";
+    ADEBUG << "Fail at SetRSP with LRSR5_param";
     return false;
   }
 
@@ -596,7 +612,7 @@ bool ReedShepp::CCSC(const double& x, const double& y, const double& phi,
   char LRSR6_types[] = "RSRL";
   if (LRSR6_param.flag &&
       !SetRSP(4, LRSR6_lengths, LRSR6_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRSR6_param";
+    ADEBUG << "Fail at SetRSP with LRSR6_param";
     return false;
   }
 
@@ -607,7 +623,7 @@ bool ReedShepp::CCSC(const double& x, const double& y, const double& phi,
   char LRSR7_types[] = "LSLR";
   if (LRSR7_param.flag &&
       !SetRSP(4, LRSR7_lengths, LRSR7_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRSR7_param";
+    ADEBUG << "Fail at SetRSP with LRSR7_param";
     return false;
   }
 
@@ -618,13 +634,13 @@ bool ReedShepp::CCSC(const double& x, const double& y, const double& phi,
   char LRSR8_types[] = "LSLR";
   if (LRSR8_param.flag &&
       !SetRSP(4, LRSR8_lengths, LRSR8_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRSR8_param";
+    ADEBUG << "Fail at SetRSP with LRSR8_param";
     return false;
   }
   return true;
 }
 
-bool ReedShepp::CCSCC(const double& x, const double& y, const double& phi,
+bool ReedShepp::CCSCC(const double x, const double y, const double phi,
                       std::vector<ReedSheppPath>* all_possible_paths) {
   RSPParam LRSLR1_param;
   LRSLR(x, y, phi, &LRSLR1_param);
@@ -633,7 +649,7 @@ bool ReedShepp::CCSCC(const double& x, const double& y, const double& phi,
   char LRSLR1_types[] = "LRSLR";
   if (LRSLR1_param.flag &&
       !SetRSP(5, LRSLR1_lengths, LRSLR1_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRSLR1_param";
+    ADEBUG << "Fail at SetRSP with LRSLR1_param";
     return false;
   }
 
@@ -644,7 +660,7 @@ bool ReedShepp::CCSCC(const double& x, const double& y, const double& phi,
   char LRSLR2_types[] = "LRSLR";
   if (LRSLR2_param.flag &&
       !SetRSP(5, LRSLR2_lengths, LRSLR2_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRSLR2_param";
+    ADEBUG << "Fail at SetRSP with LRSLR2_param";
     return false;
   }
 
@@ -655,7 +671,7 @@ bool ReedShepp::CCSCC(const double& x, const double& y, const double& phi,
   char LRSLR3_types[] = "RLSRL";
   if (LRSLR3_param.flag &&
       !SetRSP(5, LRSLR3_lengths, LRSLR3_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRSLR3_param";
+    ADEBUG << "Fail at SetRSP with LRSLR3_param";
     return false;
   }
 
@@ -666,13 +682,13 @@ bool ReedShepp::CCSCC(const double& x, const double& y, const double& phi,
   char LRSLR4_types[] = "RLSRL";
   if (LRSLR4_param.flag &&
       !SetRSP(5, LRSLR4_lengths, LRSLR4_types, all_possible_paths)) {
-    AERROR << "Fail at SetRSP with LRSLR4_param";
+    ADEBUG << "Fail at SetRSP with LRSLR4_param";
     return false;
   }
   return true;
 }
 
-void ReedShepp::LSL(const double& x, const double& y, const double& phi,
+void ReedShepp::LSL(const double x, const double y, const double phi,
                     RSPParam* param) {
   std::pair<double, double> polar =
       common::math::Cartesian2Polar(x - std::sin(phi), y - 1.0 + std::cos(phi));
@@ -690,7 +706,7 @@ void ReedShepp::LSL(const double& x, const double& y, const double& phi,
   }
 }
 
-void ReedShepp::LSR(const double& x, const double& y, const double& phi,
+void ReedShepp::LSR(const double x, const double y, const double phi,
                     RSPParam* param) {
   std::pair<double, double> polar =
       common::math::Cartesian2Polar(x + std::sin(phi), y - 1.0 - std::cos(phi));
@@ -714,7 +730,7 @@ void ReedShepp::LSR(const double& x, const double& y, const double& phi,
   }
 }
 
-void ReedShepp::LRL(const double& x, const double& y, const double& phi,
+void ReedShepp::LRL(const double x, const double y, const double phi,
                     RSPParam* param) {
   std::pair<double, double> polar =
       common::math::Cartesian2Polar(x - std::sin(phi), y - 1.0 + std::cos(phi));
@@ -736,7 +752,7 @@ void ReedShepp::LRL(const double& x, const double& y, const double& phi,
   }
 }
 
-void ReedShepp::SLS(const double& x, const double& y, const double& phi,
+void ReedShepp::SLS(const double x, const double y, const double phi,
                     RSPParam* param) {
   double phi_mod = common::math::NormalizeAngle(phi);
   double xd = 0.0;
@@ -765,7 +781,7 @@ void ReedShepp::SLS(const double& x, const double& y, const double& phi,
   }
 }
 
-void ReedShepp::LRLRn(const double& x, const double& y, const double& phi,
+void ReedShepp::LRLRn(const double x, const double y, const double phi,
                       RSPParam* param) {
   double xi = x + std::sin(phi);
   double eta = y - 1.0 - std::cos(phi);
@@ -785,7 +801,7 @@ void ReedShepp::LRLRn(const double& x, const double& y, const double& phi,
   }
 }
 
-void ReedShepp::LRLRp(const double& x, const double& y, const double& phi,
+void ReedShepp::LRLRp(const double x, const double y, const double phi,
                       RSPParam* param) {
   double xi = x + std::sin(phi);
   double eta = y - 1.0 - std::cos(phi);
@@ -805,7 +821,7 @@ void ReedShepp::LRLRp(const double& x, const double& y, const double& phi,
   }
 }
 
-void ReedShepp::LRSR(const double& x, const double& y, const double& phi,
+void ReedShepp::LRSR(const double x, const double y, const double phi,
                      RSPParam* param) {
   double xi = x + std::sin(phi);
   double eta = y - 1.0 - std::cos(phi);
@@ -828,7 +844,7 @@ void ReedShepp::LRSR(const double& x, const double& y, const double& phi,
   }
 }
 
-void ReedShepp::LRSL(const double& x, const double& y, const double& phi,
+void ReedShepp::LRSL(const double x, const double y, const double phi,
                      RSPParam* param) {
   double xi = x - std::sin(phi);
   double eta = y - 1.0 + std::cos(phi);
@@ -854,7 +870,7 @@ void ReedShepp::LRSL(const double& x, const double& y, const double& phi,
   }
 }
 
-void ReedShepp::LRSLR(const double& x, const double& y, const double& phi,
+void ReedShepp::LRSLR(const double x, const double y, const double phi,
                       RSPParam* param) {
   double xi = x + std::sin(phi);
   double eta = y - 1.0 - std::cos(phi);
@@ -880,8 +896,7 @@ void ReedShepp::LRSLR(const double& x, const double& y, const double& phi,
   }
 }
 
-bool ReedShepp::SetRSP(const int& size, const double* lengths,
-                       const char* types,
+bool ReedShepp::SetRSP(const int size, const double* lengths, const char* types,
                        std::vector<ReedSheppPath>* all_possible_paths) {
   ReedSheppPath path;
   std::vector<double> length_vec(lengths, lengths + size);
@@ -889,7 +904,7 @@ bool ReedShepp::SetRSP(const int& size, const double* lengths,
   path.segs_lengths = length_vec;
   path.segs_types = type_vec;
   double sum = 0.0;
-  for (int i = 0; i < size; i++) {
+  for (int i = 0; i < size; ++i) {
     sum += std::abs(lengths[i]);
   }
   path.total_length = sum;
@@ -928,7 +943,7 @@ bool ReedShepp::GenerateLocalConfigurations(
     d = -step_scaled;
   }
   pd = d;
-  for (size_t i = 0; i < shortest_path->segs_types.size(); i++) {
+  for (size_t i = 0; i < shortest_path->segs_types.size(); ++i) {
     char m = shortest_path->segs_types.at(i);
     double l = shortest_path->segs_lengths.at(i);
     if (l > 0.0) {
@@ -964,7 +979,7 @@ bool ReedShepp::GenerateLocalConfigurations(
     pphi.pop_back();
     pgear.pop_back();
   }
-  for (size_t i = 0; i < px.size(); i++) {
+  for (size_t i = 0; i < px.size(); ++i) {
     shortest_path->x.push_back(std::cos(-start_node->GetPhi()) * px.at(i) +
                                std::sin(-start_node->GetPhi()) * py.at(i) +
                                start_node->GetX());
@@ -975,7 +990,7 @@ bool ReedShepp::GenerateLocalConfigurations(
         common::math::NormalizeAngle(pphi.at(i) + start_node->GetPhi()));
   }
   shortest_path->gear = pgear;
-  for (size_t i = 0; i < shortest_path->segs_lengths.size(); i++) {
+  for (size_t i = 0; i < shortest_path->segs_lengths.size(); ++i) {
     shortest_path->segs_lengths.at(i) =
         shortest_path->segs_lengths.at(i) / max_kappa_;
   }
@@ -983,9 +998,9 @@ bool ReedShepp::GenerateLocalConfigurations(
   return true;
 }
 
-void ReedShepp::Interpolation(const int& index, const double& pd, const char& m,
-                              const double& ox, const double& oy,
-                              const double& ophi, std::vector<double>* px,
+void ReedShepp::Interpolation(const int index, const double pd, const char m,
+                              const double ox, const double oy,
+                              const double ophi, std::vector<double>* px,
                               std ::vector<double>* py,
                               std::vector<double>* pphi,
                               std::vector<bool>* pgear) {
@@ -1021,6 +1036,238 @@ void ReedShepp::Interpolation(const int& index, const double& pd, const char& m,
   } else if (m == 'R') {
     pphi->at(index) = ophi - pd;
   }
+}
+
+bool ReedShepp::SetRSPPar(const int size, const double* lengths,
+                          const std::string& types,
+                          std::vector<ReedSheppPath>* all_possible_paths,
+                          const int idx) {
+  ReedSheppPath path;
+  std::vector<double> length_vec(lengths, lengths + size);
+  std::vector<char> type_vec(types.begin(), types.begin() + size);
+  path.segs_lengths = length_vec;
+  path.segs_types = type_vec;
+  double sum = 0.0;
+  for (int i = 0; i < size; ++i) {
+    sum += std::abs(lengths[i]);
+  }
+  path.total_length = sum;
+  if (path.total_length <= 0.0) {
+    AERROR << "total length smaller than 0";
+    return false;
+  }
+
+  all_possible_paths->at(idx) = path;
+  return true;
+}
+
+bool ReedShepp::GenerateRSPPar(const std::shared_ptr<Node3d> start_node,
+                               const std::shared_ptr<Node3d> end_node,
+                               std::vector<ReedSheppPath>* all_possible_paths) {
+  double dx = end_node->GetX() - start_node->GetX();
+  double dy = end_node->GetY() - start_node->GetY();
+  double dphi = end_node->GetPhi() - start_node->GetPhi();
+  double c = std::cos(start_node->GetPhi());
+  double s = std::sin(start_node->GetPhi());
+  // normalize the initial point to (0,0,0)
+  double x = (c * dx + s * dy) * this->max_kappa_;
+  double y = (-s * dx + c * dy) * this->max_kappa_;
+  // backward
+  double xb = x * std::cos(dphi) + y * std::sin(dphi);
+  double yb = x * std::sin(dphi) - y * std::cos(dphi);
+
+  int RSP_nums = 46;
+  all_possible_paths->resize(RSP_nums);
+  bool succ = true;
+#pragma omp parallel for schedule(dynamic, 2) num_threads(8)
+  for (int i = 0; i < RSP_nums; ++i) {
+    RSPParam RSP_param;
+    int tmp_length = 0;
+    double RSP_lengths[5] = {0.0, 0.0, 0.0, 0.0, 0.0};
+    double x_param = 1.0;
+    double y_param = 1.0;
+    std::string rd_type;
+
+    if (i > 2 && i % 2) {
+      x_param = -1.0;
+    }
+    if (i > 2 && i % 4 < 2) {
+      y_param = -1.0;
+    }
+
+    if (i < 2) {  // SCS case
+      if (i == 1) {
+        y_param = -1.0;
+        rd_type = "SRS";
+      } else {
+        rd_type = "SLS";
+      }
+      SLS(x, y_param * y, y_param * dphi, &RSP_param);
+      tmp_length = 3;
+      RSP_lengths[0] = RSP_param.t;
+      RSP_lengths[1] = RSP_param.u;
+      RSP_lengths[2] = RSP_param.v;
+    } else if (i < 6) {  // CSC, LSL case
+      LSL(x_param * x, y_param * y, x_param * y_param * dphi, &RSP_param);
+      if (y_param > 0) {
+        rd_type = "LSL";
+      } else {
+        rd_type = "RSR";
+      }
+      tmp_length = 3;
+      RSP_lengths[0] = x_param * RSP_param.t;
+      RSP_lengths[1] = x_param * RSP_param.u;
+      RSP_lengths[2] = x_param * RSP_param.v;
+    } else if (i < 10) {  // CSC, LSR case
+      LSR(x_param * x, y_param * y, x_param * y_param * dphi, &RSP_param);
+      if (y_param > 0) {
+        rd_type = "LSR";
+      } else {
+        rd_type = "RSL";
+      }
+      tmp_length = 3;
+      RSP_lengths[0] = x_param * RSP_param.t;
+      RSP_lengths[1] = x_param * RSP_param.u;
+      RSP_lengths[2] = x_param * RSP_param.v;
+    } else if (i < 14) {  // CCC, LRL case
+      LRL(x_param * x, y_param * y, x_param * y_param * dphi, &RSP_param);
+      if (y_param > 0) {
+        rd_type = "LRL";
+      } else {
+        rd_type = "RLR";
+      }
+      tmp_length = 3;
+      RSP_lengths[0] = x_param * RSP_param.t;
+      RSP_lengths[1] = x_param * RSP_param.u;
+      RSP_lengths[2] = x_param * RSP_param.v;
+    } else if (i < 18) {  // CCC, LRL case, backward
+      LRL(x_param * xb, y_param * yb, x_param * y_param * dphi, &RSP_param);
+      if (y_param > 0) {
+        rd_type = "LRL";
+      } else {
+        rd_type = "RLR";
+      }
+      tmp_length = 3;
+      RSP_lengths[0] = x_param * RSP_param.v;
+      RSP_lengths[1] = x_param * RSP_param.u;
+      RSP_lengths[2] = x_param * RSP_param.t;
+    } else if (i < 22) {  // CCCC, LRLRn
+      LRLRn(x_param * x, y_param * y, x_param * y_param * dphi, &RSP_param);
+      if (y_param > 0.0) {
+        rd_type = "LRLR";
+      } else {
+        rd_type = "RLRL";
+      }
+      tmp_length = 4;
+      RSP_lengths[0] = x_param * RSP_param.t;
+      RSP_lengths[1] = x_param * RSP_param.u;
+      RSP_lengths[2] = -x_param * RSP_param.u;
+      RSP_lengths[3] = x_param * RSP_param.v;
+    } else if (i < 26) {  // CCCC, LRLRp
+      LRLRp(x_param * x, y_param * y, x_param * y_param * dphi, &RSP_param);
+      if (y_param > 0.0) {
+        rd_type = "LRLR";
+      } else {
+        rd_type = "RLRL";
+      }
+      tmp_length = 4;
+      RSP_lengths[0] = x_param * RSP_param.t;
+      RSP_lengths[1] = x_param * RSP_param.u;
+      RSP_lengths[2] = -x_param * RSP_param.u;
+      RSP_lengths[3] = x_param * RSP_param.v;
+    } else if (i < 30) {  // CCSC, LRLRn
+      tmp_length = 4;
+      LRLRn(x_param * x, y_param * y, x_param * y_param * dphi, &RSP_param);
+      if (y_param > 0.0) {
+        rd_type = "LRSL";
+      } else {
+        rd_type = "RLSR";
+      }
+      RSP_lengths[0] = x_param * RSP_param.t;
+      if (x_param < 0 && y_param > 0) {
+        RSP_lengths[1] = 0.5 * M_PI;
+      } else {
+        RSP_lengths[1] = -0.5 * M_PI;
+      }
+      if (x_param > 0 && y_param < 0) {
+        RSP_lengths[2] = RSP_param.u;
+      } else {
+        RSP_lengths[2] = -RSP_param.u;
+      }
+      RSP_lengths[3] = x_param * RSP_param.v;
+    } else if (i < 34) {  // CCSC, LRLRp
+      tmp_length = 4;
+      LRLRp(x_param * x, y_param * y, x_param * y_param * dphi, &RSP_param);
+      if (y_param) {
+        rd_type = "LRSR";
+      } else {
+        rd_type = "RLSL";
+      }
+      RSP_lengths[0] = x_param * RSP_param.t;
+      if (x_param < 0 && y_param > 0) {
+        RSP_lengths[1] = 0.5 * M_PI;
+      } else {
+        RSP_lengths[1] = -0.5 * M_PI;
+      }
+      RSP_lengths[2] = x_param * RSP_param.u;
+      RSP_lengths[3] = x_param * RSP_param.v;
+    } else if (i < 38) {  // CCSC, LRLRn, backward
+      tmp_length = 4;
+      LRLRn(x_param * xb, y_param * yb, x_param * y_param * dphi, &RSP_param);
+      if (y_param > 0) {
+        rd_type = "LSRL";
+      } else {
+        rd_type = "RSLR";
+      }
+      RSP_lengths[0] = x_param * RSP_param.v;
+      RSP_lengths[1] = x_param * RSP_param.u;
+      RSP_lengths[2] = -x_param * 0.5 * M_PI;
+      RSP_lengths[3] = x_param * RSP_param.t;
+    } else if (i < 42) {  // CCSC, LRLRp, backward
+      tmp_length = 4;
+      LRLRp(x_param * xb, y_param * yb, x_param * y_param * dphi, &RSP_param);
+      if (y_param > 0) {
+        rd_type = "RSRL";
+      } else {
+        rd_type = "LSLR";
+      }
+      RSP_lengths[0] = x_param * RSP_param.v;
+      RSP_lengths[1] = x_param * RSP_param.u;
+      RSP_lengths[2] = -x_param * M_PI * 0.5;
+      RSP_lengths[3] = x_param * RSP_param.t;
+    } else {  // CCSCC, LRSLR
+      tmp_length = 5;
+      LRSLR(x_param * x, y_param * y, x_param * y_param * dphi, &RSP_param);
+      if (y_param > 0.0) {
+        rd_type = "LRSLR";
+      } else {
+        rd_type = "RLSRL";
+      }
+      RSP_lengths[0] = x_param * RSP_param.t;
+      RSP_lengths[1] = -x_param * 0.5 * M_PI;
+      RSP_lengths[2] = x_param * RSP_param.u;
+      RSP_lengths[3] = -x_param * 0.5 * M_PI;
+      RSP_lengths[4] = x_param * RSP_param.v;
+    }
+
+    if (tmp_length > 0) {
+      if (RSP_param.flag &&
+          !SetRSPPar(tmp_length, RSP_lengths, rd_type, all_possible_paths, i)) {
+        AERROR << "Fail at SetRSP, idx#: " << i;
+        succ = false;
+      }
+    }
+  }
+
+  if (!succ) {
+    AERROR << "RSP parallel fails";
+    return false;
+  }
+  if (all_possible_paths->size() == 0) {
+    AERROR << "No path generated by certain two configurations";
+    return false;
+  }
+  return true;
 }
 
 }  // namespace planning

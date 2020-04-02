@@ -71,10 +71,10 @@ class EulerAnglesZXY {
   EulerAnglesZXY() : roll_(0), pitch_(0), yaw_(0) {}
 
   /**
-    * @brief Constructs a rotation using only yaw (i.e., around the z-axis).
-    *
-    * @param yaw The yaw of the car
-    */
+   * @brief Constructs a rotation using only yaw (i.e., around the z-axis).
+   *
+   * @param yaw The yaw of the car
+   */
   explicit EulerAnglesZXY(T yaw) : roll_(0), pitch_(0), yaw_(yaw) {}
 
   /**
@@ -83,7 +83,7 @@ class EulerAnglesZXY {
    * @param roll The roll of the car
    * @param pitch The pitch of the car
    * @param yaw The yaw of the car
-  */
+   */
   EulerAnglesZXY(T roll, T pitch, T yaw)
       : roll_(roll), pitch_(pitch), yaw_(yaw) {}
 
@@ -169,7 +169,9 @@ class EulerAnglesZXY {
     T qx = cr * sp * cy - sr * cp * sy;
     T qy = cr * sp * sy + sr * cp * cy;
     T qz = cr * cp * sy + sr * sp * cy;
-    if (qw < 0.0) return {-qw, -qx, -qy, -qz};
+    if (qw < 0.0) {
+      return {-qw, -qx, -qy, -qz};
+    }
     return {qw, qx, qy, qz};
   }
 

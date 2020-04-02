@@ -22,7 +22,7 @@
 
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
 #include <limits>
 
 #include "modules/drivers/gnss/proto/config.pb.h"
@@ -57,6 +57,7 @@ enum MessageId : uint16_t {
   GPSEPHEMERIS = 7,
   RANGE = 43,
   HEADING = 971,
+  IMURATECORRIMUS = 1362,
 };
 
 // Every binary message has 32-bit CRC performed on all data including the
@@ -554,6 +555,10 @@ inline ImuParameter GetImuParameter(ImuType type) {
 
     case ImuType::UM442:
       return {6.6581059144655048e-6, 2.99127170628e-5, 20.0};
+
+    case ImuType::IAM20680:
+      // (1.0/65.5)/125.0 deg/LSB (1.0/8192.0)*9.80665/125.0 m/s/LSB
+      return {0.0001221374045, 9.57680664e-06, 125};
 
     default:
       return {0.0, 0.0, 0.0};

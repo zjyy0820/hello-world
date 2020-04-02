@@ -16,9 +16,9 @@
 
 #include "modules/tools/visualizer/scene_viewer.h"
 
-#include <QMessageBox>
-#include <QTimer>
-#include <QWheelEvent>
+#include <QtCore/QTimer>
+#include <QtGui/QWheelEvent>
+#include <QtWidgets/QMessageBox>
 
 #include "modules/tools/visualizer/scene_camera_dialog.h"
 
@@ -125,8 +125,8 @@ bool SceneViewer::AddTempRenderableObj(const std::string &tmpObjGroupName,
 }
 
 void SceneViewer::AddNewShaderProg(
-    const std::string& shaderProgName,
-    const std::shared_ptr<QOpenGLShaderProgram>& newShaderProg) {
+    const std::string &shaderProgName,
+    const std::shared_ptr<QOpenGLShaderProgram> &newShaderProg) {
   if (newShaderProg == nullptr) {
     return;
   }
@@ -137,7 +137,7 @@ void SceneViewer::AddNewShaderProg(
   }
 
   QMatrix4x4 mvp = current_cameraPtr_->projection_matrix() *
-                  current_cameraPtr_->model_view_matrix();
+                   current_cameraPtr_->model_view_matrix();
 
   newShaderProg->bind();
   newShaderProg->setUniformValue("mvp", mvp);
@@ -221,8 +221,9 @@ void SceneViewer::paintGL() {
 }
 
 void SceneViewer::ChangeCameraType(int index) {
-  if (index < TARGET || index > FREE) return;
-
+  if (index < TARGET || index > FREE) {
+    return;
+  }
   if (index == FREE) {
     current_cameraPtr_ = &free_camera_;
   } else {
@@ -437,7 +438,7 @@ void SceneViewer::mouseReleaseEvent(QMouseEvent *event) {
       camera_dialog_ = new SceneCameraDialog(this);
       if (!camera_dialog_) {
         QMessageBox::warning(this, tr("Error"),
-                             tr("No Enought for creating Camera Dialog!!!"),
+                             tr("No Enough for creating Camera Dialog!!!"),
                              QMessageBox::Ok);
         goto retLabel;
       } else {

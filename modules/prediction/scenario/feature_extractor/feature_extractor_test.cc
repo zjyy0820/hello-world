@@ -18,7 +18,6 @@
 
 #include "modules/prediction/common/kml_map_based_test.h"
 
-
 namespace apollo {
 namespace prediction {
 
@@ -36,7 +35,7 @@ TEST_F(FeatureExtractorTest, junction) {
   FeatureExtractor::ExtractFrontJunctionFeatures(&environment_features);
 
   environment_features = FeatureExtractor::ExtractEnvironmentFeatures();
-  EXPECT_TRUE(!environment_features.has_front_junction());
+  EXPECT_FALSE(environment_features.has_front_junction());
 }
 
 }  // namespace prediction

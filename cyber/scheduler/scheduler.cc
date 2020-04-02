@@ -16,6 +16,7 @@
 
 #include "cyber/scheduler/scheduler.h"
 
+#include <sched.h>
 #include <utility>
 
 #include "cyber/common/environment.h"
@@ -23,7 +24,6 @@
 #include "cyber/common/global_data.h"
 #include "cyber/common/util.h"
 #include "cyber/data/data_visitor.h"
-#include "cyber/event/perf_event_cache.h"
 #include "cyber/scheduler/processor.h"
 #include "cyber/scheduler/processor_context.h"
 
@@ -41,7 +41,7 @@ bool Scheduler::CreateTask(const RoutineFactory& factory,
 bool Scheduler::CreateTask(std::function<void()>&& func,
                            const std::string& name,
                            std::shared_ptr<DataVisitorBase> visitor) {
-  if (unlikely(stop_.load())) {
+  if (cyber_unlikely(stop_.load())) {
     ADEBUG << "scheduler is stoped, cannot create task!";
     return false;
   }
@@ -51,14 +51,15 @@ bool Scheduler::CreateTask(std::function<void()>&& func,
   auto cr = std::make_shared<CRoutine>(func);
   cr->set_id(task_id);
   cr->set_name(name);
+  AINFO << "create croutine: " << name;
 
   if (!DispatchTask(cr)) {
     return false;
   }
 
   if (visitor != nullptr) {
-    visitor->RegisterNotifyCallback([this, task_id, name]() {
-      if (unlikely(stop_.load())) {
+    visitor->RegisterNotifyCallback([this, task_id]() {
+      if (cyber_unlikely(stop_.load())) {
         return;
       }
       this->NotifyProcessor(task_id);
@@ -68,46 +69,60 @@ bool Scheduler::CreateTask(std::function<void()>&& func,
 }
 
 bool Scheduler::NotifyTask(uint64_t crid) {
-  if (unlikely(stop_.load())) {
+  if (cyber_unlikely(stop_.load())) {
     return true;
   }
   return NotifyProcessor(crid);
 }
 
-void Scheduler::ParseCpuset(const std::string& str, std::vector<int>* cpuset) {
-  std::vector<std::string> lines;
-  std::stringstream ss(str);
-  std::string l;
-
-  while (getline(ss, l, ',')) {
-    lines.push_back(l);
+void Scheduler::ProcessLevelResourceControl() {
+  std::vector<int> cpus;
+  ParseCpuset(process_level_cpuset_, &cpus);
+  cpu_set_t set;
+  CPU_ZERO(&set);
+  for (const auto cpu : cpus) {
+    CPU_SET(cpu, &set);
   }
+  pthread_setaffinity_np(pthread_self(), sizeof(set), &set);
+}
 
-  for (std::vector<std::string>::const_iterator it = lines.begin(),
-                                                e = lines.end();
-       it != e; ++it) {
-    std::stringstream ss(*it);
-    std::vector<std::string> range;
+void Scheduler::SetInnerThreadAttr(const std::string& name, std::thread* thr) {
+  if (thr != nullptr && inner_thr_confs_.find(name) != inner_thr_confs_.end()) {
+    auto th_conf = inner_thr_confs_[name];
+    auto cpuset = th_conf.cpuset();
 
-    while (getline(ss, l, '-')) {
-      range.push_back(l);
-    }
-
-    if (range.size() == 1) {
-      cpuset->push_back(std::stoi(range[0]));
-    } else if (range.size() == 2) {
-      for (int i = std::stoi(range[0]), e = std::stoi(range[1]); i <= e; i++) {
-        cpuset->push_back(i);
-      }
-    } else {
-      ADEBUG << "Parsing cpuset format error.";
-      exit(0);
-    }
+    std::vector<int> cpus;
+    ParseCpuset(cpuset, &cpus);
+    SetSchedAffinity(thr, cpus, "range");
+    SetSchedPolicy(thr, th_conf.policy(), th_conf.prio());
   }
 }
 
+void Scheduler::CheckSchedStatus() {
+  std::string snap_info;
+  auto now = Time::Now().ToNanosecond();
+  for (auto processor : processors_) {
+    auto snap = processor->ProcSnapshot();
+    if (snap->execute_start_time.load()) {
+      auto execute_time = (now - snap->execute_start_time.load()) / 1000000;
+      snap_info.append(std::to_string(snap->processor_id.load()))
+          .append(":")
+          .append(snap->routine_name)
+          .append(":")
+          .append(std::to_string(execute_time));
+    } else {
+      snap_info.append(std::to_string(snap->processor_id.load()))
+          .append(":idle");
+    }
+    snap_info.append(", ");
+  }
+  snap_info.append("timestamp: ").append(std::to_string(now));
+  AINFO << snap_info;
+  snap_info.clear();
+}
+
 void Scheduler::Shutdown() {
-  if (unlikely(stop_.exchange(true))) {
+  if (cyber_unlikely(stop_.exchange(true))) {
     return;
   }
 

@@ -15,7 +15,7 @@
  *****************************************************************************/
 #include "modules/perception/fusion/base/sensor_data_manager.h"
 
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 
 #include "modules/perception/common/sensor_manager/sensor_manager.h"
 
@@ -26,7 +26,8 @@ namespace fusion {
 TEST(SensorDataManagerTest, test) {
   FLAGS_work_root = "/apollo/modules/perception/testdata/fusion/base";
   FLAGS_obs_sensor_meta_path = "./data/sensor_meta.pt";
-  FLAGS_obs_sensor_intrinsic_path = "/apollo/modules/perception/testdata/"
+  FLAGS_obs_sensor_intrinsic_path =
+      "/apollo/modules/perception/testdata/"
       "fusion/base/params";
 
   SensorDataManager* sensor_data_manager = SensorDataManager::Instance();
@@ -114,9 +115,9 @@ TEST(SensorDataManagerTest, test) {
       sensor_data_manager->GetPose("velodyne64", query_timestamp, &pose));
   EXPECT_EQ((pose.matrix() - sensor2world_pose.matrix()).trace(), 0.0);
 
-  EXPECT_TRUE(sensor_data_manager->GetCameraIntrinsic("velodyne64") == nullptr);
-  EXPECT_TRUE(sensor_data_manager->GetCameraIntrinsic("camera_smartereye") !=
-              nullptr);
+  EXPECT_EQ(sensor_data_manager->GetCameraIntrinsic("velodyne64"), nullptr);
+  EXPECT_NE(sensor_data_manager->GetCameraIntrinsic("camera_smartereye"),
+            nullptr);
 }
 
 }  // namespace fusion

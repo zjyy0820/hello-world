@@ -53,10 +53,9 @@ void SppLabelImage::InitRangeMask(float range, float boundary_distance) {
   size_t half_height = height_ / 2;
   for (size_t r = 0; r < height_; ++r) {
     for (size_t c = 0; c < width_; ++c) {
-      float distance = sqrtf(powf((static_cast<float>(r) -
-                                  static_cast<float>(half_height)), 2.f) +
-                             powf((static_cast<float>(c) -
-                                  static_cast<float>(half_width)), 2.f));
+      float distance = sqrtf(
+          powf((static_cast<float>(r) - static_cast<float>(half_height)), 2.f) +
+          powf((static_cast<float>(c) - static_cast<float>(half_width)), 2.f));
       distance *= meter_per_pixel;
       if (distance <= boundary_distance) {
         range_mask_[r][c] = 1;
@@ -76,8 +75,8 @@ void SppLabelImage::CollectClusterFromSppLabelImage() {
       uint16_t& label = labels_[y][x];
       // label 0 is invalid, will be ignored
       if (label) {
-        clusters_[label - 1]->pixels.push_back(static_cast<unsigned int>(
-                                                 y * width_ + x));
+        clusters_[label - 1]->pixels.push_back(
+            static_cast<unsigned int>(y * width_ + x));
       }
     }
   }
@@ -100,9 +99,9 @@ void SppLabelImage::FilterClusters(const float* confidence_map,
     for (auto& pixel : cluster->pixels) {
       sum += confidence_map[pixel];
     }
-    sum = cluster->pixels.size() > 0 ?
-            sum / static_cast<float>(cluster->pixels.size())
-            : sum;
+    sum = cluster->pixels.size() > 0
+              ? sum / static_cast<float>(cluster->pixels.size())
+              : sum;
     cluster->confidence = sum;
   }
   size_t current = 0;
@@ -140,9 +139,9 @@ void SppLabelImage::FilterClusters(const float* confidence_map,
       sum_confidence += confidence_map[pixel];
     }
     sum_confidence =
-        cluster->pixels.size() > 0 ? sum_confidence /
-                                     static_cast<float>(cluster->pixels.size())
-                                   : sum_confidence;
+        cluster->pixels.size() > 0
+            ? sum_confidence / static_cast<float>(cluster->pixels.size())
+            : sum_confidence;
     cluster->confidence = sum_confidence;
     if (mask) {  // in range, use confidence estimation
       is_valid.push_back(cluster->confidence >= confidence_threshold);
@@ -152,8 +151,8 @@ void SppLabelImage::FilterClusters(const float* confidence_map,
         sum_category += category_map[pixel];
       }
       sum_category =
-          cluster->pixels.size() > 0 ?
-              sum_category / static_cast<float>(cluster->pixels.size())
+          cluster->pixels.size() > 0
+              ? sum_category / static_cast<float>(cluster->pixels.size())
               : sum_category;
       is_valid.push_back(sum_category >= category_threshold);
       // category is not stable, here we hack the confidence
@@ -209,22 +208,16 @@ void SppLabelImage::CalculateClusterClass(const float* class_map,
 }
 
 void SppLabelImage::CalculateClusterHeading(const float* heading_map) {
-  std::vector<std::pair<float, float>> directions(clusters_.size(),
-                                                  std::make_pair(0.f, 0.f));
   const float* heading_map_x_ptr = heading_map;
   const float* heading_map_y_ptr = heading_map + width_ * height_;
 
   for (size_t n = 0; n < clusters_.size(); ++n) {
-    for (auto& pixel : clusters_[n]->pixels) {
-      directions[n].first += heading_map_x_ptr[pixel];
+    float heading_x = 0.f, heading_y = 0.f;
+    for (auto pixel : clusters_[n]->pixels) {
+      heading_x += heading_map_x_ptr[pixel];
+      heading_y += heading_map_y_ptr[pixel];
     }
-  }
-  for (size_t n = 0; n < clusters_.size(); ++n) {
-    for (auto& pixel : clusters_[n]->pixels) {
-      directions[n].second += heading_map_y_ptr[pixel];
-    }
-    clusters_[n]->yaw =
-        std::atan2(directions[n].second, directions[n].first) * 0.5f;
+    clusters_[n]->yaw = std::atan2(heading_y, heading_x) * 0.5f;
   }
 }
 
@@ -234,8 +227,9 @@ void SppLabelImage::CalculateClusterTopZ(const float* top_z_map) {
     for (auto& pixel : cluster->pixels) {
       sum += top_z_map[pixel];
     }
-    sum = cluster->pixels.size() > 0 ?
-              sum / static_cast<float>(cluster->pixels.size()) : sum;
+    sum = cluster->pixels.size() > 0
+              ? sum / static_cast<float>(cluster->pixels.size())
+              : sum;
     cluster->top_z = sum;
   }
 }

@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "Eigen/Core"
+#include "boost/circular_buffer.hpp"
 
 #include "modules/perception/base/object_supplement.h"
 #include "modules/perception/base/object_types.h"
@@ -35,7 +36,7 @@ struct alignas(16) Object {
   std::string ToString() const;
   void Reset();
 
-  // @breif object id per frame, required
+  // @brief object id per frame, required
   int id = -1;
 
   // @brief convex hull of the object, required
@@ -74,7 +75,7 @@ struct alignas(16) Object {
   // @brief probability for each sub-type, optional
   std::vector<float> sub_type_probs;
 
-  // @brief existance confidence, required
+  // @brief existence confidence, required
   float confidence = 1.0f;
 
   // tracking information
@@ -100,7 +101,11 @@ struct alignas(16) Object {
 
   // @brief motion state of the tracked object, required
   MotionState motion_state = MotionState::UNKNOWN;
-
+  // // Tailgating (trajectory of objects)
+  std::array<Eigen::Vector3d, 100> drops;
+  std::size_t drop_num = 0;
+  // // CIPV
+  bool b_cipv = false;
   // @brief brake light, left-turn light and right-turn light score, optional
   CarLight car_light;
   // @brief sensor-specific object supplements, optional

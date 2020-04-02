@@ -16,6 +16,7 @@
 
 #include "modules/prediction/predictor/junction/junction_predictor.h"
 
+#include "cyber/common/file.h"
 #include "modules/prediction/common/junction_analyzer.h"
 #include "modules/prediction/common/kml_map_based_test.h"
 #include "modules/prediction/common/prediction_gflags.h"
@@ -28,10 +29,10 @@ namespace prediction {
 class JunctionPredictorTest : public KMLMapBasedTest {
  public:
   void SetUp() override {
-    std::string file =
+    const std::string file =
         "modules/prediction/testdata/"
         "single_perception_vehicle_injunction.pb.txt";
-    CHECK(apollo::common::util::GetProtoFromFile(file, &perception_obstacles_));
+    CHECK(cyber::common::GetProtoFromFile(file, &perception_obstacles_));
     FLAGS_enable_all_junction = true;
     JunctionAnalyzer::Init("j2");
   }
@@ -48,13 +49,14 @@ TEST_F(JunctionPredictorTest, InJunctionCase) {
   EXPECT_EQ(perception_obstacle.id(), 1);
   JunctionMLPEvaluator junction_mlp_evaluator;
   ObstaclesContainer container;
+  ADCTrajectoryContainer adc_trajectory_container;
   container.Insert(perception_obstacles_);
   container.BuildJunctionFeature();
   Obstacle* obstacle_ptr = container.GetObstacle(1);
-  EXPECT_TRUE(obstacle_ptr != nullptr);
-  junction_mlp_evaluator.Evaluate(obstacle_ptr);
+  EXPECT_NE(obstacle_ptr, nullptr);
+  junction_mlp_evaluator.Evaluate(obstacle_ptr, &container);
   JunctionPredictor predictor;
-  predictor.Predict(obstacle_ptr);
+  predictor.Predict(&adc_trajectory_container, obstacle_ptr, &container);
   // EXPECT_EQ(predictor.NumOfTrajectories(), 2);
 }
 

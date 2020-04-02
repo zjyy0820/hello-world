@@ -18,8 +18,8 @@
 
 #include <utility>
 
+#include "absl/strings/str_split.h"
 #include "cyber/common/log.h"
-#include "modules/common/util/string_tokenizer.h"
 #include "modules/common/vehicle_state/vehicle_state_provider.h"
 #include "modules/planning/common/planning_gflags.h"
 
@@ -37,7 +37,8 @@ RTKReplayPlanner::RTKReplayPlanner() {
 Status RTKReplayPlanner::Init(const PlanningConfig&) { return Status::OK(); }
 
 Status RTKReplayPlanner::Plan(const TrajectoryPoint& planning_start_point,
-                              Frame* frame) {
+                              Frame* frame,
+                              ADCTrajectory* ptr_computed_trajectory) {
   auto status = Status::OK();
   bool has_plan = false;
   auto it = std::find_if(
@@ -46,8 +47,9 @@ Status RTKReplayPlanner::Plan(const TrajectoryPoint& planning_start_point,
       [](const ReferenceLineInfo& ref) { return ref.IsChangeLanePath(); });
   if (it != frame->mutable_reference_line_info()->end()) {
     status = PlanOnReferenceLine(planning_start_point, frame, &(*it));
-    has_plan = (it->IsDrivable() && it->IsChangeLanePath() &&
-                it->TrajectoryLength() > FLAGS_change_lane_min_length);
+    has_plan =
+        (it->IsDrivable() && it->IsChangeLanePath() &&
+         it->trajectory().GetSpatialLength() > FLAGS_change_lane_min_length);
     if (!has_plan) {
       AERROR << "Fail to plan for lane change.";
     }
@@ -139,7 +141,8 @@ void RTKReplayPlanner::ReadTrajectoryFile(const std::string& filename) {
       break;
     }
 
-    auto tokens = apollo::common::util::StringTokenizer::Split(line, "\t ");
+    const std::vector<std::string> tokens =
+        absl::StrSplit(line, absl::ByAnyChar("\t "));
     if (tokens.size() < 11) {
       AERROR << "RTKReplayPlanner parse line failed; the data dimension does "
                 "not match.";

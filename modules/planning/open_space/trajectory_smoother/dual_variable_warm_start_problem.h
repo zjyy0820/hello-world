@@ -19,10 +19,13 @@
  */
 
 #pragma once
-
+#include <algorithm>
 #include "Eigen/Dense"
 
 #include "modules/planning/open_space/trajectory_smoother/dual_variable_warm_start_ipopt_interface.h"
+#include "modules/planning/open_space/trajectory_smoother/dual_variable_warm_start_ipopt_qp_interface.h"
+#include "modules/planning/open_space/trajectory_smoother/dual_variable_warm_start_osqp_interface.h"
+#include "modules/planning/open_space/trajectory_smoother/dual_variable_warm_start_slack_osqp_interface.h"
 #include "modules/planning/proto/planning.pb.h"
 
 namespace apollo {
@@ -35,12 +38,13 @@ class DualVariableWarmStartProblem {
 
   virtual ~DualVariableWarmStartProblem() = default;
 
-  bool Solve(const size_t& horizon, const double& ts,
-             const Eigen::MatrixXd& ego, const size_t obstacles_num,
+  bool Solve(const size_t horizon, const double ts, const Eigen::MatrixXd& ego,
+             const size_t obstacles_num,
              const Eigen::MatrixXi& obstacles_edges_num,
              const Eigen::MatrixXd& obstacles_A,
              const Eigen::MatrixXd& obstacles_b, const Eigen::MatrixXd& xWS,
-             Eigen::MatrixXd* l_warm_up, Eigen::MatrixXd* n_warm_up);
+             Eigen::MatrixXd* l_warm_up, Eigen::MatrixXd* n_warm_up,
+             Eigen::MatrixXd* s_warm_up);
 
  private:
   PlannerOpenSpaceConfig planner_open_space_config_;

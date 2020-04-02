@@ -28,8 +28,7 @@ DEFINE_string(obs_novatel2world_tf2_frame_id, "world",
               "novatel to world frame id");
 DEFINE_string(obs_novatel2world_tf2_child_frame_id, "novatel",
               "novatel to world child frame id");
-DEFINE_double(obs_tf2_buff_size, 0.01,
-              "query Cyber TF buffer size in second");
+DEFINE_double(obs_tf2_buff_size, 0.01, "query Cyber TF buffer size in second");
 DEFINE_double(obs_transform_cache_size, 1.0, "transform cache size in second");
 DEFINE_double(obs_max_local_pose_extrapolation_latency, 0.15,
               "max local pose extrapolation period in second");
@@ -47,14 +46,13 @@ void TransformCache::AddTransform(const StampedTransform& transform) {
     return;
   }
 
-  while (!transforms_.empty()) {
+  do {
     delt = transform.timestamp - transforms_.front().timestamp;
-    if (delt > cache_duration_) {
-      transforms_.pop_front();
-    } else {
+    if (delt < cache_duration_) {
       break;
     }
-  }
+    transforms_.pop_front();
+  } while (!transforms_.empty());
 
   transforms_.push_back(transform);
 }
@@ -80,15 +78,15 @@ bool TransformCache::QueryTransform(double timestamp,
   if (size == 1) {
     (*transform) = transforms_.back();
     transform->timestamp = timestamp;
-    AINFO << "use transform at " << std::to_string(transforms_.back().timestamp)
-          << " for " << std::to_string(timestamp);
+    AINFO << "use transform at " << transforms_.back().timestamp << " for "
+          << timestamp;
   } else {
     double ratio =
         (timestamp - transforms_[size - 2].timestamp) /
         (transforms_[size - 1].timestamp - transforms_[size - 2].timestamp);
 
-    transform->rotation = transforms_[size - 2].rotation
-        .slerp(ratio, transforms_[size - 1].rotation);
+    transform->rotation = transforms_[size - 2].rotation.slerp(
+        ratio, transforms_[size - 1].rotation);
 
     transform->translation.x() =
         transforms_[size - 2].translation.x() * (1 - ratio) +
@@ -100,10 +98,9 @@ bool TransformCache::QueryTransform(double timestamp,
         transforms_[size - 2].translation.z() * (1 - ratio) +
         transforms_[size - 1].translation.z() * ratio;
 
-    AINFO << "estimate pose at " << std::to_string(timestamp)
-          << " from poses at "
-          << std::to_string(transforms_[size - 2].timestamp) << " and "
-          << std::to_string(transforms_[size - 1].timestamp);
+    AINFO << "estimate pose at " << timestamp << " from poses at "
+          << transforms_[size - 2].timestamp << " and "
+          << transforms_[size - 1].timestamp;
   }
   return true;
 }
@@ -143,9 +140,9 @@ bool TransformWrapper::GetSensor2worldTrans(
 
   if (sensor2novatel_extrinsics_ == nullptr) {
     StampedTransform trans_sensor2novatel;
-    if (QueryTrans(timestamp, &trans_sensor2novatel,
-                   sensor2novatel_tf2_frame_id_,
-                   sensor2novatel_tf2_child_frame_id_) != true) {
+    if (!QueryTrans(timestamp, &trans_sensor2novatel,
+                    sensor2novatel_tf2_frame_id_,
+                    sensor2novatel_tf2_child_frame_id_)) {
       return false;
     }
     sensor2novatel_extrinsics_.reset(new Eigen::Affine3d);
@@ -158,8 +155,8 @@ bool TransformWrapper::GetSensor2worldTrans(
   trans_novatel2world.timestamp = timestamp;
   Eigen::Affine3d novatel2world;
 
-  if (QueryTrans(timestamp, &trans_novatel2world, novatel2world_tf2_frame_id_,
-                 novatel2world_tf2_child_frame_id_) != true) {
+  if (!QueryTrans(timestamp, &trans_novatel2world, novatel2world_tf2_frame_id_,
+                  novatel2world_tf2_child_frame_id_)) {
     if (FLAGS_obs_enable_local_pose_extrapolation) {
       if (!transform_cache_.QueryTransform(
               timestamp, &trans_novatel2world,
@@ -179,8 +176,8 @@ bool TransformWrapper::GetSensor2worldTrans(
   if (novatel2world_trans != nullptr) {
     *novatel2world_trans = novatel2world;
   }
-  AINFO << "Get pose timestamp: " << std::to_string(timestamp)
-        << ", pose: " << std::endl << (*sensor2world_trans).matrix();
+  AINFO << "Get pose timestamp: " << timestamp << ", pose: \n"
+        << (*sensor2world_trans).matrix();
   return true;
 }
 
@@ -197,17 +194,16 @@ bool TransformWrapper::GetTrans(double timestamp, Eigen::Affine3d* trans,
                                 const std::string& frame_id,
                                 const std::string& child_frame_id) {
   StampedTransform transform;
-  if (QueryTrans(timestamp, &transform, frame_id, child_frame_id) != true) {
-    if (FLAGS_obs_enable_local_pose_extrapolation) {
-      if (!transform_cache_.QueryTransform(
-              timestamp, &transform,
-              FLAGS_obs_max_local_pose_extrapolation_latency)) {
-        return false;
-      }
-    } else {
+  if (!QueryTrans(timestamp, &transform, frame_id, child_frame_id)) {
+    if (!FLAGS_obs_enable_local_pose_extrapolation ||
+        !transform_cache_.QueryTransform(
+            timestamp, &transform,
+            FLAGS_obs_max_local_pose_extrapolation_latency)) {
       return false;
     }
-  } else if (FLAGS_obs_enable_local_pose_extrapolation) {
+  }
+
+  if (FLAGS_obs_enable_local_pose_extrapolation) {
     transform_cache_.AddTransform(transform);
   }
 
@@ -223,7 +219,7 @@ bool TransformWrapper::QueryTrans(double timestamp, StampedTransform* trans,
   if (!tf2_buffer_->canTransform(frame_id, child_frame_id, query_time,
                                  static_cast<float>(FLAGS_obs_tf2_buff_size),
                                  &err_string)) {
-    AERROR << "Can not find transform. " << std::to_string(timestamp)
+    AERROR << "Can not find transform. " << timestamp
            << " frame_id: " << frame_id << " child_frame_id: " << child_frame_id
            << " Error info: " << err_string;
     return false;
@@ -243,8 +239,7 @@ bool TransformWrapper::QueryTrans(double timestamp, StampedTransform* trans,
                            stamped_transform.transform().rotation().qx(),
                            stamped_transform.transform().rotation().qy(),
                            stamped_transform.transform().rotation().qz());
-  }
-  catch (tf2::TransformException & ex) {
+  } catch (tf2::TransformException& ex) {
     AERROR << ex.what();
     return false;
   }
@@ -265,7 +260,7 @@ bool TransformWrapper::GetExtrinsicsBySensorId(
 
   StampedTransform transform;
   bool status = QueryTrans(0.0, &transform, frame_id, child_frame_id);
-  if (status == true) {
+  if (status) {
     *trans = transform.translation * transform.rotation;
   }
   return status;

@@ -1,30 +1,30 @@
-/* Copyright 2017 The Apollo Authors. All Rights Reserved.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-==============================================================================*/
+/******************************************************************************
+ * Copyright 2017 The Apollo Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *****************************************************************************/
 
 #include "modules/dreamview/backend/handlers/websocket_handler.h"
 
+#include "absl/strings/str_cat.h"
 #include "cyber/common/log.h"
 #include "modules/common/time/time.h"
 #include "modules/common/util/map_util.h"
-#include "modules/common/util/string_util.h"
 
 namespace apollo {
 namespace dreamview {
 
 using apollo::common::util::ContainsKey;
-using apollo::common::util::StrCat;
 
 void WebSocketHandler::handleReadyState(CivetServer *server, Connection *conn) {
   {
@@ -115,28 +115,28 @@ bool WebSocketHandler::SendData(Connection *conn, const std::string &data,
     if (skippable) {
       AWARN << "Skip sending a droppable message!";
       return false;
-    } else {
-      connection_lock->lock();  // Block to acquire the lock.
-      std::unique_lock<std::mutex> lock(mutex_);
-      if (!ContainsKey(connections_, conn)) {
-        return false;
-      }
+    }
+    // Block to acquire the lock.
+    connection_lock->lock();
+    std::unique_lock<std::mutex> lock(mutex_);
+    if (!ContainsKey(connections_, conn)) {
+      return false;
     }
   }
 
   // Note that while we are holding the connection lock, the connection won't be
   // closed and removed.
-  int ret;
-  PERF_BLOCK(
-      StrCat(name_, ": Writing ", data.size(), " bytes via websocket took"),
-      0.1) {
+  int ret = 0;
+  PERF_BLOCK(absl::StrCat(name_, ": Writing ", data.size(),
+                          " bytes via websocket took"),
+             0.1) {
     ret = mg_websocket_write(conn, op_code, data.c_str(), data.size());
   }
   connection_lock->unlock();
 
   if (ret != static_cast<int>(data.size())) {
     // When data is empty, the header length (2) is returned.
-    if (data.size() == 0 && ret == 2) {
+    if (data.empty() && ret == 2) {
       return true;
     }
 
@@ -147,8 +147,8 @@ bool WebSocketHandler::SendData(Connection *conn, const std::string &data,
     } else if (ret < 0) {
       msg = "Send Error: " + std::string(std::strerror(errno));
     } else {
-      msg = StrCat("Expect to send ", data.size(), " bytes. But sent ", ret,
-                   " bytes");
+      msg = absl::StrCat("Expect to send ", data.size(), " bytes. But sent ",
+                         ret, " bytes");
     }
     AWARN << name_
           << ": Failed to send data via websocket connection. Reason: " << msg;

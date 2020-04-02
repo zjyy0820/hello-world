@@ -16,8 +16,9 @@
 
 #include "cyber/scheduler/scheduler.h"
 
-#include <gtest/gtest.h>
 #include <string>
+#include <thread>
+#include "gtest/gtest.h"
 
 #include "cyber/common/global_data.h"
 #include "cyber/cyber.h"
@@ -30,13 +31,15 @@ namespace apollo {
 namespace cyber {
 namespace scheduler {
 
+using apollo::cyber::proto::InnerThread;
+
 void proc() {}
 
 TEST(SchedulerTest, create_task) {
-  GlobalData::Instance()->SetProcessGroup("example_classic_sched");
+  GlobalData::Instance()->SetProcessGroup("example_sched_classic");
   auto sched = Instance();
   cyber::Init("scheduler_test");
-  // read example_classic_sched.conf task 'ABC' prio
+  // read example_sched_classic.conf task 'ABC' prio
   std::string croutine_name = "ABC";
 
   EXPECT_TRUE(sched->CreateTask(&proc, croutine_name));
@@ -61,6 +64,25 @@ TEST(SchedulerTest, notify_task) {
   EXPECT_FALSE(sched->NotifyTask(id));
   EXPECT_TRUE(sched->CreateTask(&proc, name));
   EXPECT_TRUE(sched->NotifyTask(id));
+}
+
+TEST(SchedulerTest, set_inner_thread_attr) {
+  auto sched = Instance();
+  cyber::Init("scheduler_test");
+  std::thread t = std::thread([]() {});
+  std::unordered_map<std::string, InnerThread> thread_confs;
+  InnerThread inner_thread;
+  inner_thread.set_cpuset("0-1");
+  inner_thread.set_policy("SCHED_FIFO");
+  inner_thread.set_prio(10);
+  thread_confs["inner_thread_test"] = inner_thread;
+  sched->SetInnerThreadConfs(thread_confs);
+  sched->SetInnerThreadAttr("inner_thread_test", &t);
+  std::this_thread::sleep_for(std::chrono::milliseconds(5));
+  if (t.joinable()) {
+    t.join();
+  }
+  sched->Shutdown();
 }
 
 }  // namespace scheduler

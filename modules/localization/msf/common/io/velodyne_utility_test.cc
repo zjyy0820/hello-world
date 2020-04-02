@@ -16,7 +16,7 @@
 
 #include "modules/localization/msf/common/io/velodyne_utility.h"
 
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 
 namespace apollo {
 namespace localization {
@@ -31,9 +31,7 @@ class VelodyneUtilityTestSuite : public ::testing::Test {
 };
 
 /**@brief Test . */
-TEST_F(VelodyneUtilityTestSuite, test) {
-  ASSERT_TRUE(true);
-}
+TEST_F(VelodyneUtilityTestSuite, test) { ASSERT_TRUE(true); }
 
 }  // namespace msf
 }  // namespace localization

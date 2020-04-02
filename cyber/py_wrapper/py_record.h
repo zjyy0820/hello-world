@@ -26,8 +26,6 @@
 #include <string>
 #include <thread>
 
-#include "cyber/cyber.h"
-#include "cyber/init.h"
 #include "cyber/message/protobuf_factory.h"
 #include "cyber/message/py_message.h"
 #include "cyber/message/raw_message.h"
@@ -35,10 +33,6 @@
 #include "cyber/record/record_message.h"
 #include "cyber/record/record_reader.h"
 #include "cyber/record/record_writer.h"
-
-using ::apollo::cyber::proto::Header;
-using ::apollo::cyber::record::RecordReader;
-using ::apollo::cyber::record::RecordFileWriter;
 
 namespace apollo {
 namespace cyber {
@@ -57,7 +51,6 @@ class PyRecordReader {
   explicit PyRecordReader(const std::string& file) {
     record_reader_.reset(new RecordReader(file));
   }
-  ~PyRecordReader() {}
 
   BagMessage ReadMessage(uint64_t begin_time = 0,
                          uint64_t end_time = UINT64_MAX) {
@@ -107,48 +100,45 @@ class PyRecordReader {
 
 class PyRecordWriter {
  public:
-  PyRecordWriter() {}
-  ~PyRecordWriter() {}
+  bool Open(const std::string& path) { return record_writer_.Open(path); }
 
-  bool Open(const std::string& path) { return recored_writer_.Open(path); }
-
-  void Close() { recored_writer_.Close(); }
+  void Close() { record_writer_.Close(); }
 
   bool WriteChannel(const std::string& channel_str, const std::string& type,
                     const std::string& proto_desc) {
-    return recored_writer_.WriteChannel(channel_str, type, proto_desc);
+    return record_writer_.WriteChannel(channel_str, type, proto_desc);
   }
 
   bool WriteMessage(const std::string& channel_name,
                     const std::string& rawmessage, uint64_t time,
                     const std::string& proto_desc = "") {
-    return recored_writer_.WriteMessage(
+    return record_writer_.WriteMessage(
         channel_name, std::make_shared<message::RawMessage>(rawmessage), time,
         proto_desc);
   }
 
   bool SetSizeOfFileSegmentation(uint64_t size_kilobytes) {
-    return recored_writer_.SetSizeOfFileSegmentation(size_kilobytes);
+    return record_writer_.SetSizeOfFileSegmentation(size_kilobytes);
   }
 
   bool SetIntervalOfFileSegmentation(uint64_t time_sec) {
-    return recored_writer_.SetIntervalOfFileSegmentation(time_sec);
+    return record_writer_.SetIntervalOfFileSegmentation(time_sec);
   }
 
   uint64_t GetMessageNumber(const std::string& channel_name) const {
-    return recored_writer_.GetMessageNumber(channel_name);
+    return record_writer_.GetMessageNumber(channel_name);
   }
 
   const std::string& GetMessageType(const std::string& channel_name) const {
-    return recored_writer_.GetMessageType(channel_name);
+    return record_writer_.GetMessageType(channel_name);
   }
 
   const std::string& GetProtoDesc(const std::string& channel_name) const {
-    return recored_writer_.GetProtoDesc(channel_name);
+    return record_writer_.GetProtoDesc(channel_name);
   }
 
  private:
-  RecordWriter recored_writer_;
+  RecordWriter record_writer_;
 };
 
 }  // namespace record

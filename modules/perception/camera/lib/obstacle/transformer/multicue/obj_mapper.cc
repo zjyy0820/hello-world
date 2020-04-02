@@ -1,18 +1,18 @@
 /******************************************************************************
-* Copyright 2018 The Apollo Authors. All Rights Reserved.
-*
-* Licensed under the Apache License, Version 2.0 (the License);
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-* http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an AS IS BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*****************************************************************************/
+ * Copyright 2018 The Apollo Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the License);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *****************************************************************************/
 #include "modules/perception/camera/lib/obstacle/transformer/multicue/obj_mapper.h"
 
 namespace apollo {
@@ -49,7 +49,10 @@ bool ObjMapper::SolveCenterFromNearestVerticalEdge(const float *bbox,
   center[0] = center[1] = center[2] = 0.0f;
   float height_bbox = bbox[3] - bbox[1];
   float width_bbox = bbox[2] - bbox[0];
-  CHECK(width_bbox > 0.0f && height_bbox > 0.0f);
+  if (width_bbox <= 0.0f || height_bbox <= 0.0f) {
+    AERROR << "width or height of bbox is 0";
+    return false;
+  }
 
   if (common::IRound(bbox[3]) >= height_ - 1) {
     height_bbox /= params_.occ_ratio;
@@ -179,7 +182,7 @@ bool ObjMapper::Solve3dBbox(const ObjMapperOptions &options, float center[3],
   float yaw_score_mean =
       common::IMean(ry_score_.data(), static_cast<int>(ry_score_.size()));
   float yaw_score_sdv = common::ISdv(ry_score_.data(), yaw_score_mean,
-                                   static_cast<int>(ry_score_.size()));
+                                     static_cast<int>(ry_score_.size()));
   var_yaw = common::ISqrt(common::IRec(yaw_score_sdv + params_.eps_mapper));
 
   float z = center[2];
@@ -319,7 +322,7 @@ void ObjMapper::GetCenter(const float *bbox, const float &z_ref,
     }
     float x_cur[2] = {(x_min + x_max) / 2, (y_min + y_max) / 2};
     float cost_cur = common::ISqrt(common::ISqr(x_cur[0] - x_target[0]) +
-                                 common::ISqr(x_cur[1] - x_target[1]));
+                                   common::ISqr(x_cur[1] - x_target[1]));
 
     if (cost_cur >= cost_pre) {
       stop = true;

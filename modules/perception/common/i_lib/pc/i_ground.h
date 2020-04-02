@@ -23,8 +23,6 @@
 #include "modules/perception/common/i_lib/geometry/i_plane.h"
 #include "modules/perception/common/i_lib/pc/i_struct_s.h"
 
-
-
 namespace apollo {
 namespace perception {
 namespace common {
@@ -106,9 +104,8 @@ struct GroundPlaneLiDAR {
   bool IsValid() const {
     if (nr_support && (params[0] != 0 || params[1] != 0 || params[2] != 0)) {
       return true;
-    } else {
-      return false;
     }
+    return false;
   }
 
   int GetNrSupport() const { return nr_support; }
@@ -252,8 +249,8 @@ class PlaneFitGroundDetector : public BaseGroundDetector {
   const char *GetLabel() const;
   const VoxelGridXY<float> *GetGrid() const;
   const GroundPlaneLiDAR *GetGroundPlane(int r, int c) const;
-  const unsigned int GetGridDimX() const;
-  const unsigned int GetGridDimY() const;
+  unsigned int GetGridDimX() const;
+  unsigned int GetGridDimY() const;
   float GetUnknownHeight();
   PlaneFitPointCandIndices **GetCandis() const;
 

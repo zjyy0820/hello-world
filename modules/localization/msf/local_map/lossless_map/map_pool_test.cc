@@ -14,7 +14,7 @@
  * limitations under the License.
  *****************************************************************************/
 
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 
 #include "cyber/init.h"
 #include "modules/localization/msf/local_map/lossless_map/lossless_map_config.h"
@@ -28,9 +28,7 @@ class BaseMapPoolTestSuite : public ::testing::Test {
  protected:
   BaseMapPoolTestSuite() {}
   virtual ~BaseMapPoolTestSuite() {}
-  virtual void SetUp() {
-    apollo::cyber::Init("map_pool_test");
-  }
+  virtual void SetUp() { apollo::cyber::Init("map_pool_test"); }
   virtual void TearDown() {}
 };
 

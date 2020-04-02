@@ -18,10 +18,10 @@
 
 #include "yaml-cpp/yaml.h"
 
+#include "cyber/common/file.h"
 #include "cyber/common/log.h"
 #include "modules/common/time/time.h"
 #include "modules/common/time/timer.h"
-#include "modules/common/util/file.h"
 
 namespace apollo {
 namespace localization {
@@ -32,7 +32,7 @@ using apollo::common::time::Timer;
 
 LocalizationLidarProcess::LocalizationLidarProcess()
     : locator_(new LocalizationLidar()),
-      pose_forcastor_(new PoseForcast()),
+      pose_forecastor_(new PoseForcast()),
       map_path_(""),
       lidar_extrinsic_file_(""),
       lidar_height_file_(""),
@@ -61,15 +61,15 @@ LocalizationLidarProcess::LocalizationLidarProcess()
       unstable_count_(0),
       unstable_threshold_(0.3),
       out_map_count_(0),
-      forcast_integ_state_(ForcastState::NOT_VALID),
-      forcast_timer_(-1) {}
+      forecast_integ_state_(ForecastState::NOT_VALID),
+      forecast_timer_(-1) {}
 
 LocalizationLidarProcess::~LocalizationLidarProcess() {
   delete locator_;
   locator_ = nullptr;
 
-  delete pose_forcastor_;
-  pose_forcastor_ = nullptr;
+  delete pose_forecastor_;
+  pose_forecastor_ = nullptr;
 }
 
 Status LocalizationLidarProcess::Init(const LocalizationIntegParam& params) {
@@ -107,8 +107,8 @@ Status LocalizationLidarProcess::Init(const LocalizationIntegParam& params) {
   local_lidar_status_ = LocalLidarStatus::MSF_LOCAL_LIDAR_UNDEFINED_STATUS;
   local_lidar_quality_ = LocalLidarQuality::MSF_LOCAL_LIDAR_BAD;
 
-  bool sucess = LoadLidarExtrinsic(lidar_extrinsic_file_, &lidar_extrinsic_);
-  if (!sucess) {
+  bool success = LoadLidarExtrinsic(lidar_extrinsic_file_, &lidar_extrinsic_);
+  if (!success) {
     AERROR << "LocalizationLidar: Fail to access the lidar"
               " extrinsic file: "
            << lidar_extrinsic_file_;
@@ -116,8 +116,8 @@ Status LocalizationLidarProcess::Init(const LocalizationIntegParam& params) {
                   "Fail to access the lidar extrinsic file");
   }
 
-  sucess = LoadLidarHeight(lidar_height_file_, &lidar_height_);
-  if (!sucess) {
+  success = LoadLidarHeight(lidar_height_file_, &lidar_height_);
+  if (!success) {
     AWARN << "LocalizationLidar: Fail to load the lidar"
              " height file: "
           << lidar_height_file_ << " Will use default value!";
@@ -141,10 +141,10 @@ Status LocalizationLidarProcess::Init(const LocalizationIntegParam& params) {
   const double deg_to_rad = 0.017453292519943;
   const double max_gyro_input = 200 * deg_to_rad;  // 200 degree
   const double max_acc_input = 5.0;                // 5.0 m/s^2
-  pose_forcastor_->SetMaxListNum(400);
-  pose_forcastor_->SetMaxAccelInput(max_acc_input);
-  pose_forcastor_->SetMaxGyroInput(max_gyro_input);
-  pose_forcastor_->SetZoneId(utm_zone_id_);
+  pose_forecastor_->SetMaxListNum(400);
+  pose_forecastor_->SetMaxAccelInput(max_acc_input);
+  pose_forecastor_->SetMaxGyroInput(max_gyro_input);
+  pose_forecastor_->SetZoneId(utm_zone_id_);
 
   return Status::OK();
 }
@@ -174,19 +174,19 @@ void LocalizationLidarProcess::PcdProcess(const LidarFrame& lidar_frame) {
   static unsigned int pcd_index = 0;
 
   if (!GetPredictPose(lidar_frame.measurement_time, &cur_predict_location_,
-                      &forcast_integ_state_)) {
+                      &forecast_integ_state_)) {
     AINFO << "PcdProcess: Discard a lidar msg because can't get predict pose. "
           << "More info see log in function GetPredictPose.";
     return;
   }
 
-  if (forcast_integ_state_ != ForcastState::INCREMENT) {
-    forcast_timer_ = -1;
+  if (forecast_integ_state_ != ForecastState::INCREMENT) {
+    forecast_timer_ = -1;
   }
-  ++forcast_timer_;
+  ++forecast_timer_;
 
   locator_->SetDeltaYawLimit(ComputeDeltaYawLimit(
-      forcast_timer_, 10, delta_yaw_limit_, init_delta_yaw_limit_));
+      forecast_timer_, 10, delta_yaw_limit_, init_delta_yaw_limit_));
 
   if (!is_get_first_lidar_msg_) {
     pre_predict_location_ = cur_predict_location_;
@@ -215,7 +215,6 @@ void LocalizationLidarProcess::GetResult(int* lidar_status,
   *lidar_status = static_cast<int>(lidar_status_);
   *location = location_;
   *covariance = location_covariance_;
-  return;
 }
 
 int LocalizationLidarProcess::GetResult(LocalizationEstimate* lidar_local_msg) {
@@ -250,7 +249,7 @@ int LocalizationLidarProcess::GetResult(LocalizationEstimate* lidar_local_msg) {
   position_std_dev->set_y(location_covariance_(1, 1));
   position_std_dev->set_z(0.0);
 
-  constexpr double yaw_covariance = 0.15 * 0.15 * DEG_TO_RAD2;
+  static constexpr double yaw_covariance = 0.15 * 0.15 * DEG_TO_RAD2;
   apollo::common::Point3D* orientation_std_dev =
       uncertainty->mutable_orientation_std_dev();
   orientation_std_dev->set_x(0.0);
@@ -265,22 +264,20 @@ int LocalizationLidarProcess::GetResult(LocalizationEstimate* lidar_local_msg) {
 }
 
 void LocalizationLidarProcess::IntegPvaProcess(const InsPva& sins_pva_msg) {
-  pose_forcastor_->PushInspvaData(sins_pva_msg);
-  return;
+  pose_forecastor_->PushInspvaData(sins_pva_msg);
 }
 
 void LocalizationLidarProcess::RawImuProcess(const ImuData& imu_msg) {
-  pose_forcastor_->PushImuData(imu_msg);
-  return;
+  pose_forecastor_->PushImuData(imu_msg);
 }
 
 bool LocalizationLidarProcess::GetPredictPose(const double lidar_time,
                                               TransformD* predict_pose,
-                                              ForcastState* forcast_state) {
+                                              ForecastState* forecast_state) {
   CHECK_NOTNULL(predict_pose);
-  CHECK_NOTNULL(forcast_state);
+  CHECK_NOTNULL(forecast_state);
 
-  double latest_imu_time = pose_forcastor_->GetLastestImuTime();
+  double latest_imu_time = pose_forecastor_->GetLastestImuTime();
   if (latest_imu_time - lidar_time > imu_lidar_max_delay_time_) {
     AERROR << std::setprecision(16) << "LocalizationLidar GetPredictPose: "
            << "Lidar msg too old! "
@@ -289,12 +286,12 @@ bool LocalizationLidarProcess::GetPredictPose(const double lidar_time,
     return false;
   }
 
-  Pose forcast_pose;
+  Pose forecast_pose;
   int state = -1;
   if (lidar_status_ != LidarState::OK) {
     Pose init_pose;
-    state = pose_forcastor_->GetBestForcastPose(lidar_time, -1, init_pose,
-                                                &forcast_pose);
+    state = pose_forecastor_->GetBestForcastPose(lidar_time, -1, init_pose,
+                                                 &forecast_pose);
   } else {
     Pose init_pose;
     init_pose.x = pre_location_.translation()(0);
@@ -306,36 +303,36 @@ bool LocalizationLidarProcess::GetPredictPose(const double lidar_time,
     init_pose.qz = quatd.z();
     init_pose.qw = quatd.w();
 
-    state = pose_forcastor_->GetBestForcastPose(lidar_time, pre_location_time_,
-                                                init_pose, &forcast_pose);
+    state = pose_forecastor_->GetBestForcastPose(lidar_time, pre_location_time_,
+                                                 init_pose, &forecast_pose);
   }
 
   if (state < 0) {
     AINFO << "LocalizationLidar GetPredictPose: "
-          << "Recive a lidar msg, but can't query predict pose.";
-    *forcast_state = ForcastState::NOT_VALID;
+          << "Receive a lidar msg, but can't query predict pose.";
+    *forecast_state = ForecastState::NOT_VALID;
     return false;
   }
 
-  if (std::abs(forcast_pose.x) < 10.0 || std::abs(forcast_pose.y) < 10.0) {
+  if (std::abs(forecast_pose.x) < 10.0 || std::abs(forecast_pose.y) < 10.0) {
     AERROR << "LocalizationLidar Fatal Error: invalid pose!";
     return false;
   }
 
-  Eigen::Quaterniond quatd(forcast_pose.qw, forcast_pose.qx, forcast_pose.qy,
-                           forcast_pose.qz);
+  Eigen::Quaterniond quatd(forecast_pose.qw, forecast_pose.qx, forecast_pose.qy,
+                           forecast_pose.qz);
   Eigen::Translation3d transd(
-      Eigen::Vector3d(forcast_pose.x, forcast_pose.y, forcast_pose.z));
+      Eigen::Vector3d(forecast_pose.x, forecast_pose.y, forecast_pose.z));
   *predict_pose = transd * quatd;
 
   if (state == 0) {
-    *forcast_state = ForcastState::INITIAL;
+    *forecast_state = ForecastState::INITIAL;
   } else {
-    *forcast_state = ForcastState::INCREMENT;
+    *forecast_state = ForecastState::INCREMENT;
     AINFO << "The delta translation input lidar localization: " << lidar_time
-          << " " << forcast_pose.x - pre_location_.translation()(0) << " "
-          << forcast_pose.y - pre_location_.translation()(1) << " "
-          << forcast_pose.z - pre_location_.translation()(2);
+          << " " << forecast_pose.x - pre_location_.translation()(0) << " "
+          << forecast_pose.y - pre_location_.translation()(1) << " "
+          << forecast_pose.z - pre_location_.translation()(2);
   }
 
   return true;
@@ -442,7 +439,7 @@ bool LocalizationLidarProcess::LoadLidarHeight(const std::string& file_path,
                                                LidarHeight* height) {
   CHECK_NOTNULL(height);
 
-  if (!common::util::PathExists(file_path)) {
+  if (!cyber::common::PathExists(file_path)) {
     return false;
   }
 

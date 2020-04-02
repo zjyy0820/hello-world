@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 
 #include "modules/perception/common/sensor_manager/sensor_manager.h"
 #include "modules/perception/fusion/base/sensor.h"
@@ -27,7 +27,8 @@ namespace fusion {
 TEST(SensorObjectTest, test) {
   FLAGS_work_root = "/apollo/modules/perception/testdata/fusion/base";
   FLAGS_obs_sensor_meta_path = "./data/sensor_meta.pt";
-  FLAGS_obs_sensor_intrinsic_path = "/apollo/modules/perception/testdata/"
+  FLAGS_obs_sensor_intrinsic_path =
+      "/apollo/modules/perception/testdata/"
       "fusion/base/params";
   base::SensorInfo sensor_info;
   sensor_info.name = "test";
@@ -56,7 +57,7 @@ TEST(SensorObjectTest, test) {
   EXPECT_TRUE(object->GetRelatedFramePose(&pose));
   EXPECT_EQ((pose.matrix() - sensor2world_pose.matrix()).trace(), 0.0);
   EXPECT_EQ(object->GetSensorId(), "test");
-  EXPECT_TRUE(object->GetBaseObject() != nullptr);
+  EXPECT_NE(object->GetBaseObject(), nullptr);
 
   object->frame_header_ = nullptr;
   EXPECT_DOUBLE_EQ(object->GetTimestamp(), 0);
@@ -64,7 +65,7 @@ TEST(SensorObjectTest, test) {
   EXPECT_EQ(object->GetSensorId(), "");
 
   FusedObjectPtr fused_object(new FusedObject());
-  EXPECT_TRUE(fused_object->GetBaseObject() != nullptr);
+  EXPECT_NE(fused_object->GetBaseObject(), nullptr);
   EXPECT_DOUBLE_EQ(fused_object->GetTimestamp(), 0);
 }
 

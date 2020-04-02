@@ -1,18 +1,18 @@
 /******************************************************************************
-* Copyright 2018 The Apollo Authors. All Rights Reserved.
-*
-* Licensed under the Apache License, Version 2.0 (the License);
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-* http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an AS IS BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*****************************************************************************/
+ * Copyright 2018 The Apollo Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the License);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *****************************************************************************/
 #pragma once
 
 #include <algorithm>
@@ -74,11 +74,25 @@ struct NMSParam {
   std::string type = BoxVote;
 };
 struct YoloBlobs {
-  std::shared_ptr<base::Blob<float>> loc_blob;
-  std::shared_ptr<base::Blob<float>> obj_blob;
-  std::shared_ptr<base::Blob<float>> cls_blob;
-  std::shared_ptr<base::Blob<float>> ori_blob;
-  std::shared_ptr<base::Blob<float>> dim_blob;
+  std::shared_ptr<base::Blob<float>> det1_loc_blob;
+  std::shared_ptr<base::Blob<float>> det1_obj_blob;
+  std::shared_ptr<base::Blob<float>> det1_cls_blob;
+  std::shared_ptr<base::Blob<float>> det1_ori_conf_blob;
+  std::shared_ptr<base::Blob<float>> det1_ori_blob;
+  std::shared_ptr<base::Blob<float>> det1_dim_blob;
+  std::shared_ptr<base::Blob<float>> det2_loc_blob;
+  std::shared_ptr<base::Blob<float>> det2_obj_blob;
+  std::shared_ptr<base::Blob<float>> det2_cls_blob;
+  std::shared_ptr<base::Blob<float>> det2_ori_conf_blob;
+  std::shared_ptr<base::Blob<float>> det2_ori_blob;
+  std::shared_ptr<base::Blob<float>> det2_dim_blob;
+  std::shared_ptr<base::Blob<float>> det3_loc_blob;
+  std::shared_ptr<base::Blob<float>> det3_obj_blob;
+  std::shared_ptr<base::Blob<float>> det3_cls_blob;
+  std::shared_ptr<base::Blob<float>> det3_ori_conf_blob;
+  std::shared_ptr<base::Blob<float>> det3_ori_blob;
+  std::shared_ptr<base::Blob<float>> det3_dim_blob;
+
   std::shared_ptr<base::Blob<float>> lof_blob;
   std::shared_ptr<base::Blob<float>> lor_blob;
   std::shared_ptr<base::Blob<float>> brvis_blob;
@@ -102,23 +116,26 @@ struct MinDims {
   float min_3d_width = 0.0f;
 };
 
-__host__ __device__
-float sigmoid_gpu(float x);
-__host__ __device__
-float bbox_size_gpu(const float *bbox, const bool normalized);
-__host__ __device__
-float jaccard_overlap_gpu(const float *bbox1, const float *bbox2);
+constexpr float minExpPower = -10.0f;
+constexpr float maxExpPower = 5.0f;
+constexpr int anchorSizeFactor = 2;
+constexpr int numScales = 3;
 
-template<typename T>
+__host__ __device__ float sigmoid_gpu(float x);
+__host__ __device__ float bbox_size_gpu(const float *bbox,
+                                        const bool normalized);
+__host__ __device__ float jaccard_overlap_gpu(const float *bbox1,
+                                              const float *bbox2);
+
+template <typename T>
 bool sort_score_pair_descend(const std::pair<float, T> &pair1,
                              const std::pair<float, T> &pair2) {
   return pair1.first > pair2.first;
 }
 
 void get_max_score_index(const std::vector<float> &scores,
-                         const float threshold,
-                         const int top_k,
-                         std::vector<std::pair<float, int> > *score_index_vec);
+                         const float threshold, const int top_k,
+                         std::vector<std::pair<float, int>> *score_index_vec);
 
 float get_bbox_size(const NormalizedBBox &bbox);
 
@@ -129,63 +146,45 @@ void get_intersect_bbox(const NormalizedBBox &bbox1,
 float get_jaccard_overlap(const NormalizedBBox &bbox1,
                           const NormalizedBBox &bbox2);
 
-void apply_nms(const bool *overlapped,
-               const int num,
+void apply_nms(const bool *overlapped, const int num,
                std::vector<int> *indices);
 
-void apply_nms_gpu(const float *bbox_data,
-                   const float *conf_data,
-                   const std::vector<int> &origin_indices,
-                   const int bbox_step,
-                   const float confidence_threshold,
-                   const int top_k,
-                   const float nms_threshold,
-                   std::vector<int> *indices,
-                   base::Blob<bool> *overlapped,
-                   base::Blob<int> *idx_sm,
+void apply_nms_gpu(const float *bbox_data, const float *conf_data,
+                   const std::vector<int> &origin_indices, const int bbox_step,
+                   const float confidence_threshold, const int top_k,
+                   const float nms_threshold, std::vector<int> *indices,
+                   base::Blob<bool> *overlapped, base::Blob<int> *idx_sm,
                    const cudaStream_t &_stream);
 
-void compute_overlapped_by_idx_gpu(const int nthreads,
-                                   const float *bbox_data,
+void compute_overlapped_by_idx_gpu(const int nthreads, const float *bbox_data,
                                    const float overlap_threshold,
-                                   const int *idx,
-                                   const int num_idx,
+                                   const int *idx, const int num_idx,
                                    bool *overlapped_data,
                                    const cudaStream_t &_stream);
 
-void get_objects_gpu(const YoloBlobs &yolo_blobs,
-                     const cudaStream_t &stream,
+void get_objects_gpu(const YoloBlobs &yolo_blobs, const cudaStream_t &stream,
                      const std::vector<base::ObjectSubType> &types,
-                     const NMSParam &nms,
-                     const yolo::ModelParam &model_param,
+                     const NMSParam &nms, const yolo::ModelParam &model_param,
                      float light_vis_conf_threshold,
                      float light_swt_conf_threshold,
-                     base::Blob<bool> *overlapped,
-                     base::Blob<int> *idx_sm,
+                     base::Blob<bool> *overlapped, base::Blob<int> *idx_sm,
                      std::vector<base::ObjectPtr> *objects);
 
 void apply_softnms_fast(const std::vector<NormalizedBBox> &bboxes,
-                        std::vector<float> *scores,
-                        const float score_threshold,
-                        const float nms_threshold,
-                        const int top_k,
-                        std::vector<int> *indices,
-                        bool is_linear,
+                        std::vector<float> *scores, const float score_threshold,
+                        const float nms_threshold, const int top_k,
+                        std::vector<int> *indices, bool is_linear,
                         const float sigma);
 
 void apply_boxvoting_fast(std::vector<NormalizedBBox> *bboxes,
                           std::vector<float> *scores,
-                          const float conf_threshold,
-                          const float nms_threshold,
-                          const float sigma,
-                          std::vector<int> *indices);
+                          const float conf_threshold, const float nms_threshold,
+                          const float sigma, std::vector<int> *indices);
 
 void apply_nms_fast(const std::vector<NormalizedBBox> &bboxes,
                     const std::vector<float> &scores,
-                    const float score_threshold,
-                    const float nms_threshold,
-                    const float eta,
-                    const int top_k,
+                    const float score_threshold, const float nms_threshold,
+                    const float eta, const int top_k,
                     std::vector<int> *indices);
 
 void recover_bbox(int roi_w, int roi_h, int offset_y,

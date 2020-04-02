@@ -4,14 +4,10 @@ package(default_visibility = ["//visibility:public"])
 
 cc_library(
     name = "dst_type_fusion",
-    srcs = [
-        "dst_type_fusion.cc",
-    ],
-    hdrs = [
-        "dst_type_fusion.h",
-    ],
+    srcs = ["dst_type_fusion.cc"],
+    hdrs = ["dst_type_fusion.h"],
     deps = [
-        "//modules/common/util:file_util",
+        "//cyber/common:file",
         "//modules/perception/fusion/base:base_init_options",
         "//modules/perception/fusion/base:scene",
         "//modules/perception/fusion/base:sensor_data_manager",
@@ -27,9 +23,7 @@ cc_library(
 cc_test(
     name = "dst_type_fusion_test",
     size = "small",
-    srcs = [
-        "dst_type_fusion_test.cc",
-    ],
+    srcs = ["dst_type_fusion_test.cc"],
     deps = [
         ":dst_type_fusion",
         "//modules/perception/base:base_type",

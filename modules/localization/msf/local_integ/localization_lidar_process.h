@@ -26,6 +26,7 @@
 #include "Eigen/Core"
 #include "Eigen/Geometry"
 
+// TODO(Localization): Fix the typo of "forecast".
 #include "include/pose_forcast.h"
 #include "include/sins_struct.h"
 #include "modules/common/status/status.h"
@@ -44,7 +45,7 @@ namespace apollo {
 namespace localization {
 namespace msf {
 
-enum class ForcastState { NOT_VALID = 0, INITIAL, INCREMENT };
+enum class ForecastState { NOT_VALID = 0, INITIAL, INCREMENT };
 
 enum class LidarState { NOT_VALID = 0, NOT_STABLE, OK };
 
@@ -90,7 +91,7 @@ class LocalizationLidarProcess {
  private:
   // Sub-functions for process.
   bool GetPredictPose(const double lidar_time, TransformD *inspva_pose,
-                      ForcastState *forcast_state);
+                      ForecastState *forecast_state);
   bool CheckState();
   bool CheckDelta(const LidarFrame &frame, const TransformD &inspva_pose);
   void UpdateState(const int ret, const double time);
@@ -108,7 +109,7 @@ class LocalizationLidarProcess {
  private:
   // Lidar localization.
   LocalizationLidar *locator_;
-  PoseForcast *pose_forcastor_;
+  PoseForcast *pose_forecastor_;
 
   std::string map_path_;
   std::string lidar_extrinsic_file_;
@@ -137,9 +138,9 @@ class LocalizationLidarProcess {
   LidarState lidar_status_;
 
   LocalLidarStatus local_lidar_status_ =
-    LocalLidarStatus::MSF_LOCAL_LIDAR_UNDEFINED_STATUS;
+      LocalLidarStatus::MSF_LOCAL_LIDAR_UNDEFINED_STATUS;
   LocalLidarQuality local_lidar_quality_ =
-    LocalLidarQuality::MSF_LOCAL_LIDAR_BAD;
+      LocalLidarQuality::MSF_LOCAL_LIDAR_BAD;
 
   bool reinit_flag_ = false;
 
@@ -155,9 +156,9 @@ class LocalizationLidarProcess {
 
   int out_map_count_ = 0;
 
-  /**@brief forcast integ pose, use to limit output of yaw */
-  ForcastState forcast_integ_state_;
-  int64_t forcast_timer_ = 0;
+  /**@brief forecast integ pose, use to limit output of yaw */
+  ForecastState forecast_integ_state_;
+  int64_t forecast_timer_ = 0;
 
   static constexpr double DEG_TO_RAD = 0.017453292519943;
   static constexpr double DEG_TO_RAD2 = DEG_TO_RAD * DEG_TO_RAD;

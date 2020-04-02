@@ -10,7 +10,6 @@ cc_binary(
         "//external:gflags",
         "//modules/canbus:canbus_lib",
         "//modules/canbus/common:canbus_common",
-        "//modules/common",
         "//modules/common/adapters:adapter_gflags",
     ],
 )
@@ -21,9 +20,12 @@ cc_binary(
     deps = [
         "//cyber",
         "//external:gflags",
+        "//modules/canbus/common:canbus_common",
         "//modules/canbus/proto:canbus_proto",
-        "//modules/common",
+        "//modules/canbus/vehicle:vehicle_controller_base",
         "//modules/common/adapters:adapter_gflags",
+        "//modules/common/configs:vehicle_config_helper",
+        "//modules/common/util:message_util",
         "//modules/control/proto:control_proto",
     ],
 )

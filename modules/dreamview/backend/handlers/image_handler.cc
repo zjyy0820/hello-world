@@ -1,17 +1,18 @@
-/* Copyright 2017 The Apollo Authors. All Rights Reserved.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-==============================================================================*/
+/******************************************************************************
+ * Copyright 2017 The Apollo Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *****************************************************************************/
 
 #include "modules/dreamview/backend/handlers/image_handler.h"
 
@@ -52,10 +53,14 @@ void ImageHandler::OnImage(const std::shared_ptr<Image> &image) {
 template <>
 void ImageHandler::OnImage(
     const std::shared_ptr<CompressedImage> &compressed_image) {
+  if (requests_ == 0 ||
+      compressed_image->format() == "h265" /* skip video format */) {
+    return;
+  }
+
   std::vector<uint8_t> compressed_raw_data(compressed_image->data().begin(),
                                            compressed_image->data().end());
   cv::Mat mat_image = cv::imdecode(compressed_raw_data, CV_LOAD_IMAGE_COLOR);
-  cv::cvtColor(mat_image, mat_image, cv::COLOR_RGB2BGR);
 
   std::unique_lock<std::mutex> lock(mutex_);
   cv::imencode(".jpg", mat_image, send_buffer_,
@@ -65,12 +70,14 @@ void ImageHandler::OnImage(
 
 void ImageHandler::OnImageFront(const std::shared_ptr<Image> &image) {
   if (FLAGS_use_navigation_mode) {
+    // Navigation mode
     OnImage(image);
   }
 }
 
 void ImageHandler::OnImageShort(const std::shared_ptr<CompressedImage> &image) {
   if (!FLAGS_use_navigation_mode) {
+    // Regular mode
     OnImage(image);
   }
 }
@@ -79,9 +86,7 @@ ImageHandler::ImageHandler()
     : requests_(0), node_(cyber::CreateNode("image_handler")) {
   node_->CreateReader<Image>(
       FLAGS_image_front_topic,
-      [this](const std::shared_ptr<Image> &image) {
-        OnImageFront(image);
-      });
+      [this](const std::shared_ptr<Image> &image) { OnImageFront(image); });
 
   node_->CreateReader<CompressedImage>(
       FLAGS_image_short_topic,

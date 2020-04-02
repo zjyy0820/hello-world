@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 
 #include "cyber/common/log.h"
 #include "modules/perception/fusion/base/sensor_data_manager.h"
@@ -40,7 +40,8 @@ TEST(CameraUtilTest, test_is_pt_in_frustum) {
 
 TEST(CameraUtilTest, test_object_in_camera_view_and_is_behind_camera) {
   FLAGS_work_root = "/apollo/modules/perception/testdata/fusion/base";
-  FLAGS_obs_sensor_intrinsic_path = "/apollo/modules/perception/testdata/"
+  FLAGS_obs_sensor_intrinsic_path =
+      "/apollo/modules/perception/testdata/"
       "fusion/base/params";
   FLAGS_obs_sensor_meta_path = "./data/sensor_meta.pt";
 
@@ -65,7 +66,7 @@ TEST(CameraUtilTest, test_object_in_camera_view_and_is_behind_camera) {
   std::string sensor_id = "camera_smartereye";
   base::BaseCameraModelPtr camera_model =
       common::SensorManager::Instance()->GetUndistortCameraModel(sensor_id);
-  EXPECT_TRUE(camera_model != nullptr);
+  EXPECT_NE(camera_model, nullptr);
 
   bool flag1 = IsObjectEightVerticesAllBehindCamera(
       base_lidar_object, pose.matrix(), camera_model);

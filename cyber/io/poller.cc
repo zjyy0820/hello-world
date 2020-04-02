@@ -17,10 +17,10 @@
 #include "cyber/io/poller.h"
 
 #include <fcntl.h>
-#include <signal.h>
-#include <string.h>
 #include <sys/epoll.h>
 #include <unistd.h>
+#include <csignal>
+#include <cstring>
 
 #include "cyber/common/log.h"
 #include "cyber/scheduler/scheduler_factory.h"
@@ -149,9 +149,9 @@ bool Poller::Init() {
   ctrl_param.event.events = EPOLLIN;
   ctrl_params_[ctrl_param.fd] = ctrl_param;
 
-  is_shutdown_.exchange(false);
+  is_shutdown_.store(false);
   thread_ = std::thread(&Poller::ThreadFunc, this);
-  scheduler::Instance()->SetInnerThreadAttr(&thread_, "io_poller");
+  scheduler::Instance()->SetInnerThreadAttr("io_poller", &thread_);
   return true;
 }
 
@@ -247,7 +247,7 @@ void Poller::ThreadFunc() {
   // block all signals in this thread
   sigset_t signal_set;
   sigfillset(&signal_set);
-  pthread_sigmask(SIG_BLOCK, &signal_set, NULL);
+  pthread_sigmask(SIG_BLOCK, &signal_set, nullptr);
 
   while (!is_shutdown_.load()) {
     HandleChanges();

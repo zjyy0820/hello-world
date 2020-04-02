@@ -37,9 +37,11 @@
 #include <cmath>
 #include <string>
 
+#ifndef __aarch64__
 #include "adv_plat/include/adv_trigger.h"
-#include "modules/drivers/camera/usb_cam.h"
 #include "modules/drivers/camera/util.h"
+#endif
+#include "modules/drivers/camera/usb_cam.h"
 
 #define __STDC_CONSTANT_MACROS
 
@@ -107,25 +109,45 @@ int UsbCam::init_mjpeg_decoder(int image_width, int image_height) {
   }
 
   avcodec_context_ = avcodec_alloc_context3(avcodec_);
+
+#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(57, 0, 0)
+  avframe_camera_ = av_frame_alloc();
+  avframe_rgb_ = av_frame_alloc();
+
+  avpicture_alloc(reinterpret_cast<AVPicture*>(avframe_rgb_), AV_PIX_FMT_RGB24,
+                  image_width, image_height);
+#else
   avframe_camera_ = avcodec_alloc_frame();
   avframe_rgb_ = avcodec_alloc_frame();
 
   avpicture_alloc(reinterpret_cast<AVPicture*>(avframe_rgb_), PIX_FMT_RGB24,
                   image_width, image_height);
+#endif
 
   avcodec_context_->codec_id = AV_CODEC_ID_MJPEG;
   avcodec_context_->width = image_width;
   avcodec_context_->height = image_height;
 
 #if LIBAVCODEC_VERSION_MAJOR > 52
+#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(57, 0, 0)
+  avcodec_context_->pix_fmt = AV_PIX_FMT_YUV422P;
+#else
   avcodec_context_->pix_fmt = PIX_FMT_YUV422P;
+#endif
   avcodec_context_->codec_type = AVMEDIA_TYPE_VIDEO;
 #endif
 
+#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(57, 0, 0)
+  avframe_camera_size_ =
+      avpicture_get_size(AV_PIX_FMT_YUV422P, image_width, image_height);
+  avframe_rgb_size_ =
+      avpicture_get_size(AV_PIX_FMT_RGB24, image_width, image_height);
+#else
   avframe_camera_size_ =
       avpicture_get_size(PIX_FMT_YUV422P, image_width, image_height);
   avframe_rgb_size_ =
       avpicture_get_size(PIX_FMT_RGB24, image_width, image_height);
+#endif
 
   /* open it */
   if (avcodec_open2(avcodec_context_, avcodec_, &avoptions_) < 0) {
@@ -162,7 +184,7 @@ void UsbCam::mjpeg2rgb(char* mjpeg_buffer, int len, char* rgb_buffer,
 #endif
 
   if (!got_picture) {
-    AERROR << "Webcam: expected picture but didn't get it...";
+    AERROR << "Camera: expected picture but didn't get it...";
     return;
   }
 
@@ -175,16 +197,29 @@ void UsbCam::mjpeg2rgb(char* mjpeg_buffer, int len, char* rgb_buffer,
     return;
   }
 
+#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(57, 0, 0)
+  video_sws_ =
+      sws_getContext(xsize, ysize, avcodec_context_->pix_fmt, xsize, ysize,
+                     AV_PIX_FMT_RGB24, SWS_BILINEAR, nullptr, nullptr, nullptr);
+#else
   video_sws_ =
       sws_getContext(xsize, ysize, avcodec_context_->pix_fmt, xsize, ysize,
                      PIX_FMT_RGB24, SWS_BILINEAR, nullptr, nullptr, nullptr);
+#endif
+
   sws_scale(video_sws_, avframe_camera_->data, avframe_camera_->linesize, 0,
             ysize, avframe_rgb_->data, avframe_rgb_->linesize);
   sws_freeContext(video_sws_);
 
+#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(57, 0, 0)
+  int size = avpicture_layout(
+      reinterpret_cast<AVPicture*>(avframe_rgb_), AV_PIX_FMT_RGB24, xsize,
+      ysize, reinterpret_cast<uint8_t*>(rgb_buffer), avframe_rgb_size_);
+#else
   int size = avpicture_layout(
       reinterpret_cast<AVPicture*>(avframe_rgb_), PIX_FMT_RGB24, xsize, ysize,
       reinterpret_cast<uint8_t*>(rgb_buffer), avframe_rgb_size_);
+#endif
   if (size != avframe_rgb_size_) {
     AERROR << "webcam: avpicture_layout error: " << size;
     return;
@@ -395,6 +430,7 @@ bool UsbCam::init_device(void) {
   return true;
 }
 
+#ifndef __aarch64__
 bool UsbCam::set_adv_trigger() {
   AINFO << "Trigger enable, dev:" << config_->camera_dev()
         << ", fps:" << config_->trigger_fps()
@@ -409,6 +445,7 @@ bool UsbCam::set_adv_trigger() {
   }
   return true;
 }
+#endif
 
 int UsbCam::xioctl(int fd, int request, void* arg) {
   int r = 0;
@@ -504,8 +541,9 @@ bool UsbCam::init_userp(unsigned int buffer_size) {
 
   if (-1 == xioctl(fd_, VIDIOC_REQBUFS, &req)) {
     if (EINVAL == errno) {
-      AERROR << config_->camera_dev() << " does not support "
-                                         "user pointer i/o";
+      AERROR << config_->camera_dev()
+             << " does not support "
+                "user pointer i/o";
       return false;
     }
     AERROR << "VIDIOC_REQBUFS";
@@ -747,9 +785,9 @@ bool UsbCam::read_frame(CameraImagePtr raw_image) {
 
           case EIO:
 
-          /* Could ignore EIO, see spec. */
+            /* Could ignore EIO, see spec. */
 
-          /* fall through */
+            /* fall through */
 
           default:
             AERROR << "read";
@@ -774,9 +812,9 @@ bool UsbCam::read_frame(CameraImagePtr raw_image) {
 
           case EIO:
 
-          /* Could ignore EIO, see spec. */
+            /* Could ignore EIO, see spec. */
 
-          /* fall through */
+            /* fall through */
 
           default:
             AERROR << "VIDIOC_DQBUF";
@@ -852,9 +890,9 @@ bool UsbCam::read_frame(CameraImagePtr raw_image) {
 
           case EIO:
 
-          /* Could ignore EIO, see spec. */
+            /* Could ignore EIO, see spec. */
 
-          /* fall through */
+            /* fall through */
 
           default:
             AERROR << "VIDIOC_DQBUF";
@@ -899,8 +937,14 @@ bool UsbCam::process_image(const void* src, int len, CameraImagePtr dest) {
     if (config_->output_type() == YUYV) {
       memcpy(dest->image, src, dest->width * dest->height * 2);
     } else if (config_->output_type() == RGB) {
+#ifdef __aarch64__
+      convert_yuv_to_rgb_buffer((unsigned char*)src,
+                                (unsigned char*)dest->image, dest->width,
+                                dest->height);
+#else
       yuyv2rgb_avx((unsigned char*)src, (unsigned char*)dest->image,
                    dest->width * dest->height);
+#endif
     } else {
       AERROR << "unsupported output format:" << config_->output_type();
       return false;
@@ -1006,8 +1050,10 @@ bool UsbCam::wait_for_device() {
     close_device();
     return false;
   }
+#ifndef __aarch64__
   // will continue when trigger failed for self-trigger camera
   set_adv_trigger();
+#endif
   return true;
 }
 
@@ -1016,6 +1062,61 @@ void UsbCam::reconnect() {
   uninit_device();
   close_device();
 }
+
+#ifdef __aarch64__
+int UsbCam::convert_yuv_to_rgb_pixel(int y, int u, int v) {
+  unsigned int pixel32 = 0;
+  unsigned char* pixel = (unsigned char*)&pixel32;
+  int r, g, b;
+  r = (int)((double)y + (1.370705 * ((double)v - 128.0)));
+  g = (int)((double)y - (0.698001 * ((double)v - 128.0)) -
+            (0.337633 * ((double)u - 128.0)));
+  b = (int)((double)y + (1.732446 * ((double)u - 128.0)));
+  if (r > 255) r = 255;
+  if (g > 255) g = 255;
+  if (b > 255) b = 255;
+  if (r < 0) r = 0;
+  if (g < 0) g = 0;
+  if (b < 0) b = 0;
+  pixel[0] = (unsigned char)r;
+  pixel[1] = (unsigned char)g;
+  pixel[2] = (unsigned char)b;
+  return pixel32;
+}
+
+int UsbCam::convert_yuv_to_rgb_buffer(unsigned char* yuv, unsigned char* rgb,
+                                      unsigned int width, unsigned int height) {
+  unsigned int in, out = 0;
+  unsigned int pixel_16;
+  unsigned char pixel_24[3];
+  unsigned int pixel32;
+  int y0, u, y1, v;
+
+  for (in = 0; in < width * height * 2; in += 4) {
+    pixel_16 =
+        yuv[in + 3] << 24 | yuv[in + 2] << 16 | yuv[in + 1] << 8 | yuv[in + 0];
+    y0 = (pixel_16 & 0x000000ff);
+    u = (pixel_16 & 0x0000ff00) >> 8;
+    y1 = (pixel_16 & 0x00ff0000) >> 16;
+    v = (pixel_16 & 0xff000000) >> 24;
+    pixel32 = convert_yuv_to_rgb_pixel(y0, u, v);
+    pixel_24[0] = (unsigned char)(pixel32 & 0x000000ff);
+    pixel_24[1] = (unsigned char)((pixel32 & 0x0000ff00) >> 8);
+    pixel_24[2] = (unsigned char)((pixel32 & 0x00ff0000) >> 16);
+    rgb[out++] = pixel_24[0];
+    rgb[out++] = pixel_24[1];
+    rgb[out++] = pixel_24[2];
+    pixel32 = convert_yuv_to_rgb_pixel(y1, u, v);
+    pixel_24[0] = (unsigned char)(pixel32 & 0x000000ff);
+    pixel_24[1] = (unsigned char)((pixel32 & 0x0000ff00) >> 8);
+    pixel_24[2] = (unsigned char)((pixel32 & 0x00ff0000) >> 16);
+    rgb[out++] = pixel_24[0];
+    rgb[out++] = pixel_24[1];
+    rgb[out++] = pixel_24[2];
+  }
+  return 0;
+}
+#endif
 
 }  // namespace camera
 }  // namespace drivers

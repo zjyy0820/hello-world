@@ -4,12 +4,8 @@ package(default_visibility = ["//visibility:public"])
 
 cc_library(
     name = "lattice_planner",
-    srcs = [
-        "lattice_planner.cc",
-    ],
-    hdrs = [
-        "lattice_planner.h",
-    ],
+    srcs = ["lattice_planner.cc"],
+    hdrs = ["lattice_planner.h"],
     copts = ["-DMODULE_NAME=\\\"planning\\\""],
     deps = [
         "//cyber/common:log",
@@ -19,8 +15,8 @@ cc_library(
         "//modules/planning/constraint_checker",
         "//modules/planning/constraint_checker:collision_checker",
         "//modules/planning/lattice/behavior:path_time_graph",
-        "//modules/planning/lattice/trajectory1d:lattice_trajectory1d",
         "//modules/planning/lattice/trajectory_generation:backup_trajectory_generator",
+        "//modules/planning/lattice/trajectory_generation:lattice_trajectory1d",
         "//modules/planning/lattice/trajectory_generation:trajectory1d_generator",
         "//modules/planning/lattice/trajectory_generation:trajectory_combiner",
         "//modules/planning/lattice/trajectory_generation:trajectory_evaluator",

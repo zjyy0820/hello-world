@@ -22,21 +22,9 @@ DEFINE_string(localization_module_name, "localization",
 DEFINE_double(localization_publish_freq, 100,
               "localization publishing frequency.");
 
-DEFINE_string(rtk_adapter_config_file,
-              "/apollo/modules/localization/conf/rtk_adapter.conf",
-              "rtk adapter configuration");
-
 DEFINE_string(localization_config_file,
               "/apollo/modules/localization/conf/localization_config.pb.txt",
               "localization config file");
-
-DEFINE_string(msf_adapter_config_file,
-              "/apollo/modules/localization/conf/msf_adapter.conf",
-              "msf adapter configuration");
-
-DEFINE_string(msf_visual_adapter_config_file,
-              "/apollo/modules/localization/conf/msf_visual_adapter.conf",
-              "msf visualization adapter configuration");
 
 // features
 DEFINE_bool(enable_gps_imu_interprolate, true, "enable GPU/IMU interprolate");
@@ -86,7 +74,7 @@ DEFINE_int32(lidar_filter_size, 17, "Lidar filter size");
 DEFINE_double(lidar_imu_max_delay_time, 0.4,
               "Lidar msg and imu msg max delay time");
 DEFINE_double(lidar_map_coverage_theshold, 0.9,
-              "Threshold to detect wether vehicle is out of map");
+              "Threshold to detect whether vehicle is out of map");
 DEFINE_bool(lidar_debug_log_flag, false, "Lidar Debug switch.");
 DEFINE_int32(point_cloud_step, 2, "Point cloud step");
 DEFINE_bool(if_use_avx, false,
@@ -131,8 +119,7 @@ DEFINE_bool(enable_lidar_localization, true,
 
 DEFINE_string(lidar_topic, "/apollo/sensor/lidar128/compensator/PointCloud2",
               "lidar pointcloud topic");
-DEFINE_string(broadcast_tf_frame_id, "world",
-              "world frame id in tf");
+DEFINE_string(broadcast_tf_frame_id, "world", "world frame id in tf");
 DEFINE_string(broadcast_tf_child_frame_id, "localization",
               "localization frame id in tf");
 // imu vehicle extrinsic
@@ -180,3 +167,22 @@ DEFINE_double(localization_std_x_threshold_2, 0.3,
               "threshold for lateral std of localization result");
 DEFINE_double(localization_std_y_threshold_2, 0.3,
               "threshold for longitudinal std of localization result");
+
+// ndt localization
+DEFINE_string(ndt_map_dir, "ndt_map", "subdirectory for ndt map");
+DEFINE_bool(ndt_debug_log_flag, false, "NDT Localization log switch");
+DEFINE_double(online_resolution, 2.0, "NDT online pointcloud resolution");
+DEFINE_int32(ndt_max_iterations, 10, "maximum iterations for NDT matching");
+DEFINE_double(ndt_target_resolution, 1.0,
+              "target resolution for ndt localization");
+DEFINE_double(ndt_line_search_step_size, 0.1,
+              "line search step size for ndt matching");
+DEFINE_double(ndt_transformation_epsilon, 0.01,
+              "iteration convergence condition on transformation");
+DEFINE_int32(ndt_filter_size_x, 48, "x size for ndt searching area");
+DEFINE_int32(ndt_filter_size_y, 48, "y size for ndt searching area");
+DEFINE_int32(ndt_bad_score_count_threshold, 10,
+             "count for continuous bad ndt fitness score");
+DEFINE_double(ndt_warnning_ndt_score, 1.0,
+              "warnning ndt fitness score threshold");
+DEFINE_double(ndt_error_ndt_score, 2.0, "error ndt fitness score threshold");

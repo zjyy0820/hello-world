@@ -22,9 +22,7 @@ namespace apollo {
 namespace cyber {
 namespace record {
 
-RecordFileReader::RecordFileReader() : end_of_file_(false) {}
-
-RecordFileReader::~RecordFileReader() {}
+using apollo::cyber::proto::SectionType;
 
 bool RecordFileReader::Open(const std::string& path) {
   std::lock_guard<std::mutex> lock(mutex_);
@@ -61,7 +59,7 @@ bool RecordFileReader::Reset() {
 bool RecordFileReader::ReadHeader() {
   Section section;
   if (!ReadSection(&section)) {
-    AERROR << "Read header section fail, file is broken of it is not a record "
+    AERROR << "Read header section fail, file is broken or it is not a record "
               "file.";
     return false;
   }
@@ -71,7 +69,7 @@ bool RecordFileReader::ReadHeader() {
            << ", actual: " << section.type;
     return false;
   }
-  if (!ReadSection<Header>(section.size, &header_)) {
+  if (!ReadSection<proto::Header>(section.size, &header_)) {
     AERROR << "Read header section fail, file is broken or it is not a record "
               "file.";
     return false;
@@ -94,8 +92,7 @@ bool RecordFileReader::ReadIndex() {
   }
   Section section;
   if (!ReadSection(&section)) {
-    AERROR << "Read index section fail, maybe file is broken."
-              "file.";
+    AERROR << "Read index section fail, maybe file is broken.";
     return false;
   }
   if (section.type != SectionType::SECTION_INDEX) {
@@ -104,7 +101,7 @@ bool RecordFileReader::ReadIndex() {
            << ", actual: " << section.type;
     return false;
   }
-  if (!ReadSection<Index>(section.size, &index_)) {
+  if (!ReadSection<proto::Index>(section.size, &index_)) {
     AERROR << "Read index section fail.";
     return false;
   }
@@ -130,10 +127,16 @@ bool RecordFileReader::ReadSection(Section* section) {
   return true;
 }
 
-bool RecordFileReader::SkipSection(uint64_t size) {
-  uint64_t c = CurrentPosition();
-  if (!SetPosition(c + size)) {
-    AERROR << "Skip failed, file: " << path_ << ", skip count: " << size;
+bool RecordFileReader::SkipSection(int64_t size) {
+  int64_t pos = CurrentPosition();
+  if (size > INT64_MAX - pos) {
+    AERROR << "Current position plus skip count is larger than INT64_MAX, "
+           << pos << " + " << size << " > " << INT64_MAX;
+    return false;
+  }
+  if (!SetPosition(pos + size)) {
+    AERROR << "Skip failed, file: " << path_ << ", current position: " << pos
+           << "skip count: " << size;
     return false;
   }
   return true;

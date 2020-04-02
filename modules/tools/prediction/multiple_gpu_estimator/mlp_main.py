@@ -436,7 +436,7 @@ if __name__ == '__main__':
         type=float,
         default=0.1,
         help="""\
-            This is the inital learning rate value. The learning rate will decrease
+            This is the initial learning rate value. The learning rate will decrease
             during training. For more details check the model_fn implementation in
             this file.\
             """)
@@ -469,7 +469,7 @@ if __name__ == '__main__':
         type=str,
         default=None,
         help="""\
-            If not set, the data format best for the training device is used. 
+            If not set, the data format best for the training device is used.
             Allowed values: channels_first (NCHW) channels_last (NHWC).\
             """)
     parser.add_argument(

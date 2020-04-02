@@ -29,17 +29,25 @@ using apollo::common::PathPoint;
 using apollo::common::TrajectoryPoint;
 using apollo::hdmap::LaneInfo;
 
-void SingleLanePredictor::Predict(Obstacle* obstacle) {
+SingleLanePredictor::SingleLanePredictor() {
+  predictor_type_ = ObstacleConf::SINGLE_LANE_PREDICTOR;
+}
+
+bool SingleLanePredictor::Predict(
+    const ADCTrajectoryContainer* adc_trajectory_container, Obstacle* obstacle,
+    ObstaclesContainer* obstacles_container) {
   Clear();
 
   CHECK_NOTNULL(obstacle);
   CHECK_GT(obstacle->history_size(), 0);
 
+  obstacle->SetPredictorType(predictor_type_);
+
   const Feature& feature = obstacle->latest_feature();
 
   if (!feature.has_lane() || !feature.lane().has_lane_graph()) {
     AERROR << "Obstacle [" << obstacle->id() << "] has no lane graph.";
-    return;
+    return false;
   }
 
   std::string lane_id = "";
@@ -50,7 +58,7 @@ void SingleLanePredictor::Predict(Obstacle* obstacle) {
 
   for (int i = 0; i < num_lane_sequence; ++i) {
     const LaneSequence& sequence = feature.lane().lane_graph().lane_sequence(i);
-    if (sequence.lane_segment_size() <= 0) {
+    if (sequence.lane_segment().empty()) {
       AERROR << "Empty lane segments.";
       continue;
     }
@@ -60,8 +68,8 @@ void SingleLanePredictor::Predict(Obstacle* obstacle) {
            << "] with probability [" << sequence.probability() << "].";
 
     std::vector<TrajectoryPoint> points;
-    GenerateTrajectoryPoints(*obstacle, sequence,
-        FLAGS_prediction_trajectory_time_length,
+    GenerateTrajectoryPoints(
+        *obstacle, sequence, FLAGS_prediction_trajectory_time_length,
         FLAGS_prediction_trajectory_time_resolution, &points);
 
     if (points.empty()) {
@@ -70,8 +78,10 @@ void SingleLanePredictor::Predict(Obstacle* obstacle) {
 
     Trajectory trajectory = GenerateTrajectory(points);
     trajectory.set_probability(sequence.probability());
-    trajectories_.push_back(std::move(trajectory));
+    obstacle->mutable_latest_feature()->add_predicted_trajectory()->CopyFrom(
+        trajectory);
   }
+  return true;
 }
 
 void SingleLanePredictor::GenerateTrajectoryPoints(

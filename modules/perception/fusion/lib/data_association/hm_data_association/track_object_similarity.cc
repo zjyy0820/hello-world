@@ -47,8 +47,8 @@ double ComputePtsBoxLocationSimilarity(const ProjectionCachePtr& cache,
   }
   Eigen::Vector2d mean_pixel_dist(0.0, 0.0);
   // calculate mean x y pixel distance
-  const size_t& start_ind = object->GetStartInd();
-  const size_t& end_ind = object->GetEndInd();
+  const size_t start_ind = object->GetStartInd();
+  const size_t end_ind = object->GetEndInd();
   if (end_ind - start_ind >= check_augmented_iou_minimum_pts_num) {
     base::BBox2DF velo_bbox = object->GetBox();
     float augmented_iou =
@@ -97,7 +97,7 @@ double ComputePtsBoxLocationSimilarity(const ProjectionCachePtr& cache,
 // @brief: calculate the shape similarity between cloud and camera box
 // @return the shape similarity which belongs to [0, 1].
 // @key idea:
-// 1. calcuate box size diff between velo box and camera box
+// 1. calculate box size diff between velo box and camera box
 // 2. normalize box size diff according to the std of x/y
 // 3. generate shape similarity from Chi-Squared distribution
 // @NOTE: original method name is compute_pts_box_shape_score
@@ -160,15 +160,14 @@ double ComputePtsBoxSimilarity(const ProjectionCachePtr& cache,
       ComputePtsBoxShapeSimilarity(cache, object, camera_bbox);
   double fused_similarity =
       FuseTwoProbabilities(location_similarity, shape_similarity);
-  ADEBUG << "fused_similarity@" << fused_similarity
-         << ", location_similarity@" << location_similarity
-         << ", shape_similarity@" << shape_similarity;
+  ADEBUG << "fused_similarity@" << fused_similarity << ", location_similarity@"
+         << location_similarity << ", shape_similarity@" << shape_similarity;
   return fused_similarity;
 }
 // @brief: calculate the x/y/h similarity between radar and camera
 // @return the similarity which belongs to [0, 1].
 // @key idea:
-// 1. compute the differnece on x/y/h
+// 1. compute the difference on x/y/h
 // 2. compute similarity according to the WelshVarLoss/ChiSquareProb
 // 3. scale the similarity above
 double ComputeRadarCameraXSimilarity(const double velo_ct_x,
@@ -281,15 +280,11 @@ double ComputeRadarCameraVelocitySimilarity(
     const float velocity_std = 0.15f;
     const float max_velocity_p = 0.9f;
     const float th_velocity_p = 0.5f;
-    float velocity_score =
-        static_cast<float>(1 - ChiSquaredCdf1TableFun(diff_velocity_ratio *
-                                                      diff_velocity_ratio /
-                                                      velocity_std /
-                                                      velocity_std));
-    velocity_score = static_cast<float>(
-                         ScalePositiveProbability(velocity_score,
-                                                  max_velocity_p,
-                                                  th_velocity_p));
+    float velocity_score = static_cast<float>(
+        1 - ChiSquaredCdf1TableFun(diff_velocity_ratio * diff_velocity_ratio /
+                                   velocity_std / velocity_std));
+    velocity_score = static_cast<float>(ScalePositiveProbability(
+        velocity_score, max_velocity_p, th_velocity_p));
     return velocity_score;
   } else {
     return 0.5;

@@ -1,19 +1,19 @@
 /******************************************************************************
-* Copyright 2018 The Apollo Authors. All Rights Reserved.
-*
-* Licensed under the Apache License, Version 2.0 (the License);
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-* http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an AS IS BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*****************************************************************************/
-#include <gtest/gtest.h>
+ * Copyright 2018 The Apollo Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the License);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *****************************************************************************/
+#include "gtest/gtest.h"
 
 #include "cyber/common/log.h"
 #include "modules/perception/common/perception_gflags.h"
@@ -27,16 +27,16 @@ namespace perception {
 namespace radar {
 
 TEST(ContiArsTrackerTest, conti_ars_tracker_init_test) {
-  BaseTracker* tracker = new ContiArsTracker();
-  FLAGS_work_root = "/apollo/modules/perception/testdata/"
-        "radar/conti_ars_tracker";
-  EXPECT_EQ(tracker->Init(), true);
+  std::unique_ptr<BaseTracker> tracker(new ContiArsTracker());
+  FLAGS_work_root =
+      "/apollo/modules/perception/testdata/"
+      "radar/conti_ars_tracker";
+  EXPECT_TRUE(tracker->Init());
   EXPECT_EQ(tracker->Name(), "ContiArsTracker");
-  delete tracker;
 }
 
 TEST(ContiArsTrackerTest, conti_ars_tracker_track_test) {
-  BaseTracker* tracker = new ContiArsTracker();
+  std::unique_ptr<BaseTracker> tracker(new ContiArsTracker());
   FLAGS_work_root = "./radar_test_data/conti_ars_tracker";
   tracker->Init();
   base::Frame radar_frame;
@@ -53,8 +53,7 @@ TEST(ContiArsTrackerTest, conti_ars_tracker_track_test) {
   TrackerOptions options;
   base::FramePtr tracked_frame(new base::Frame);
   bool state = tracker->Track(radar_frame, options, tracked_frame);
-  EXPECT_EQ(state, true);
-  delete tracker;
+  EXPECT_TRUE(state);
 }
 
 TEST(ContiArsTrackerTest, conti_ars_tracker_collect_test) {
@@ -65,7 +64,7 @@ TEST(ContiArsTrackerTest, conti_ars_tracker_collect_test) {
   double timestamp = 123456789.0;
   RadarTrackPtr radar_track(new RadarTrack(object, timestamp));
 
-  ContiArsTracker* tracker = new ContiArsTracker();
+  std::unique_ptr<ContiArsTracker> tracker(new ContiArsTracker());
   FLAGS_work_root = "./radar_test_data/conti_ars_tracker";
   tracker->Init();
   tracker->track_manager_->ClearTracks();
@@ -76,7 +75,6 @@ TEST(ContiArsTrackerTest, conti_ars_tracker_collect_test) {
   RadarTrack::SetTrackedTimesThreshold(0);
   tracker->CollectTrackedFrame(tracked_frame);
   EXPECT_EQ(tracked_frame->objects.size(), 1);
-  delete tracker;
 }
 
 TEST(ContiArsTrackerTest, conti_ars_tracker_unassigned_test) {
@@ -94,7 +92,7 @@ TEST(ContiArsTrackerTest, conti_ars_tracker_unassigned_test) {
   radar_frame.timestamp =
       timestamp + ContiArsTracker::s_tracking_time_win_ + 1e-5;
 
-  ContiArsTracker* tracker = new ContiArsTracker();
+  std::unique_ptr<ContiArsTracker> tracker(new ContiArsTracker());
   FLAGS_work_root = "./radar_test_data/conti_ars_tracker";
   tracker->Init();
   tracker->track_manager_->ClearTracks();
@@ -121,7 +119,6 @@ TEST(ContiArsTrackerTest, conti_ars_tracker_unassigned_test) {
   tracker->UpdateUnassignedTracks(radar_frame, unassigned_tracks);
   tracker->track_manager_->RemoveLostTracks();
   EXPECT_EQ(tracker->track_manager_->GetTracks().size(), 0);
-  delete tracker;
 }
 
 }  // namespace radar

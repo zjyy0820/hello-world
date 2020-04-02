@@ -47,7 +47,7 @@ class TrajectoryEvaluator {
       PairCostWithComponents;
 
  public:
-  explicit TrajectoryEvaluator(
+  TrajectoryEvaluator(
       const std::array<double, 3>& init_s,
       const PlanningTarget& planning_target,
       const std::vector<std::shared_ptr<Curve1d>>& lon_trajectories,
@@ -95,8 +95,8 @@ class TrajectoryEvaluator {
       const PlanningTarget& planning_target) const;
 
   bool InterpolateDenseStPoints(
-      const std::vector<apollo::common::SpeedPoint>& st_points,
-      double t, double *traj_s) const;
+      const std::vector<apollo::common::SpeedPoint>& st_points, double t,
+      double* traj_s) const;
 
   struct CostComparator
       : public std::binary_function<const PairCost&, const PairCost&, bool> {

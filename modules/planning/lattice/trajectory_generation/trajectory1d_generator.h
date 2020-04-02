@@ -28,8 +28,8 @@
 
 #include "modules/planning/lattice/behavior/path_time_graph.h"
 #include "modules/planning/lattice/behavior/prediction_querier.h"
-#include "modules/planning/lattice/trajectory1d/lattice_trajectory1d.h"
 #include "modules/planning/lattice/trajectory_generation/end_condition_sampler.h"
+#include "modules/planning/lattice/trajectory_generation/lattice_trajectory1d.h"
 #include "modules/planning/math/curve1d/curve1d.h"
 #include "modules/planning/math/curve1d/quartic_polynomial_curve1d.h"
 #include "modules/planning/math/curve1d/quintic_polynomial_curve1d.h"
@@ -96,7 +96,8 @@ inline void Trajectory1dGenerator::GenerateTrajectory1DBundle<4>(
   CHECK_NOTNULL(ptr_trajectory_bundle);
   CHECK(!end_conditions.empty());
 
-  ptr_trajectory_bundle->reserve(end_conditions.size());
+  ptr_trajectory_bundle->reserve(ptr_trajectory_bundle->size() +
+                                 end_conditions.size());
   for (const auto& end_condition : end_conditions) {
     auto ptr_trajectory1d = std::make_shared<LatticeTrajectory1d>(
         std::shared_ptr<Curve1d>(new QuarticPolynomialCurve1d(
@@ -117,7 +118,8 @@ inline void Trajectory1dGenerator::GenerateTrajectory1DBundle<5>(
   CHECK_NOTNULL(ptr_trajectory_bundle);
   CHECK(!end_conditions.empty());
 
-  ptr_trajectory_bundle->reserve(end_conditions.size());
+  ptr_trajectory_bundle->reserve(ptr_trajectory_bundle->size() +
+                                 end_conditions.size());
   for (const auto& end_condition : end_conditions) {
     auto ptr_trajectory1d = std::make_shared<LatticeTrajectory1d>(
         std::shared_ptr<Curve1d>(new QuinticPolynomialCurve1d(

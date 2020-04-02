@@ -17,7 +17,7 @@
 #ifndef CYBER_TOOLS_CYBER_RECORDER_PLAYER_PLAY_PARAM_H_
 #define CYBER_TOOLS_CYBER_RECORDER_PLAYER_PLAY_PARAM_H_
 
-#include <stdint.h>
+#include <cstdint>
 #include <set>
 #include <string>
 
@@ -33,8 +33,10 @@ struct PlayParam {
   uint64_t end_time_ns = UINT64_MAX;
   uint64_t start_time_s = 0;
   uint64_t delay_time_s = 0;
+  uint32_t preload_time_s = 3;
   std::set<std::string> files_to_play;
   std::set<std::string> channels_to_play;
+  std::set<std::string> black_channels;
 };
 
 }  // namespace record

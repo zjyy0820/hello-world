@@ -15,8 +15,9 @@
  *****************************************************************************/
 #include "modules/perception/lib/config_manager/config_manager.h"
 
+#include "cyber/common/environment.h"
+#include "cyber/common/file.h"
 #include "cyber/common/log.h"
-#include "modules/common/util/file.h"
 #include "modules/perception/common/io/io_util.h"
 #include "modules/perception/common/perception_gflags.h"
 
@@ -24,17 +25,17 @@ namespace apollo {
 namespace perception {
 namespace lib {
 
-using apollo::common::util::GetAbsolutePath;
-using apollo::common::util::GetProtoFromASCIIFile;
+using cyber::common::GetAbsolutePath;
+using cyber::common::GetProtoFromASCIIFile;
 
 ConfigManager::ConfigManager() {
   work_root_ = FLAGS_work_root;
 
   // For start at arbitrary path
   if (work_root_.empty()) {
-    work_root_ = get_env("MODULE_PATH");
+    work_root_ = cyber::common::GetEnv("MODULE_PATH");
     if (work_root_.empty()) {
-      work_root_ = get_env("CYBER_PATH");
+      work_root_ = cyber::common::GetEnv("CYBER_PATH");
     }
   }
 }
@@ -48,9 +49,8 @@ bool ConfigManager::InitInternal() {
   if (inited_) {
     return true;
   }
-  std::map<std::string, ModelConfig *>::iterator iter =
-      model_config_map_.begin();
-  for (; iter != model_config_map_.end(); ++iter) {
+  for (auto iter = model_config_map_.begin(); iter != model_config_map_.end();
+       ++iter) {
     delete iter->second;
   }
   model_config_map_.clear();
@@ -68,21 +68,20 @@ bool ConfigManager::InitInternal() {
     return false;
   }
 
-  for (const auto& model_config_file : model_config_files) {
+  for (const auto &model_config_file : model_config_files) {
     ModelConfigFileListProto file_list_proto;
     if (!GetProtoFromASCIIFile(model_config_file, &file_list_proto)) {
-      AERROR << "invalid ModelConfigFileListProto file: "
-             << model_config_file;
+      AERROR << "Invalid ModelConfigFileListProto file: " << model_config_file;
       return false;
     }
 
-    for (const std::string& model_config_path :
+    for (const std::string &model_config_path :
          file_list_proto.model_config_path()) {
       const std::string abs_path =
           GetAbsolutePath(work_root_, model_config_path);
       MultiModelConfigProto multi_model_config_proto;
       if (!GetProtoFromASCIIFile(abs_path, &multi_model_config_proto)) {
-        AERROR << "invalid MultiModelConfigProto file: " << abs_path;
+        AERROR << "Invalid MultiModelConfigProto file: " << abs_path;
         return false;
       }
 
@@ -95,7 +94,7 @@ bool ConfigManager::InitInternal() {
 
         AINFO << "load ModelConfig succ. name: " << model_config->name();
 
-        std::pair<std::map<std::string, ModelConfig *>::iterator, bool> result =
+        auto result =
             model_config_map_.emplace(model_config->name(), model_config);
         if (!result.second) {
           AWARN << "duplicate ModelConfig, name: " << model_config->name();
@@ -119,24 +118,13 @@ bool ConfigManager::Reset() {
   return InitInternal();
 }
 
-std::string ConfigManager::get_env(const std::string &var_name) {
-  char *var = nullptr;
-  var = getenv(var_name.c_str());
-  if (var == nullptr) {
-    return std::string("");
-  }
-  return std::string(var);
-}
-
 bool ConfigManager::GetModelConfig(const std::string &model_name,
                                    const ModelConfig **model_config) {
   if (!inited_ && !Init()) {
     return false;
   }
 
-  std::map<std::string, ModelConfig *>::const_iterator citer =
-      model_config_map_.find(model_name);
-
+  auto citer = model_config_map_.find(model_name);
   if (citer == model_config_map_.end()) {
     return false;
   }
@@ -145,9 +133,8 @@ bool ConfigManager::GetModelConfig(const std::string &model_name,
 }
 
 ConfigManager::~ConfigManager() {
-  std::map<std::string, ModelConfig *>::iterator iter =
-      model_config_map_.begin();
-  for (; iter != model_config_map_.end(); ++iter) {
+  for (auto iter = model_config_map_.begin(); iter != model_config_map_.end();
+       ++iter) {
     delete iter->second;
   }
 }

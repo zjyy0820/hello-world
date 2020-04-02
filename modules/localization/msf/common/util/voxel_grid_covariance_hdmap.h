@@ -16,11 +16,12 @@
 
 #pragma once
 
-#include <pcl/filters/voxel_grid.h>
-#include <pcl/kdtree/kdtree_flann.h>
 #include <limits>
 #include <map>
 #include <vector>
+
+#include "pcl/filters/voxel_grid.h"
+#include "pcl/kdtree/kdtree_flann.h"
 
 namespace apollo {
 namespace localization {
@@ -580,7 +581,7 @@ class VoxelGridCovariance : public pcl::VoxelGrid<PointT> {
   // Flag to determine if voxel structure is searchable. */
   bool searchable_;
 
-  // Minimum points contained with in a voxel to allow it to be useable.
+  // Minimum points contained with in a voxel to allow it to be usable.
   int min_points_per_voxel_;
 
   // Minimum allowable ratio between eigenvalues.
@@ -590,7 +591,7 @@ class VoxelGridCovariance : public pcl::VoxelGrid<PointT> {
   std::map<size_t, Leaf> leaves_;
 
   /* Point cloud containing centroids of voxels
-   * containing atleast minimum number of points. */
+   * containing at least minimum number of points. */
   PointCloudPtr voxel_centroids_;
 
   /* Indices of leaf structurs associated with each point in

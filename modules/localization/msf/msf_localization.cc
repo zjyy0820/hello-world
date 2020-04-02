@@ -16,16 +16,14 @@
 
 #include "modules/localization/msf/msf_localization.h"
 
-#include <yaml-cpp/yaml.h>
+#include "yaml-cpp/yaml.h"
 
-#include "modules/drivers/gnss/proto/config.pb.h"
-
+#include "cyber/common/file.h"
 #include "modules/common/math/euler_angles_zxy.h"
 #include "modules/common/math/math_utils.h"
 #include "modules/common/math/quaternion.h"
 #include "modules/common/time/time.h"
-#include "modules/common/util/file.h"
-#include "modules/common/util/string_tokenizer.h"
+#include "modules/drivers/gnss/proto/config.pb.h"
 #include "modules/localization/common/localization_gflags.h"
 #include "modules/localization/msf/msf_localization_component.h"
 
@@ -137,10 +135,9 @@ void MSFLocalization::InitParams() {
     double uncertainty_y = 0.0;
     double uncertainty_z = 0.0;
     AINFO << "Ant imu lever arm file: " << FLAGS_ant_imu_leverarm_file;
-    CHECK(LoadGnssAntennaExtrinsic(FLAGS_ant_imu_leverarm_file,
-                                   &offset_x, &offset_y, &offset_z,
-                                   &uncertainty_x, &uncertainty_y,
-                                   &uncertainty_z));
+    CHECK(LoadGnssAntennaExtrinsic(FLAGS_ant_imu_leverarm_file, &offset_x,
+                                   &offset_y, &offset_z, &uncertainty_x,
+                                   &uncertainty_y, &uncertainty_z));
     localization_param_.ant_imu_leverarm_file = FLAGS_ant_imu_leverarm_file;
 
     localization_param_.imu_to_ant_offset.offset_x = offset_x;
@@ -204,8 +201,6 @@ void MSFLocalization::OnPointCloud(
     // publish lidar message to debug
     publisher_->PublishLocalizationMsfLidar(result.localization());
   }
-
-  return;
 }
 
 void MSFLocalization::OnRawImu(
@@ -231,7 +226,7 @@ void MSFLocalization::OnRawImu(
 
   if (result.state() == msf::LocalizationMeasureState::OK ||
       result.state() == msf::LocalizationMeasureState::VALID) {
-    // caculate orientation_vehicle_world
+    // calculate orientation_vehicle_world
     LocalizationEstimate local_result = result.localization();
     CompensateImuVehicleExtrinsic(&local_result);
 
@@ -240,8 +235,6 @@ void MSFLocalization::OnRawImu(
   }
 
   localization_state_ = result.state();
-
-  return;
 }
 
 void MSFLocalization::OnGnssBestPose(
@@ -260,8 +253,6 @@ void MSFLocalization::OnGnssBestPose(
       result.state() == msf::LocalizationMeasureState::VALID) {
     publisher_->PublishLocalizationMsfGnss(result.localization());
   }
-
-  return;
 }
 
 void MSFLocalization::OnGnssRtkObs(
@@ -280,8 +271,6 @@ void MSFLocalization::OnGnssRtkObs(
       result.state() == msf::LocalizationMeasureState::VALID) {
     publisher_->PublishLocalizationMsfGnss(result.localization());
   }
-
-  return;
 }
 
 void MSFLocalization::OnGnssRtkEph(
@@ -293,7 +282,6 @@ void MSFLocalization::OnGnssRtkEph(
   }
 
   localization_integ_.RawEphemerisProcess(*gnss_orbit_msg);
-  return;
 }
 
 void MSFLocalization::OnGnssHeading(
@@ -304,7 +292,6 @@ void MSFLocalization::OnGnssHeading(
     return;
   }
   localization_integ_.GnssHeadingProcess(*gnss_heading_msg);
-  return;
 }
 
 void MSFLocalization::SetPublisher(
@@ -315,24 +302,23 @@ void MSFLocalization::SetPublisher(
 void MSFLocalization::CompensateImuVehicleExtrinsic(
     LocalizationEstimate *local_result) {
   CHECK_NOTNULL(local_result);
-  // caculate orientation_vehicle_world
+  // calculate orientation_vehicle_world
   apollo::localization::Pose *posepb_loc = local_result->mutable_pose();
   const apollo::common::Quaternion &orientation = posepb_loc->orientation();
   const Eigen::Quaternion<double> quaternion(
       orientation.qw(), orientation.qx(), orientation.qy(), orientation.qz());
-  Eigen::Quaternion<double> quat_vehicle_world =
-      quaternion * imu_vehicle_quat_;
+  Eigen::Quaternion<double> quat_vehicle_world = quaternion * imu_vehicle_quat_;
 
   // set heading according to rotation of vehicle
   posepb_loc->set_heading(common::math::QuaternionToHeading(
-  quat_vehicle_world.w(), quat_vehicle_world.x(),
-  quat_vehicle_world.y(), quat_vehicle_world.z()));
+      quat_vehicle_world.w(), quat_vehicle_world.x(), quat_vehicle_world.y(),
+      quat_vehicle_world.z()));
 
   // set euler angles according to rotation of vehicle
   apollo::common::Point3D *eulerangles = posepb_loc->mutable_euler_angles();
   common::math::EulerAnglesZXYd euler_angle(
-      quat_vehicle_world.w(), quat_vehicle_world.x(),
-      quat_vehicle_world.y(), quat_vehicle_world.z());
+      quat_vehicle_world.w(), quat_vehicle_world.x(), quat_vehicle_world.y(),
+      quat_vehicle_world.z());
   eulerangles->set_x(euler_angle.pitch());
   eulerangles->set_y(euler_angle.roll());
   eulerangles->set_z(euler_angle.yaw());
@@ -367,7 +353,7 @@ bool MSFLocalization::LoadImuVehicleExtrinsic(const std::string &file_path,
                                               double *quat_qx, double *quat_qy,
                                               double *quat_qz,
                                               double *quat_qw) {
-  if (!common::util::PathExists(file_path)) {
+  if (!cyber::common::PathExists(file_path)) {
     return false;
   }
   YAML::Node config = YAML::LoadFile(file_path);
@@ -388,15 +374,15 @@ bool MSFLocalization::LoadImuVehicleExtrinsic(const std::string &file_path,
 bool MSFLocalization::LoadZoneIdFromFolder(const std::string &folder_path,
                                            int *zone_id) {
   std::string map_zone_id_folder;
-  if (common::util::DirectoryExists(folder_path + "/map/000/north")) {
+  if (cyber::common::DirectoryExists(folder_path + "/map/000/north")) {
     map_zone_id_folder = folder_path + "/map/000/north";
-  } else if (common::util::DirectoryExists(folder_path + "/map/000/south")) {
+  } else if (cyber::common::DirectoryExists(folder_path + "/map/000/south")) {
     map_zone_id_folder = folder_path + "/map/000/south";
   } else {
     return false;
   }
 
-  auto folder_list = common::util::ListSubPaths(map_zone_id_folder);
+  auto folder_list = cyber::common::ListSubPaths(map_zone_id_folder);
   for (auto itr = folder_list.begin(); itr != folder_list.end(); ++itr) {
     *zone_id = std::stoi(*itr);
     return true;

@@ -20,16 +20,9 @@
 
 #pragma once
 
-#include <string>
-#include <vector>
-
 #include "cyber/common/macros.h"
 
-#include "modules/common/proto/drive_state.pb.h"
-#include "modules/common/proto/pnc_point.pb.h"
-#include "modules/map/pnc_map/path.h"
 #include "modules/planning/proto/planning_status.pb.h"
-#include "modules/routing/proto/routing.pb.h"
 
 /**
  * @brief PlanningContext is the runtime context in planning. It is
@@ -40,37 +33,18 @@ namespace planning {
 
 class PlanningContext {
  public:
-  struct ProceedWithCautionSpeedParam {
-    bool is_fixed_distance = false;
-    double distance = 5.0;  // m
-  };
+  void Clear();
+  void Init();
 
-  // scenario context
-  struct ScenarioInfo {
-    apollo::hdmap::PathOverlap next_stop_sign_overlap;
-    apollo::hdmap::PathOverlap next_traffic_light_overlap;
-    apollo::hdmap::PathOverlap next_crosswalk_overlap;
-    // still in the scenario for this overlap, but stop already done
-    // => no stop fence from decider_rule_based_stop task
-    std::string stop_done_overlap_id;
-    ProceedWithCautionSpeedParam proceed_with_caution_speed;
-    std::vector<std::string> stop_sign_wait_for_obstacles;
-    std::vector<std::string> crosswalk_wait_for_obstacles;
-  };
-
-  static void Clear();
-
-  static void Init();
-
-  static const PlanningStatus& Planningstatus() { return planning_status_; }
-
-  static PlanningStatus* MutablePlanningStatus() { return &planning_status_; }
-
-  static ScenarioInfo* GetScenarioInfo() { return &scenario_info_; }
+  /*
+   * please put all status info inside PlanningStatus for easy maintenance.
+   * do NOT create new struct at this level.
+   * */
+  const PlanningStatus& planning_status() { return planning_status_; }
+  PlanningStatus* mutable_planning_status() { return &planning_status_; }
 
  private:
-  static PlanningStatus planning_status_;
-  static ScenarioInfo scenario_info_;
+  PlanningStatus planning_status_;
 
   // this is a singleton class
   DECLARE_SINGLETON(PlanningContext)

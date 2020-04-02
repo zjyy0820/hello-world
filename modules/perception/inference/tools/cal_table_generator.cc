@@ -14,6 +14,9 @@
  * limitations under the License.
  *****************************************************************************/
 
+#include <algorithm>
+
+#include "absl/strings/str_cat.h"
 #include "gflags/gflags.h"
 #include "opencv2/opencv.hpp"
 
@@ -63,7 +66,7 @@ int evaluate_image_list() {
   while (fin >> image_name) {
     std::string image_path = FLAGS_image_root + '/' + image_name;
     img_list.push_back(image_path);
-    i++;
+    ++i;
     if (i >= FLAGS_max_batch * FLAGS_batch_size) {
       break;
     }
@@ -74,12 +77,12 @@ int evaluate_image_list() {
   std::ofstream out_car(out_file, std::ofstream::out | std::ofstream::binary);
   // std::ofstream out_car(out_file, std::ofstream::out);
   if (!out_car.is_open()) {
-    AERROR << " failed to open out car file: " << out_file;
+    AERROR << "Failed to open out car file: " << out_file;
     return -1;
   }
   std::vector<float> cpu_data(count);
-  // main loop
-  for (size_t i = 0; i < img_list.size(); i++) {
+  // Main loop
+  for (size_t i = 0; i < img_list.size(); ++i) {
     std::string image_path = img_list[i] + FLAGS_image_ext;
     cv::Mat img = cv::imread(image_path, CV_LOAD_IMAGE_COLOR);
     cv::Mat img_org;
@@ -99,20 +102,19 @@ int evaluate_image_list() {
       image_c2 = FLAGS_mean_b;
     }
     if (img.data == 0) {
-      AERROR << "Failed to read iamge: " << image_path;
+      AERROR << "Failed to read image: " << image_path;
       return -1;
     }
     cv::resize(img, img, cv::Size(width, height));
-    // prepare the input data
 
+    // Prepare the input data
     if (i % FLAGS_batch_size == 0) {
       out_car.close();
-      std::string name = "Batch" + std::to_string(i / FLAGS_batch_size);
-      out_file = FLAGS_batch_root + name;
+      out_file = absl::StrCat(FLAGS_batch_root, "Batch", i / FLAGS_batch_size);
 
       out_car.open(out_file, std::ofstream::out | std::ofstream::binary);
       if (!out_car.is_open()) {
-        AERROR << " failed to open out car file: " << out_file;
+        AERROR << "Failed to open out car file: " << out_file;
         return -1;
       }
 
@@ -127,8 +129,8 @@ int evaluate_image_list() {
       out_car.write((const char *)(&cols), sizeof(int));
     }
     if (FLAGS_hwc_input) {
-      int idxx = 0;
-      for (int idx = 0; idx < count / FLAGS_image_channel_num; idx++) {
+      for (int idxx = 0, idx = 0; idx < count / FLAGS_image_channel_num;
+           idx++) {
         idxx = idx * FLAGS_image_channel_num;
         cpu_data[idxx] = static_cast<float>(img.data[idxx] - image_c0);
         cpu_data[idxx + 1] = static_cast<float>(img.data[idxx + 1] - image_c1);
@@ -157,6 +159,7 @@ int evaluate_image_list() {
   out_car.close();
   return 0;
 }
+
 int main(int argc, char **argv) {
   google::ParseCommandLineFlags(&argc, &argv, true);
 
@@ -174,12 +177,12 @@ int main(int argc, char **argv) {
       (new nvinfer1::Int8EntropyCalibrator(stream, 0, true,
                                            FLAGS_cal_table_root));
   apollo::perception::inference::RTNet *rt_net =
-      new apollo::perception::inference::RTNet(FLAGS_proto_file,
-                                               FLAGS_weight_file, outputs,
-                                               inputs, calibrator);
+      new apollo::perception::inference::RTNet(
+          FLAGS_proto_file, FLAGS_weight_file, outputs, inputs, calibrator);
   rt_net->Init(std::map<std::string, std::vector<int>>());
   rt_net->Infer();
   delete rt_net;
   delete calibrator;
+
   return 0;
 }

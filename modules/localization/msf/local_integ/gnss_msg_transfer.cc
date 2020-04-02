@@ -21,9 +21,8 @@ namespace apollo {
 namespace localization {
 namespace msf {
 
-void GnssMagTransfer::Transfer(
-    const apollo::drivers::gnss::BandObservation &in,
-    BandObservationMsg* out) {
+void GnssMagTransfer::Transfer(const apollo::drivers::gnss::BandObservation& in,
+                               BandObservationMsg* out) {
   CHECK_NOTNULL(out);
   if (in.has_band_id()) {
     out->set_band_id(GnssBandID(in.band_id()));
@@ -49,11 +48,10 @@ void GnssMagTransfer::Transfer(
   if (in.has_snr()) {
     out->set_snr(in.snr());
   }
-  return;
 }
 
 void GnssMagTransfer::Transfer(
-    const apollo::drivers::gnss::SatelliteObservation &in,
+    const apollo::drivers::gnss::SatelliteObservation& in,
     SatelliteObservationMsg* out) {
   CHECK_NOTNULL(out);
   if (in.has_sat_prn()) {
@@ -70,12 +68,10 @@ void GnssMagTransfer::Transfer(
     auto tmp = out->add_band_obs();
     Transfer(in.band_obs(idx), tmp);
   }
-
-  return;
 }
 
 void GnssMagTransfer::Transfer(
-    const apollo::drivers::gnss::EpochObservation &in,
+    const apollo::drivers::gnss::EpochObservation& in,
     EpochObservationMsg* out) {
   CHECK_NOTNULL(out);
   if (in.has_receiver_id()) {
@@ -110,12 +106,10 @@ void GnssMagTransfer::Transfer(
     auto tmp = out->add_sat_obs();
     Transfer(in.sat_obs(idx), tmp);
   }
-  return;
 }
 
-void GnssMagTransfer::Transfer(
-    const apollo::drivers::gnss::KepplerOrbit &in,
-    KepplerOrbitMsg* out) {
+void GnssMagTransfer::Transfer(const apollo::drivers::gnss::KepplerOrbit& in,
+                               KepplerOrbitMsg* out) {
   CHECK_NOTNULL(out);
   if (in.has_gnss_type()) {
     out->set_gnss_type(GnssType(in.gnss_type()));
@@ -231,13 +225,10 @@ void GnssMagTransfer::Transfer(
   if (in.has_iodc()) {
     out->set_iodc(in.iodc());
   }
-
-  return;
 }
 
-void GnssMagTransfer::Transfer(
-    const apollo::drivers::gnss::GlonassOrbit &in,
-    GlonassOrbitMsg* out) {
+void GnssMagTransfer::Transfer(const apollo::drivers::gnss::GlonassOrbit& in,
+                               GlonassOrbitMsg* out) {
   CHECK_NOTNULL(out);
   if (in.has_gnss_type()) {
     out->set_gnss_type(GnssType(in.gnss_type()));
@@ -320,13 +311,10 @@ void GnssMagTransfer::Transfer(
   if (in.has_infor_age()) {
     out->set_infor_age(in.infor_age());
   }
-
-  return;
 }
 
-void GnssMagTransfer::Transfer(
-    const apollo::drivers::gnss::GnssEphemeris &in,
-    GnssEphemerisMsg* out) {
+void GnssMagTransfer::Transfer(const apollo::drivers::gnss::GnssEphemeris& in,
+                               GnssEphemerisMsg* out) {
   CHECK_NOTNULL(out);
   if (in.has_gnss_type()) {
     out->set_gnss_type(GnssType(in.gnss_type()));
@@ -339,8 +327,6 @@ void GnssMagTransfer::Transfer(
     auto tmp = out->mutable_glonass_orbit();
     Transfer(in.glonass_orbit(), tmp);
   }
-
-  return;
 }
 
 }  // namespace msf

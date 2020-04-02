@@ -4,23 +4,25 @@ package(default_visibility = ["//visibility:public"])
 
 cc_library(
     name = "prediction_gflags",
-    srcs = [
-        "prediction_gflags.cc",
-        "prediction_system_gflags.cc",
-    ],
-    hdrs = [
-        "prediction_gflags.h",
-        "prediction_system_gflags.h",
-    ],
-    deps = [
-    ],
+    srcs = ["prediction_gflags.cc"],
+    hdrs = ["prediction_gflags.h"],
+)
+
+cc_library(
+    name = "prediction_system_gflags",
+    srcs = ["prediction_system_gflags.cc"],
+    hdrs = ["prediction_system_gflags.h"],
 )
 
 cc_library(
     name = "prediction_util",
     srcs = ["prediction_util.cc"],
     hdrs = ["prediction_util.h"],
+    copts = [
+        "-DMODULE_NAME=\\\"prediction\\\"",
+    ],
     deps = [
+        ":prediction_gflags",
         ":prediction_map",
     ],
 )
@@ -39,6 +41,9 @@ cc_library(
     name = "prediction_map",
     srcs = ["prediction_map.cc"],
     hdrs = ["prediction_map.h"],
+    copts = [
+        "-DMODULE_NAME=\\\"prediction\\\"",
+    ],
     deps = [
         ":prediction_gflags",
         "//modules/map/pnc_map",
@@ -64,10 +69,15 @@ cc_library(
     name = "feature_output",
     srcs = ["feature_output.cc"],
     hdrs = ["feature_output.h"],
+    copts = [
+        "-DMODULE_NAME=\\\"prediction\\\"",
+    ],
     deps = [
         "//modules/common/util",
         "//modules/prediction/common:prediction_gflags",
+        "//modules/prediction/container/obstacles:obstacle",
         "//modules/prediction/proto:offline_features_proto",
+        "//modules/prediction/proto:prediction_proto",
     ],
 )
 
@@ -85,8 +95,14 @@ cc_library(
     name = "road_graph",
     srcs = ["road_graph.cc"],
     hdrs = ["road_graph.h"],
+    copts = [
+        "-DMODULE_NAME=\\\"prediction\\\"",
+    ],
     deps = [
         ":prediction_map",
+        "//modules/prediction/common:prediction_constants",
+        "//modules/prediction/common:prediction_gflags",
+        "//modules/prediction/common:prediction_system_gflags",
         "//modules/prediction/proto:lane_graph_proto",
     ],
 )
@@ -109,8 +125,6 @@ cc_test(
 cc_library(
     name = "kml_map_based_test",
     hdrs = ["kml_map_based_test.h"],
-    deps = [
-    ],
 )
 
 cc_library(
@@ -162,6 +176,9 @@ cc_library(
     name = "junction_analyzer",
     srcs = ["junction_analyzer.cc"],
     hdrs = ["junction_analyzer.h"],
+    copts = [
+        "-DMODULE_NAME=\\\"prediction\\\"",
+    ],
     deps = [
         ":prediction_map",
         "//modules/prediction/proto:feature_proto",
@@ -181,6 +198,72 @@ cc_test(
         ":kml_map_based_test",
         "@gtest//:main",
     ],
+)
+
+cc_library(
+    name = "message_process",
+    srcs = ["message_process.cc"],
+    hdrs = ["message_process.h"],
+    copts = [
+        "-DMODULE_NAME=\\\"prediction\\\"",
+    ],
+    deps = [
+        ":semantic_map",
+        "//cyber/common:file",
+        "//modules/common/adapters:adapter_gflags",
+        "//modules/prediction/evaluator:evaluator_manager",
+        "//modules/prediction/predictor:predictor_manager",
+        "//modules/prediction/proto:offline_features_proto",
+        "//modules/prediction/scenario:scenario_manager",
+        "//modules/prediction/util:data_extraction",
+    ],
+)
+
+cc_library(
+    name = "prediction_thread_pool",
+    srcs = ["prediction_thread_pool.cc"],
+    hdrs = ["prediction_thread_pool.h"],
+    copts = [
+        "-DMODULE_NAME=\\\"prediction\\\"",
+    ],
+    deps = [
+        "//cyber/base",
+        "//cyber/common",
+    ],
+)
+
+cc_test(
+    name = "prediction_thread_pool_test",
+    size = "small",
+    srcs = ["prediction_thread_pool_test.cc"],
+    deps = [
+        ":prediction_thread_pool",
+        "@gtest//:main",
+    ],
+)
+
+cc_library(
+    name = "semantic_map",
+    srcs = ["semantic_map.cc"],
+    hdrs = ["semantic_map.h"],
+    copts = [
+        "-DMODULE_NAME=\\\"prediction\\\"",
+    ],
+    deps = [
+        ":prediction_gflags",
+        "//cyber/common",
+        "//modules/common/configs:config_gflags",
+        "//modules/common/util",
+        "//modules/prediction/container:container_manager",
+        "//modules/prediction/container/pose:pose_container",
+        "//modules/prediction/proto:feature_proto",
+        "@opencv",
+    ],
+)
+
+cc_library(
+    name = "prediction_constants",
+    hdrs = ["prediction_constants.h"],
 )
 
 cpplint()

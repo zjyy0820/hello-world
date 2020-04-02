@@ -35,7 +35,7 @@ enum class MotionState {
 class TrackData {
  public:
   TrackData();
-  explicit TrackData(TrackedObjectPtr obj, int track_id);
+  TrackData(TrackedObjectPtr obj, int track_id);
   virtual ~TrackData();
   std::pair<double, TrackedObjectPtr> GetLatestObject() {
     if (history_objects_.size() != 0) {
@@ -68,8 +68,7 @@ class TrackData {
   // when abs_idx is large than history size, return farest object close to idx
   std::pair<double, TrackedObjectPtr> GetHistoryObject(int idx);
 
-  const std::pair<double, TrackedObjectConstPtr> GetHistoryObject(
-      int idx) const;
+  std::pair<double, TrackedObjectConstPtr> GetHistoryObject(int idx) const;
 
   virtual void Reset();
 

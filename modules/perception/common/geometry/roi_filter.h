@@ -31,12 +31,12 @@ bool IsPtInRoi(
     const std::shared_ptr<const apollo::perception::base::HdmapStruct> roi,
     const apollo::perception::base::PointD pt);
 
-// @brief: whether a object's center is in ROI.
+// @brief: whether an object's center is in ROI.
 bool IsObjectInRoi(
     const std::shared_ptr<const apollo::perception::base::HdmapStruct> roi,
     const std::shared_ptr<const apollo::perception::base::Object> obj);
 
-// @brief: whether a object's bbox is in ROI.
+// @brief: whether an object's bbox is in ROI.
 bool IsObjectBboxInRoi(
     const std::shared_ptr<const apollo::perception::base::HdmapStruct> roi,
     const std::shared_ptr<const apollo::perception::base::Object> obj);
@@ -44,13 +44,6 @@ bool IsObjectBboxInRoi(
 // @brief: whether objects' center are in ROI. If return True,
 //         you can get objects in ROI by param valid_objects.
 bool ObjectInRoiCheck(
-    const std::shared_ptr<const apollo::perception::base::HdmapStruct> roi,
-    const std::vector<std::shared_ptr<apollo::perception::base::Object>>& objs,
-    std::vector<std::shared_ptr<apollo::perception::base::Object>>* valid_objs);
-
-// @brief: whether objects' center and bbox is in ROI. If return True,
-//         you can get objects in ROI by param valid_objects.
-bool ObjectInRoiSlackCheck(
     const std::shared_ptr<const apollo::perception::base::HdmapStruct> roi,
     const std::vector<std::shared_ptr<apollo::perception::base::Object>>& objs,
     std::vector<std::shared_ptr<apollo::perception::base::Object>>* valid_objs);

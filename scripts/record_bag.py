@@ -47,6 +47,8 @@ import psutil
 SMALL_TOPICS = [
     '/apollo/canbus/chassis',
     '/apollo/canbus/chassis_detail',
+    '/apollo/common/latency_records',
+    '/apollo/common/latency_reports',
     '/apollo/control',
     '/apollo/control/pad',
     '/apollo/drive_event',
@@ -87,19 +89,18 @@ SMALL_TOPICS = [
 LARGE_TOPICS = [
     '/apollo/sensor/camera/front_12mm/image/compressed',
     '/apollo/sensor/camera/front_6mm/image/compressed',
-    '/apollo/sensor/camera/front_fisheye/image/compressed',
     '/apollo/sensor/camera/left_fisheye/image/compressed',
-    '/apollo/sensor/camera/left_front/image/compressed',
-    '/apollo/sensor/camera/left_rear/image/compressed',
     '/apollo/sensor/camera/rear_6mm/image/compressed',
     '/apollo/sensor/camera/right_fisheye/image/compressed',
-    '/apollo/sensor/camera/right_front/image/compressed',
-    '/apollo/sensor/camera/right_rear/image/compressed',
-    '/apollo/sensor/camera/traffic/image_long/compressed',
-    '/apollo/sensor/camera/traffic/image_short/compressed',
+    '/apollo/sensor/camera/front_12mm/video/compressed',
+    '/apollo/sensor/camera/front_6mm/video/compressed',
+    '/apollo/sensor/camera/left_fisheye/video/compressed',
+    '/apollo/sensor/camera/rear_6mm/video/compressed',
+    '/apollo/sensor/camera/right_fisheye/video/compressed',
     '/apollo/sensor/radar/front',
     '/apollo/sensor/radar/rear',
     '/apollo/sensor/lidar16/front/center/PointCloud2',
+    '/apollo/sensor/lidar16/front/up/PointCloud2',
     '/apollo/sensor/lidar16/rear/left/PointCloud2',
     '/apollo/sensor/lidar16/rear/right/PointCloud2',
     '/apollo/sensor/lidar16/fusion/PointCloud2',
@@ -135,6 +136,8 @@ class ArgManager(object):
                                  'that case, the False value is ignored.')
         self.parser.add_argument('--stop', default=False, action="store_true",
                                  help='Stop recorder.')
+        self.parser.add_argument('--stop_signal', default="SIGTERM",
+                                 help='Signal to stop the recorder.')
         self.parser.add_argument('--additional_topics', action='append',
                                  help='Record additional topics.')
         self.parser.add_argument('--all', default=False, action="store_true",
@@ -212,22 +215,24 @@ class Recorder(object):
 
     def stop(self):
         """Stop recording."""
-        shell_cmd('pkill -f "cyber_recorder record"')
+        shell_cmd('pkill --signal {} -f "cyber_recorder record"'.format(
+            self.args.stop_signal))
 
     def record_task(self, disk, topics, is_small_topic=False):
         """Record tasks into the <disk>/data/bag/<task_id> directory."""
         task_id = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
         if is_small_topic:
-            task_id = task_id + "_s"
+            task_id += "_s"
         task_dir = os.path.join(disk, 'data/bag', task_id)
         print('Recording bag to {}'.format(task_dir))
 
         log_file = '/apollo/data/log/apollo_record.out'
         if is_small_topic:
-            log_file = log_file + "_s"
+            log_file += "_s"
         topics_str = ' -c '.join(topics)
 
-        os.makedirs(task_dir)
+        if not os.path.exists(task_dir):
+            os.makedirs(task_dir)
         cmd = '''
             cd "{}"
             source /apollo/scripts/apollo_base.sh

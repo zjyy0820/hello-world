@@ -1,18 +1,18 @@
 /******************************************************************************
-* Copyright 2018 The Apollo Authors. All Rights Reserved.
-*
-* Licensed under the Apache License, Version 2.0 (the License);
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-* http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an AS IS BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*****************************************************************************/
+ * Copyright 2018 The Apollo Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the License);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *****************************************************************************/
 
 #include "modules/perception/radar/lib/interface/base_matcher.h"
 
@@ -26,14 +26,13 @@ namespace perception {
 namespace radar {
 
 TEST(BaseMatcherTest, base_matcher_test) {
-  BaseMatcher* matcher = new BaseMatcher();
-  EXPECT_TRUE(matcher != nullptr);
-  EXPECT_EQ(matcher->Init(), true);
+  std::unique_ptr<BaseMatcher> matcher(new BaseMatcher());
+  EXPECT_TRUE(matcher->Init());
   EXPECT_EQ(matcher->Name(), "BaseMatcher");
   double match_distance = 2.5;
   BaseMatcher::SetMaxMatchDistance(match_distance);
   double distance = BaseMatcher::GetMaxMatchDistance();
-  EXPECT_TRUE(std::fabs(match_distance - distance) < 1e-5);
+  EXPECT_LT(std::fabs(match_distance - distance), 1e-5);
 
   std::vector<RadarTrackPtr> radar_tracks;
   base::Frame radar_frame;
@@ -71,8 +70,7 @@ TEST(BaseMatcherTest, base_matcher_test) {
   bool match_state =
       matcher->Match(radar_tracks, radar_frame, options, &assignments,
                      &unassigned_tracks, &unassigned_objects);
-  EXPECT_EQ(match_state, true);
-  delete matcher;
+  EXPECT_TRUE(match_state);
 }
 
 }  // namespace radar

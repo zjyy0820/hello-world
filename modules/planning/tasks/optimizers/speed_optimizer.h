@@ -22,7 +22,7 @@
 
 #include "modules/common/status/status.h"
 #include "modules/planning/common/speed/speed_data.h"
-#include "modules/planning/tasks/optimizers/st_graph/st_graph_data.h"
+#include "modules/planning/common/st_graph_data.h"
 #include "modules/planning/tasks/task.h"
 
 namespace apollo {
@@ -31,22 +31,19 @@ namespace planning {
 class SpeedOptimizer : public Task {
  public:
   explicit SpeedOptimizer(const TaskConfig& config);
+
   virtual ~SpeedOptimizer() = default;
-  apollo::common::Status Execute(
-      Frame* frame, ReferenceLineInfo* reference_line_info) override;
+  common::Status Execute(Frame* frame,
+                         ReferenceLineInfo* reference_line_info) override;
 
  protected:
-  virtual apollo::common::Status Process(
-      const SLBoundary& adc_sl_boundary, const PathData& path_data,
-      const common::TrajectoryPoint& init_point,
-      const ReferenceLine& reference_line,
-      const SpeedData& reference_speed_data, PathDecision* const path_decision,
-      SpeedData* const speed_data) = 0;
-
-  void RecordSTGraphDebug(const StGraphData& st_graph_data,
-                          planning_internal::STGraphDebug* stGraphDebug) const;
+  virtual common::Status Process(const PathData& path_data,
+                                 const common::TrajectoryPoint& init_point,
+                                 SpeedData* const speed_data) = 0;
 
   void RecordDebugInfo(const SpeedData& speed_data);
+  void RecordDebugInfo(const SpeedData& speed_data,
+                       planning_internal::STGraphDebug* st_graph_debug);
 };
 
 }  // namespace planning

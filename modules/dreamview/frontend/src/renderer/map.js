@@ -8,14 +8,17 @@ import {
     drawDashedLineFromPoints,
     drawShapeFromPoints
 } from "utils/draw";
+import Text3D, { TEXT_ALIGN } from "renderer/text3d";
+import TrafficSigns from "renderer/traffic_controls/traffic_signs";
+import TrafficSignals from "renderer/traffic_controls/traffic_signals";
 
 import stopSignMaterial from "assets/models/stop_sign.mtl";
 import stopSignObject from "assets/models/stop_sign.obj";
+import yieldSignMaterial from "assets/models/yield_sign.mtl";
+import yieldSignObject from "assets/models/yield_sign.obj";
 
-import trafficLightMaterial from "assets/models/traffic_light.mtl";
-import trafficLightObject from "assets/models/traffic_light.obj";
-
-import { loadObject } from "utils/models";
+const STOP_SIGN_SCALE = 0.01;
+const YIELD_SIGN_SCALE = 1.5;
 
 const colorMapping = {
     YELLOW: 0XDAA520,
@@ -28,28 +31,23 @@ const colorMapping = {
     DEFAULT: 0xC0C0C0
 };
 
-const TRAFFIC_LIGHT_SCALE = 0.006;
-const trafficLightScales = {
-    x: TRAFFIC_LIGHT_SCALE,
-    y: TRAFFIC_LIGHT_SCALE,
-    z: TRAFFIC_LIGHT_SCALE
-};
-
-const STOP_SIGN_SCALE = 0.01;
-const stopSignScales = {
-    x: STOP_SIGN_SCALE,
-    y: STOP_SIGN_SCALE,
-    z: STOP_SIGN_SCALE
-};
-
-const EPSILON = 1e-9;
-
 export default class Map {
     constructor() {
+        this.textRender = new Text3D();
         this.hash = -1;
         this.data = {};
         this.initialized = false;
         this.elementKindsDrawn = '';
+
+        this.trafficSignals = new TrafficSignals();
+        this.stopSigns = new TrafficSigns(
+            stopSignMaterial, stopSignObject, STOP_SIGN_SCALE,
+        );
+        this.yieldSigns = new TrafficSigns(
+            yieldSignMaterial, yieldSignObject, YIELD_SIGN_SCALE,
+        );
+
+        this.zOffsetFactor = 1;
     }
 
     // The result will be the all the elements in current but not in data.
@@ -58,7 +56,7 @@ export default class Map {
         let empty = true;
 
         for (const kind in elementIds) {
-            if (!this.shouldDrawThisElementKind(kind)) {
+            if (!this.shouldDrawObjectOfThisElementKind(kind)) {
                 continue;
             }
 
@@ -84,31 +82,31 @@ export default class Map {
         switch (laneType) {
             case "DOTTED_YELLOW":
                 return drawDashedLineFromPoints(
-                    points, colorMapping.YELLOW, 4, 3, 3, 1, 1, false);
+                    points, colorMapping.YELLOW, 4, 3, 3, this.zOffsetFactor, 1, false);
             case "DOTTED_WHITE":
                 return drawDashedLineFromPoints(
-                    points, colorMapping.WHITE, 2, 0.5, 0.25, 1, 0.4, false);
+                    points, colorMapping.WHITE, 2, 0.5, 0.25, this.zOffsetFactor, 0.4, false);
             case "SOLID_YELLOW":
                 return drawSegmentsFromPoints(
-                    points, colorMapping.YELLOW, 3, 1, false);
+                    points, colorMapping.YELLOW, 3, this.zOffsetFactor, false);
             case "SOLID_WHITE":
                 return drawSegmentsFromPoints(
-                    points, colorMapping.WHITE, 3, 1, false);
+                    points, colorMapping.WHITE, 3, this.zOffsetFactor, false);
             case "DOUBLE_YELLOW":
                 const left = drawSegmentsFromPoints(
-                    points, colorMapping.YELLOW, 2, 1, false);
+                    points, colorMapping.YELLOW, 2, this.zOffsetFactor, false);
                 const right = drawSegmentsFromPoints(
                     points.map(point =>
                         new THREE.Vector3(point.x + 0.3, point.y + 0.3, point.z)),
-                    colorMapping.YELLOW, 3, 1, false);
+                    colorMapping.YELLOW, 3, this.zOffsetFactor, false);
                 left.add(right);
                 return left;
             case "CURB":
                 return drawSegmentsFromPoints(
-                    points, colorMapping.CORAL, 3, 1, false);
+                    points, colorMapping.CORAL, 3, this.zOffsetFactor, false);
             default:
                 return drawSegmentsFromPoints(
-                    points, colorMapping.DEFAULT, 3, 1, false);
+                    points, colorMapping.DEFAULT, 3, this.zOffsetFactor, false);
         }
     }
 
@@ -119,7 +117,7 @@ export default class Map {
         centralLine.forEach(segment => {
             const points = coordinates.applyOffsetToArray(segment.lineSegment.point);
             const centerLine =
-                drawSegmentsFromPoints(points, colorMapping.GREEN, 1, 1, false);
+                drawSegmentsFromPoints(points, colorMapping.GREEN, 1, this.zOffsetFactor, false);
             centerLine.name = "CentralLine-" + lane.id.id;
             scene.add(centerLine);
             drewObjects.push(centerLine);
@@ -147,6 +145,37 @@ export default class Map {
         return drewObjects;
     }
 
+    addLaneId(lane, coordinates, scene) {
+        const centralLine = lane.centralCurve.segment;
+        let position = _.get(centralLine, '[0].startPosition');
+        if (position) {
+            position.z = 0.04;
+            position = coordinates.applyOffset(position);
+        }
+
+        const rotation = { x: 0.0, y: 0.0, z: 0.0 };
+        const points = _.get(centralLine, '[0].lineSegment.point', []);
+        if (points.length >= 2) {
+            const p1 = points[0];
+            const p2 = points[1];
+            rotation.z = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+        }
+
+        const text = this.textRender.drawText(
+            lane.id.id, scene, colorMapping.WHITE, TEXT_ALIGN.LEFT);
+        if (text) {
+            const textPosition = position || _.get(points, '[0]');
+            if (textPosition) {
+                text.position.set(textPosition.x, textPosition.y, textPosition.z);
+                text.rotation.set(rotation.x, rotation.y, rotation.z);
+            }
+            text.visible = false;
+            scene.add(text);
+        }
+
+        return text;
+    }
+
     addRoad(road, coordinates, scene) {
         const drewObjects = [];
 
@@ -172,11 +201,34 @@ export default class Map {
         border.push(border[0]);
 
         const mesh = drawSegmentsFromPoints(
-            border, color, 2, 0, true, false, 1.0);
+            border, color, 2, this.zOffsetFactor, true, false, 1.0);
         scene.add(mesh);
         drewObjects.push(mesh);
 
         return drewObjects;
+    }
+
+    addParkingSpaceId(parkingSpace, coordinates, scene) {
+        const text = this.textRender.drawText(parkingSpace.id.id, scene, colorMapping.WHITE);
+        const points = _.get(parkingSpace, 'polygon.point');
+        if (points && points.length >= 3 && text) {
+            const point1 = points[0];
+            const point2 = points[1];
+            const point3 = points[2];
+            let textPosition = {
+                x: (point1.x + point3.x) / 2,
+                y: (point1.y + point3.y) / 2,
+                z: 0.04
+            };
+            textPosition = coordinates.applyOffset(textPosition);
+            const textRotationZ = Math.atan2(point2.y - point1.y, point2.x - point1.x);
+
+            text.position.set(textPosition.x, textPosition.y, textPosition.z);
+            text.rotation.set(0, 0, textRotationZ);
+            text.visible = false;
+            scene.add(text);
+        }
+        return text;
     }
 
     addZone(zone, color, coordinates, scene) {
@@ -191,12 +243,13 @@ export default class Map {
             opacity: .15
         });
 
-        const zoneShape = drawShapeFromPoints(border, zoneMaterial, false, 3, false);
+        const zoneShape = drawShapeFromPoints(
+            border, zoneMaterial, false, this.zOffsetFactor * 3, false);
         scene.add(zoneShape);
         drewObjects.push(zoneShape);
 
         const mesh = drawSegmentsFromPoints(
-            border, color, 2, 0, true, false, 1.0);
+            border, color, 2, this.zOffsetFactor, true, false, 1.0);
         scene.add(mesh);
         drewObjects.push(mesh);
 
@@ -208,7 +261,8 @@ export default class Map {
         lines.forEach(line => {
             line.segment.forEach(segment => {
                 const points = coordinates.applyOffsetToArray(segment.lineSegment.point);
-                const mesh = drawSegmentsFromPoints(points, color, 5, 3, false);
+                const mesh = drawSegmentsFromPoints(
+                    points, color, 5, this.zOffsetFactor * 2, false);
                 scene.add(mesh);
                 drewObjects.push(mesh);
             });
@@ -216,155 +270,17 @@ export default class Map {
         return drewObjects;
     }
 
-    getHeadingFromStopLine(object) {
-        const stopLine = object.stopLine[0].segment[0].lineSegment.point;
-        const len = stopLine.length;
-        if (len >= 2) {
-            const stopLineDirection = Math.atan2(stopLine[len - 1].y - stopLine[0].y,
-                stopLine[len - 1].x - stopLine[0].x);
-            return Math.PI * 1.5 + stopLineDirection;
-        }
-        return NaN;
-    }
-
-    // use the signal real direction to decide its heading
-    // but the signal could either face towards or away from the stop line
-    // so use the intersection of signal's orthiogonal line and stop line to decide
-    getHeadingFromStopLineAndTrafficLightBoundary(signal) {
-        // find the plane of the signal
-        const boundaryPoints = signal.boundary.point;
-        if (boundaryPoints.length < 3) {
-            console.warn("Cannot get three points from boundary, signal_id: " + signal.id.id);
-            return this.getHeadingFromStopLine(signal);
-        }
-        const boundary1 = boundaryPoints[0];
-        const boundary2 = boundaryPoints[1];
-        const boundary3 = boundaryPoints[2];
-        // get a orthogonal line of the plane (only need its projection on XY coordinate system)
-        // construct ax+by+c=0 ==> orthogonalX*x+orthogonalY*y+constant=0
-        const orthogonalX = (boundary2.x - boundary1.x) * (boundary3.z - boundary1.z)
-            - (boundary3.x - boundary1.x) * (boundary2.z - boundary1.z);
-        const orthogonalY = (boundary2.y - boundary1.y) * (boundary3.z - boundary1.z)
-             - (boundary3.y - boundary1.y) * (boundary2.z - boundary1.z);
-        const orthogonalConstant = -orthogonalX * boundary1.x - orthogonalY * boundary1.y;
-        // get the stop line
-        const stopLine = _.get(signal, 'stopLine[0].segment[0].lineSegment.point', '');
-        const len = stopLine.length;
-        if (len < 2) {
-            console.warn("Cannot get any stop line, signal_id: " + signal.id.id);
-            return NaN;
-        }
-        // construct ax+by+c=0 ==> stopLineX*x+stopLineY*y+constant=0
-        const stopLineX = stopLine[len - 1].y - stopLine[0].y;
-        const stopLineY = stopLine[0].x - stopLine[len - 1].x;
-        const stopLineConstant = -stopLineX * stopLine[0].x - stopLineY * stopLine[0].y;
-        // calculate the intersection
-        if (Math.abs(stopLineX * orthogonalY - orthogonalX * stopLineY) < EPSILON) {
-            console.warn("The signal orthogonal direction is parallel to the stop line,",
-                "signal_id: " + signal.id.id);
-            return this.getHeadingFromStopLine(signal);
-        }
-        const intersectX = (stopLineY * orthogonalConstant - orthogonalY * stopLineConstant)
-            / (stopLineX * orthogonalY - orthogonalX * stopLineY);
-        const intersectY = stopLineY !== 0 ?
-            (-stopLineX * intersectX - stopLineConstant) / stopLineY
-            : (-orthogonalX * intersectX - orthogonalConstant) / orthogonalY;
-        let direction = Math.atan2(- orthogonalX, orthogonalY);
-        // if the direction is not towards to intersection point, turn around
-        if ((direction < 0 && intersectY > boundary1.y) ||
-            (direction > 0 && intersectY < boundary1.y)) {
-            direction += Math.PI;
-        }
-        return direction;
-    }
-
-    getSignalPositionAndHeading(signal, coordinates) {
-        const locations = [];
-        signal.subsignal.forEach(subsignal => {
-            if (subsignal.location) {
-                locations.push(subsignal.location);
-            }
-        });
-        if (locations.length === 0) {
-            console.warn("Subsignal locations not found, use signal boundary instead.");
-            locations.push(signal.boundary.point);
-        }
-        if (locations.length === 0) {
-            console.warn("Unable to determine signal location, skip.");
-            return null;
-        }
-        const heading = this.getHeadingFromStopLineAndTrafficLightBoundary(signal);
-        if (!isNaN(heading)) {
-            let position = new THREE.Vector3(0, 0, 0);
-            position.x = _.meanBy(_.values(locations), l => l.x);
-            position.y = _.meanBy(_.values(locations), l => l.y);
-            position = coordinates.applyOffset(position);
-            return { "pos": position, "heading": heading };
-        } else {
-            console.error('Error loading traffic light. Unable to determine heading.');
-            return null;
-        }
-    }
-
-    addTrafficLight(signal, coordinates, scene) {
-        // Draw stop line
+    addStopLine(stopLine, coordinates, scene) {
         const drewObjects = this.addCurve(
-            signal.stopLine, colorMapping.PURE_WHITE, coordinates, scene);
-
-        // Add traffic light object
-        const posAndHeading = this.getSignalPositionAndHeading(signal, coordinates);
-        if (posAndHeading) {
-            loadObject(trafficLightMaterial, trafficLightObject,
-                trafficLightScales,
-                mesh => {
-                    mesh.rotation.x = Math.PI / 2;
-                    mesh.rotation.y = posAndHeading.heading;
-                    mesh.position.set(posAndHeading.pos.x, posAndHeading.pos.y, 0);
-                    mesh.matrixAutoUpdate = false;
-                    mesh.updateMatrix();
-
-                    scene.add(mesh);
-                    drewObjects.push(mesh);
-                });
-        }
+            stopLine, colorMapping.PURE_WHITE, coordinates, scene);
         return drewObjects;
     }
 
-    getStopSignPositionAndHeading(stopSign, coordinates) {
-        const heading = this.getHeadingFromStopLine(stopSign);
-
-        if (!isNaN(heading)) {
-            const stopLinePoint = _.last(stopSign.stopLine[0].segment[0].lineSegment.point);
-            let position = new THREE.Vector3(stopLinePoint.x, stopLinePoint.y, 0);
-            position = coordinates.applyOffset(position);
-
-            return { "pos": position, "heading": heading };
-        } else {
-            console.error('Error loading stop sign. Unable to determine heading.');
-            return null;
+    removeDrewText(textMesh, scene) {
+        if (textMesh) {
+            textMesh.children.forEach(c => c.visible = false);
+            scene.remove(textMesh);
         }
-    }
-
-    addStopSign(stopSign, coordinates, scene) {
-        // Draw stop line
-        const drewObjects = this.addCurve(
-            stopSign.stopLine, colorMapping.PURE_WHITE, coordinates, scene);
-
-        // Add stop sign object
-        const posAndHeading = this.getStopSignPositionAndHeading(stopSign, coordinates);
-        if (posAndHeading) {
-            loadObject(stopSignMaterial, stopSignObject, stopSignScales,
-                mesh => {
-                    mesh.rotation.x = Math.PI / 2;
-                    mesh.rotation.y = posAndHeading.heading - Math.PI / 2;
-                    mesh.position.set(posAndHeading.pos.x, posAndHeading.pos.y, 0);
-                    mesh.matrixAutoUpdate = false;
-                    mesh.updateMatrix();
-                    scene.add(mesh);
-                    drewObjects.push(mesh);
-                });
-        }
-        return drewObjects;
     }
 
     removeDrewObjects(drewObjects, scene) {
@@ -383,13 +299,15 @@ export default class Map {
 
     removeAllElements(scene) {
         this.removeExpiredElements([], scene);
+        this.trafficSignals.removeAll(scene);
+        this.stopSigns.removeAll(scene);
+        this.yieldSigns.removeAll(scene);
     }
 
     removeExpiredElements(elementIds, scene) {
         const newData = {};
-
         for (const kind in this.data) {
-            const drawThisKind = this.shouldDrawThisElementKind(kind);
+            const drawThisKind = this.shouldDrawObjectOfThisElementKind(kind);
             newData[kind] = [];
             const oldDataOfThisKind = this.data[kind];
             const currentIds = elementIds[kind];
@@ -398,6 +316,7 @@ export default class Map {
                     newData[kind].push(oldData);
                 } else {
                     this.removeDrewObjects(oldData.drewObjects, scene);
+                    this.removeDrewText(oldData.text, scene);
                 }
             });
         }
@@ -423,7 +342,8 @@ export default class Map {
                     case "lane":
                         const lane = newData[kind][i];
                         this.data[kind].push(Object.assign(newData[kind][i], {
-                            drewObjects: this.addLane(lane, coordinates, scene)
+                            drewObjects: this.addLane(lane, coordinates, scene),
+                            text: this.addLaneId(lane, coordinates, scene)
                         }));
                         break;
                     case "clearArea":
@@ -452,15 +372,24 @@ export default class Map {
                         break;
                     case "signal":
                         this.data[kind].push(Object.assign(newData[kind][i], {
-                            drewObjects: this.addTrafficLight(
-                                newData[kind][i], coordinates, scene)
+                            drewObjects: this.addStopLine(
+                                newData[kind][i].stopLine, coordinates, scene)
                         }));
+                        this.trafficSignals.add([newData[kind][i]], coordinates, scene);
                         break;
                     case "stopSign":
                         this.data[kind].push(Object.assign(newData[kind][i], {
-                            drewObjects: this.addStopSign(
-                                newData[kind][i], coordinates, scene)
+                            drewObjects: this.addStopLine(
+                                newData[kind][i].stopLine, coordinates, scene)
                         }));
+                        this.stopSigns.add([newData[kind][i]], coordinates, scene);
+                        break;
+                    case "yield":
+                        this.data[kind].push(Object.assign(newData[kind][i], {
+                            drewObjects: this.addStopLine(
+                                newData[kind][i].stopLine, coordinates, scene)
+                        }));
+                        this.yieldSigns.add([newData[kind][i]], coordinates, scene);
                         break;
                     case "road":
                         const road = newData[kind][i];
@@ -471,7 +400,8 @@ export default class Map {
                     case "parkingSpace":
                         this.data[kind].push(Object.assign(newData[kind][i], {
                             drewObjects: this.addBorder(
-                                newData[kind][i], colorMapping.YELLOW, coordinates, scene)
+                                newData[kind][i], colorMapping.YELLOW, coordinates, scene),
+                            text: this.addParkingSpaceId(newData[kind][i], coordinates, scene)
                         }));
                         break;
                     case "speedBump":
@@ -488,7 +418,7 @@ export default class Map {
         }
     }
 
-    shouldDrawThisElementKind(kind) {
+    shouldDrawObjectOfThisElementKind(kind) {
         // Ex: mapping 'lane' to 'showMapLane' option
         const optionName = `showMap${kind[0].toUpperCase()}${kind.slice(1)}`;
 
@@ -496,13 +426,31 @@ export default class Map {
         return STORE.options[optionName] !== false;
     }
 
+    shouldDrawTextOfThisElementKind(kind) {
+        // showMapLaneId option controls both laneId and parkingSpaceId
+        return STORE.options['showMapLaneId'] && ['parkingSpace', 'lane'].includes(kind);
+    }
+
+    updateText() {
+        for (const kind in this.data) {
+            const isVisible = this.shouldDrawTextOfThisElementKind(kind);
+            this.data[kind].forEach(element => {
+                if (element.text) {
+                    element.text.visible = isVisible;
+                }
+            });
+        }
+    }
+
     updateIndex(hash, elementIds, scene) {
         if (STORE.hmi.inNavigationMode) {
             MAP_WS.requestRelativeMapData();
         } else {
+            this.updateText();
+
             let newElementKindsDrawn = '';
             for (const kind of Object.keys(elementIds).sort()) {
-                if (this.shouldDrawThisElementKind(kind)) {
+                if (this.shouldDrawObjectOfThisElementKind(kind)) {
                     newElementKindsDrawn += kind;
                 }
             }
@@ -511,13 +459,39 @@ export default class Map {
                 this.hash = hash;
                 this.elementKindsDrawn = newElementKindsDrawn;
                 const diff = this.diffMapElements(elementIds, this.data);
-                this.removeExpiredElements(elementIds, scene);
                 if (!_.isEmpty(diff) || !this.initialized) {
                     MAP_WS.requestMapData(diff);
                     this.initialized = true;
                 }
+
+                this.removeExpiredElements(elementIds, scene);
+
+                if (!this.shouldDrawObjectOfThisElementKind('signal')) {
+                    this.trafficSignals.removeAll(scene);
+                } else {
+                    this.trafficSignals.removeExpired(elementIds['signal'], scene);
+                }
+
+                if (!this.shouldDrawObjectOfThisElementKind('stopSign')) {
+                    this.stopSigns.removeAll(scene);
+                } else {
+                    this.stopSigns.removeExpired(elementIds['stopSign'], scene);
+                }
+
+                if (!this.shouldDrawObjectOfThisElementKind('yield')) {
+                    this.yieldSigns.removeAll(scene);
+                } else {
+                    this.yieldSigns.removeExpired(elementIds['yield'], scene);
+                }
             }
         }
+        // Do not set zOffset in camera view, since zOffset will affect the accuracy of matching
+        // between hdmap and camera image
+        this.zOffsetFactor = STORE.options.showCameraView ? 0 : 1;
+    }
+
+    update(world) {
+        this.trafficSignals.updateTrafficLightStatus(world.perceivedSignal);
     }
 }
 

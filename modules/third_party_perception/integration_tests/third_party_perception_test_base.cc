@@ -27,14 +27,7 @@ namespace third_party_perception {
 
 uint32_t ThirdPartyPerceptionTestBase::s_seq_num_ = 0;
 
-void ThirdPartyPerceptionTestBase::SetUpTestCase() {
-  FLAGS_adapter_config_filename =
-      "/apollo/modules/third_party_perception/testdata/conf/adapter.conf";
-}
-
-void ThirdPartyPerceptionTestBase::SetUp() {
-  ++s_seq_num_;
-}
+void ThirdPartyPerceptionTestBase::SetUp() { ++s_seq_num_; }
 
 }  // namespace third_party_perception
 }  // namespace apollo

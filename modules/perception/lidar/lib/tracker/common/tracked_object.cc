@@ -16,6 +16,7 @@
 #include "modules/perception/lidar/lib/tracker/common/tracked_object.h"
 
 #include "cyber/common/log.h"
+#include "modules/perception/base/object_types.h"
 #include "modules/perception/base/point.h"
 #include "modules/perception/base/point_cloud.h"
 #include "modules/perception/common/point_cloud_processing/common.h"
@@ -33,9 +34,9 @@ TrackedObject::TrackedObject(base::ObjectPtr obj_ptr,
 }
 
 void TrackedObject::AttachObject(base::ObjectPtr obj_ptr,
-    const Eigen::Affine3d& pose,
-    const Eigen::Vector3d& global_to_local_offset,
-    const base::SensorInfo& sensor) {
+                                 const Eigen::Affine3d& pose,
+                                 const Eigen::Vector3d& global_to_local_offset,
+                                 const base::SensorInfo& sensor) {
   if (obj_ptr) {
     // all state of input obj_ptr will not change except cloud world
     object_ptr = obj_ptr;
@@ -45,8 +46,7 @@ void TrackedObject::AttachObject(base::ObjectPtr obj_ptr,
     // object info to tracked object
     center = pose * object_ptr->center;
     const PointFCloud& cloud = (object_ptr->lidar_supplement).cloud;
-    barycenter = (common::CalculateCentroid(cloud))
-        .cast<double>();
+    barycenter = (common::CalculateCentroid(cloud)).cast<double>();
     barycenter = pose * barycenter;
     anchor_point = barycenter;
 
@@ -70,10 +70,10 @@ void TrackedObject::AttachObject(base::ObjectPtr obj_ptr,
     }
     // memcpy(&(cloud_world.points_height(0)), &(cloud.points_height(0)),
     //        sizeof(float) * cloud.size());
-    for (size_t i = 0; i <  cloud.size(); ++i) {
+    for (size_t i = 0; i < cloud.size(); ++i) {
       cloud_world.SetPointHeight(i, cloud.points_height(i));
     }
-    // other belief infomation keep as Reset()
+    // other belief information keep as Reset()
     selected_measured_velocity = Eigen::Vector3d::Zero();
     selected_measured_acceleration = Eigen::Vector3d::Zero();
     belief_anchor_point = barycenter;
@@ -104,7 +104,7 @@ void TrackedObject::TransformObjectCloudToWorld() {
     cloud_world[i].intensity = cloud[i].intensity;
   }
   memcpy(&cloud_world.points_height(0), &cloud.points_height(0),
-      sizeof(float) * cloud.size());
+         sizeof(float) * cloud.size());
 }
 
 void TrackedObject::Reset() {
@@ -167,10 +167,9 @@ void TrackedObject::Reset() {
   sensor_info.Reset();
 }
 
-void TrackedObject::Reset(base::ObjectPtr obj_ptr,
-    const Eigen::Affine3d& pose,
-    const Eigen::Vector3d& global_to_local_offset,
-    const base::SensorInfo& sensor) {
+void TrackedObject::Reset(base::ObjectPtr obj_ptr, const Eigen::Affine3d& pose,
+                          const Eigen::Vector3d& global_to_local_offset,
+                          const base::SensorInfo& sensor) {
   Reset();
   AttachObject(obj_ptr, pose, global_to_local_offset, sensor);
 }
@@ -185,10 +184,17 @@ void TrackedObject::CopyFrom(TrackedObjectPtr rhs, bool is_deep) {
   }
 }
 
+float TrackedObject::GetVelThreshold(base::ObjectPtr obj) const {
+  if (obj->type == base::ObjectType::VEHICLE) {
+    return 0.99f;
+  }
+  return 0.0f;
+}
+
 void TrackedObject::ToObject(base::ObjectPtr obj) const {
   *obj = *object_ptr;
   // obj id keep default
-  // obj polygon calculate outside, beacuse
+  // obj polygon calculate outside, because
   /* 1. if ConvexHull2D as member variable:
            constructor time consume a little large
      2. if ConvexHull2D as static or global variable:
@@ -196,7 +202,6 @@ void TrackedObject::ToObject(base::ObjectPtr obj) const {
      what a pity!
   */
   obj->direction = output_direction.cast<float>();
-  obj->theta = std::atan2(obj->direction[1], obj->direction[0]);
   // obj theta_variance not calculate in tracker, keep default
   obj->center = output_center;
   // obj center_uncertainty not calculate in tracker, keep default
@@ -211,6 +216,11 @@ void TrackedObject::ToObject(base::ObjectPtr obj) const {
   obj->velocity_uncertainty = output_velocity_uncertainty.cast<float>();
   obj->velocity_converged = converged;
   obj->tracking_time = tracking_time;
+  if (obj->velocity.norm() > GetVelThreshold(obj)) {
+    obj->theta = std::atan2(obj->velocity[1], obj->velocity[0]);
+  } else {
+    obj->theta = std::atan2(obj->direction[1], obj->direction[0]);
+  }
   // obj latest_tracked_time not calculate in tracker, keep default
   // obj car_light not calculate in tracker, keep default
   // obj lidar_supplement cloud_world has passed in *obj = *object_ptr

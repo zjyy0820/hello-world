@@ -22,7 +22,6 @@
 
 #include "cyber/common/environment.h"
 #include "cyber/common/file.h"
-#include "cyber/event/perf_event_cache.h"
 #include "cyber/scheduler/policy/classic_context.h"
 #include "cyber/scheduler/processor.h"
 
@@ -30,25 +29,31 @@ namespace apollo {
 namespace cyber {
 namespace scheduler {
 
-using apollo::cyber::croutine::RoutineState;
 using apollo::cyber::base::ReadLockGuard;
 using apollo::cyber::base::WriteLockGuard;
-using apollo::cyber::common::GlobalData;
 using apollo::cyber::common::GetAbsolutePath;
-using apollo::cyber::common::PathExists;
 using apollo::cyber::common::GetProtoFromFile;
+using apollo::cyber::common::GlobalData;
+using apollo::cyber::common::PathExists;
 using apollo::cyber::common::WorkRoot;
-using apollo::cyber::event::PerfEventCache;
-using apollo::cyber::event::SchedPerf;
+using apollo::cyber::croutine::RoutineState;
 
 SchedulerClassic::SchedulerClassic() {
-  // get sched config
   std::string conf("conf/");
   conf.append(GlobalData::Instance()->ProcessGroup()).append(".conf");
   auto cfg_file = GetAbsolutePath(WorkRoot(), conf);
 
   apollo::cyber::proto::CyberConfig cfg;
   if (PathExists(cfg_file) && GetProtoFromFile(cfg_file, &cfg)) {
+    for (auto& thr : cfg.scheduler_conf().threads()) {
+      inner_thr_confs_[thr.name()] = thr;
+    }
+
+    if (cfg.scheduler_conf().has_process_level_cpuset()) {
+      process_level_cpuset_ = cfg.scheduler_conf().process_level_cpuset();
+      ProcessLevelResourceControl();
+    }
+
     classic_conf_ = cfg.scheduler_conf().classic_conf();
     for (auto& group : classic_conf_.groups()) {
       auto& group_name = group.name();
@@ -90,20 +95,15 @@ void SchedulerClassic::CreateProcessor() {
     std::vector<int> cpuset;
     ParseCpuset(group.cpuset(), &cpuset);
 
-    ClassicContext::cr_group_[group_name];
-    ClassicContext::rq_locks_[group_name];
-    ClassicContext::mtx_wq_[group_name];
-    ClassicContext::cv_wq_[group_name];
-
     for (uint32_t i = 0; i < proc_num; i++) {
-      auto ctx = std::make_shared<ClassicContext>();
-      ctx->SetGroupName(group_name);
+      auto ctx = std::make_shared<ClassicContext>(group_name);
       pctxs_.emplace_back(ctx);
 
       auto proc = std::make_shared<Processor>();
       proc->BindContext(ctx);
-      proc->SetAffinity(cpuset, affinity, i);
-      proc->SetSchedPolicy(processor_policy, processor_prio);
+      SetSchedAffinity(proc->Thread(), cpuset, affinity, i);
+      SetSchedPolicy(proc->Thread(), processor_policy, processor_prio,
+                     proc->Tid());
       processors_.emplace_back(proc);
     }
   }
@@ -112,15 +112,17 @@ void SchedulerClassic::CreateProcessor() {
 bool SchedulerClassic::DispatchTask(const std::shared_ptr<CRoutine>& cr) {
   // we use multi-key mutex to prevent race condition
   // when del && add cr with same crid
-  if (likely(id_cr_wl_.find(cr->id()) == id_cr_wl_.end())) {
+  MutexWrapper* wrapper = nullptr;
+  if (!id_map_mutex_.Get(cr->id(), &wrapper)) {
     {
       std::lock_guard<std::mutex> wl_lg(cr_wl_mtx_);
-      if (id_cr_wl_.find(cr->id()) == id_cr_wl_.end()) {
-        id_cr_wl_[cr->id()];
+      if (!id_map_mutex_.Get(cr->id(), &wrapper)) {
+        wrapper = new MutexWrapper();
+        id_map_mutex_.Set(cr->id(), wrapper);
       }
     }
   }
-  std::lock_guard<std::mutex> lg(id_cr_wl_[cr->id()]);
+  std::lock_guard<std::mutex> lg(wrapper->Mutex());
 
   {
     WriteLockGuard<AtomicRWLock> lk(id_cr_lock_);
@@ -139,7 +141,6 @@ bool SchedulerClassic::DispatchTask(const std::shared_ptr<CRoutine>& cr) {
     cr->set_group_name(classic_conf_.groups(0).name());
   }
 
-  // Check if task prio is reasonable.
   if (cr->priority() >= MAX_PRIO) {
     AWARN << cr->name() << " prio is greater than MAX_PRIO[ << " << MAX_PRIO
           << "].";
@@ -150,18 +151,17 @@ bool SchedulerClassic::DispatchTask(const std::shared_ptr<CRoutine>& cr) {
   {
     WriteLockGuard<AtomicRWLock> lk(
         ClassicContext::rq_locks_[cr->group_name()].at(cr->priority()));
-    ClassicContext::cr_group_[cr->group_name()].at(cr->priority())
+    ClassicContext::cr_group_[cr->group_name()]
+        .at(cr->priority())
         .emplace_back(cr);
   }
 
-  PerfEventCache::Instance()->AddSchedEvent(SchedPerf::RT_CREATE, cr->id(),
-                                            cr->processor_id());
   ClassicContext::Notify(cr->group_name());
   return true;
 }
 
 bool SchedulerClassic::NotifyProcessor(uint64_t crid) {
-  if (unlikely(stop_)) {
+  if (cyber_unlikely(stop_)) {
     return true;
   }
 
@@ -169,7 +169,8 @@ bool SchedulerClassic::NotifyProcessor(uint64_t crid) {
     ReadLockGuard<AtomicRWLock> lk(id_cr_lock_);
     if (id_cr_.find(crid) != id_cr_.end()) {
       auto cr = id_cr_[crid];
-      if (cr->state() == RoutineState::DATA_WAIT) {
+      if (cr->state() == RoutineState::DATA_WAIT ||
+          cr->state() == RoutineState::IO_WAIT) {
         cr->SetUpdateFlag();
       }
 
@@ -181,7 +182,7 @@ bool SchedulerClassic::NotifyProcessor(uint64_t crid) {
 }
 
 bool SchedulerClassic::RemoveTask(const std::string& name) {
-  if (unlikely(stop_)) {
+  if (cyber_unlikely(stop_)) {
     return true;
   }
 
@@ -192,47 +193,30 @@ bool SchedulerClassic::RemoveTask(const std::string& name) {
 bool SchedulerClassic::RemoveCRoutine(uint64_t crid) {
   // we use multi-key mutex to prevent race condition
   // when del && add cr with same crid
-  if (unlikely(id_cr_wl_.find(crid) == id_cr_wl_.end())) {
+  MutexWrapper* wrapper = nullptr;
+  if (!id_map_mutex_.Get(crid, &wrapper)) {
     {
       std::lock_guard<std::mutex> wl_lg(cr_wl_mtx_);
-      if (id_cr_wl_.find(crid) == id_cr_wl_.end()) {
-        id_cr_wl_[crid];
+      if (!id_map_mutex_.Get(crid, &wrapper)) {
+        wrapper = new MutexWrapper();
+        id_map_mutex_.Set(crid, wrapper);
       }
     }
   }
-  std::lock_guard<std::mutex> lg(id_cr_wl_[crid]);
+  std::lock_guard<std::mutex> lg(wrapper->Mutex());
 
   std::shared_ptr<CRoutine> cr = nullptr;
-  int prio;
-  std::string group_name;
   {
     WriteLockGuard<AtomicRWLock> lk(id_cr_lock_);
     if (id_cr_.find(crid) != id_cr_.end()) {
       cr = id_cr_[crid];
-      prio = cr->priority();
-      group_name = cr->group_name();
       id_cr_[crid]->Stop();
       id_cr_.erase(crid);
     } else {
       return false;
     }
   }
-
-  WriteLockGuard<AtomicRWLock> lk(
-      ClassicContext::rq_locks_[group_name].at(prio));
-  for (auto it = ClassicContext::cr_group_[group_name].at(prio).begin();
-       it != ClassicContext::cr_group_[group_name].at(prio).end(); ++it) {
-    if ((*it)->id() == crid) {
-      auto cr = *it;
-
-      (*it)->Stop();
-      it = ClassicContext::cr_group_[group_name].at(prio).erase(it);
-      cr->Release();
-      return true;
-    }
-  }
-
-  return false;
+  return ClassicContext::RemoveCRoutine(cr);
 }
 
 }  // namespace scheduler

@@ -72,8 +72,7 @@ Purpose of sim control: drive the car based on the planning trajectory. Good for
     bash scripts/bootstrap.sh start
 ```
  
-**Please note**, planning and routing modules (see image below) should be ON while using SimControl. To navigate the ego-car, select either “route editing” or “default routing” from the side bar to define a route.
-
+**Please note**, planning and routing modules (see image below) should be ON while using SimControl. To navigate the ego-car, select either “route editing” or “default routing” from the side bar to define a route. You can turn the sim_control on and off from the toggle. However, a new routing request is needed each time the sim_control is restarted.
 ![](images/sim_control_2.0.png)
 
 ---
@@ -203,4 +202,19 @@ And finally restart Dreamview using
     bash scripts/bootstrap.sh start
 ```
 
+---
+
+## I want to plot my own graphs for my algorithms, where should I go?
+
+Go to the PnC Monitor section in [Dreamview Doc](https://github.com/ApolloAuto/apollo/blob/master/docs/specs/dreamview_usage_table.md).
+
+--- 
+
+## What is Dreamland?
+
+Dreamland is Apollo's web-based simulation platform. Based on an enormous amount of driving scenario data and large-scale cloud computing capacity, Apollo simulation engine creates a powerful testing environment for the development of an autonomous driving system, from algorithms to grading, and then back to improved algorithms. It enables the developers and start-ups to run millions of miles of simulation daily, which dramatically accelerates the development cycle.
+
+To access Dreamland, please visit [our Simulation website](http://apollo.auto/platform/simulation.html) and join now!
+
+---
 **More DreamView FAQs to follow.**

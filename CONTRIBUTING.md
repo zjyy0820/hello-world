@@ -8,7 +8,7 @@ You are welcome to contribute to project Apollo. To contribute to apollo, you ha
 ### How do I start contributing
 
 * You can follow the standard [Github approach](https://help.github.com/articles/using-pull-requests/) to contribute code.
-* There are [issues with label "help wanted"](https://github.com/ApolloAuto/apollo/labels/help%20wanted) that are best to help you get started.
+* There are [issues with label "help wanted"](https://github.com/ApolloAuto/apollo/issues?utf8=%E2%9C%93&q=label%3A%22Type%3A+Help+wanted%22+) that are best to help you get started.
 * If you are currently working on an issue, leave a message to let people know that you are working on it.
 * Before sending in your pull request for
 [review](https://github.com/ApolloAuto/apollo/pulls),
@@ -18,17 +18,17 @@ make sure your changes follow the guidelines mentioned below, namely: license, t
 
 For each new file, please include a license at the top of the file.
 
-* C++ code License example [adapter.h](https://github.com/ApolloAuto/apollo/blob/master/modules/common/adapters/adapter.h);
+* C++ code License example [util.h](modules/common/util/util.h);
 
-* Python code License example [diagnostics.py](https://github.com/ApolloAuto/apollo/blob/master/modules/tools/diagnostics/diagnostics.py);
+* Python code License example [process.py](modules/tools/vehicle_calibration/process.py);
 
-* Bash code License example [apollo_base.sh](https://github.com/ApolloAuto/apollo/blob/master/scripts/apollo_base.sh);
+* Bash code License example [apollo_base.sh](scripts/apollo_base.sh);
 
 #### Testing
 
 Please include unit tests for the contributed code to prove that your code works correctly,
 and make sure that your code does not break existing tests. Test files are always named to end with `_test.cc`, and the test target names in the BUILD file always end with `test`.
-Here is an example test file [adapter_test.cc](https://github.com/ApolloAuto/apollo/blob/master/modules/common/adapters/adapter_test.cc).
+Here is an example test file [file_test.cc](cyber/common/file_test.cc).
 
 You can use command `bash apollo.sh test` to run all unit tests.
 
@@ -38,7 +38,11 @@ You can use command `bash apollo.sh test` to run all unit tests.
 
 * **Python coding style**:  Apollo adopted the [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html). You can use the  [yapf](https://github.com/google/yapf) command `yapf -i --style='{based_on_style: google}' foo.py` to format a file foo.py.
 
+* **Apollo best coding practice**: Please also refer to [Apollo Best Coding Practice](docs/technical_tutorial/best_coding_practice.md) for more coding practice disciplines.
+
 * **BUILD coding style** : you can use command `bash apollo.sh buildify` to format your BUILD files before you submit.
+
+* **Best coding practice**: Follow [this guide](docs/technical_tutorial/best_coding_practice.md)
 
 #### Documentation
 

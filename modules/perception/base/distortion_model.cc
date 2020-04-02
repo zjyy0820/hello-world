@@ -23,8 +23,10 @@ namespace base {
 
 Eigen::Vector2f BrownCameraDistortionModel::Project(
     const Eigen::Vector3f& point3d) {
-  CHECK(std::isgreater(point3d[2], 0.f))
-      << "the input point should be in front of the camera";
+  if (std::isless(point3d[2], 0.f)) {
+    AERROR << "The input point (" << point3d
+           << ") should be in front of the camera";
+  }
   // radial distortion coefficients
   const float k1 = distort_params_[0];
   const float k2 = distort_params_[1];
@@ -66,7 +68,7 @@ Eigen::Vector2f BrownCameraDistortionModel::Project(
 }
 
 std::shared_ptr<BaseCameraModel>
-    BrownCameraDistortionModel::get_camera_model() {
+BrownCameraDistortionModel::get_camera_model() {
   std::shared_ptr<PinholeCameraModel> camera_model(new PinholeCameraModel());
   camera_model->set_width(width_);
   camera_model->set_height(height_);

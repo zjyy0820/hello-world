@@ -22,6 +22,7 @@
 
 #include "Eigen/Dense"
 #include "modules/common/proto/pnc_point.pb.h"
+#include "modules/prediction/common/prediction_gflags.h"
 
 namespace apollo {
 namespace prediction {
@@ -34,13 +35,6 @@ namespace math_util {
  * @return The normalized value.
  */
 double Normalize(const double value, const double mean, const double std);
-
-/**
- * @brief Sigmoid function used in neural networks as an activation function.
- * @param value The input.
- * @return The output of sigmoid function.
- */
-double Sigmoid(const double value);
 
 /**
  * @brief RELU function used in neural networks as an activation function.
@@ -72,10 +66,9 @@ int SolveQuadraticEquation(const std::vector<double>& coefficients,
  * @param parameter of the quintic polynomial.
  * @return order of derivative to evaluate.
  */
-double EvaluateQuinticPolynomial(
-    const std::array<double, 6>& coeffs,
-    const double t, const uint32_t order,
-    const double end_t, const double end_v);
+double EvaluateQuinticPolynomial(const std::array<double, 6>& coeffs,
+                                 const double t, const uint32_t order,
+                                 const double end_t, const double end_v);
 
 /**
  * @brief Evaluate quartic polynomial.
@@ -83,10 +76,9 @@ double EvaluateQuinticPolynomial(
  * @param parameter of the quartic polynomial.
  * @return order of derivative to evaluate.
  */
-double EvaluateQuarticPolynomial(
-    const std::array<double, 5>& coeffs,
-    const double t, const uint32_t order,
-    const double end_t, const double end_v);
+double EvaluateQuarticPolynomial(const std::array<double, 5>& coeffs,
+                                 const double t, const uint32_t order,
+                                 const double end_t, const double end_v);
 
 /**
  * @brief Evaluate cubic polynomial.
@@ -97,22 +89,19 @@ double EvaluateQuarticPolynomial(
  * @return order of derivative to evaluate.
  */
 double EvaluateCubicPolynomial(
-    const std::array<double, 4>& coefs,
-    const double t, const uint32_t order,
+    const std::array<double, 4>& coefs, const double t, const uint32_t order,
     const double end_t = std::numeric_limits<double>::infinity(),
     const double end_v = 0.0);
 
 template <std::size_t N>
 std::array<double, 2 * N - 2> ComputePolynomial(
     const std::array<double, N - 1>& start_state,
-    const std::array<double, N - 1>& end_state,
-    const double param);
+    const std::array<double, N - 1>& end_state, const double param);
 
 template <>
 inline std::array<double, 4> ComputePolynomial<3>(
     const std::array<double, 2>& start_state,
-    const std::array<double, 2>& end_state,
-    const double param) {
+    const std::array<double, 2>& end_state, const double param) {
   std::array<double, 4> coefs;
   coefs[0] = start_state[0];
   coefs[1] = start_state[1];
@@ -126,6 +115,9 @@ inline std::array<double, 4> ComputePolynomial<3>(
   coefs[2] = (m1 - 3.0 * coefs[3] * param * param) / param * 0.5;
   return coefs;
 }
+
+double GetSByConstantAcceleration(const double v0, const double acceleration,
+                                  const double t);
 
 }  // namespace math_util
 
@@ -144,6 +136,7 @@ void TranslatePoint(const double translate_x, const double translate_y,
  * @param state matrix
  * @param transition matrix
  * @param heading
+ * @param start time
  * @param total number of generated trajectory points required
  * @param trajectory point interval period
  * @param generated trajectory points
@@ -151,7 +144,7 @@ void TranslatePoint(const double translate_x, const double translate_y,
 void GenerateFreeMoveTrajectoryPoints(
     Eigen::Matrix<double, 6, 1>* state,
     const Eigen::Matrix<double, 6, 6>& transition, double theta,
-    const std::size_t num, const double period,
+    const double start_time, const std::size_t num, const double period,
     std::vector<common::TrajectoryPoint>* points);
 
 /**

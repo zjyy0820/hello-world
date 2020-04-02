@@ -47,17 +47,21 @@ export default class OfflinePlaybackWebSocketEndpoint {
             }
             switch (message.type) {
                 case "GroundMetadata":
-                    RENDERER.updateGroundMetadata(this.serverUrl, message.data);
+                    RENDERER.updateGroundMetadata(message.data);
                     this.requestFrameCount(STORE.playback.recordId);
                     break;
                 case "FrameCount":
                     STORE.playback.setNumFrames(message.data);
                     if (STORE.playback.hasNext()) {
                         this.requestSimulationWorld(STORE.playback.recordId, STORE.playback.next());
+                        this.requestCheckPoints(STORE.playback.recordId, STORE.playback.mapId);
                     }
                     break;
                 case "RoutePath":
                     this.routingTime2Path[message.routingTime] = message.routePath;
+                    break;
+                case "CheckPoints":
+                    RENDERER.checkPoints.update(message.data);
                     break;
                 case "SimWorldUpdate":
                     this.checkMessage(message);
@@ -79,6 +83,7 @@ export default class OfflinePlaybackWebSocketEndpoint {
 
                     if (world.sequenceNum && !(world.sequenceNum in this.frameData)) {
                         this.frameData[world.sequenceNum] = world;
+                        STORE.playback.setLoadingMarker(world.sequenceNum);
                     }
 
                     break;
@@ -169,7 +174,15 @@ export default class OfflinePlaybackWebSocketEndpoint {
     requestFrameCount(recordId) {
         this.websocket.send(JSON.stringify({
             type: 'RetrieveFrameCount',
-            recordId: recordId,
+            recordId,
+        }));
+    }
+
+    requestCheckPoints(recordId, mapId) {
+        this.websocket.send(JSON.stringify({
+            type: 'RequestCheckPoints',
+            recordId,
+            mapId,
         }));
     }
 
@@ -177,11 +190,18 @@ export default class OfflinePlaybackWebSocketEndpoint {
         if (!(frameId in this.frameData)) {
             this.websocket.send(JSON.stringify({
                 type : "RequestSimulationWorld",
-                recordId: recordId,
-                frameId: frameId,
+                recordId,
+                frameId,
             }));
-        } else if (STORE.playback.isSeeking) {
-            this.processSimWorld(this.frameData[frameId]);
+        } else {
+            if (STORE.playback.isSeeking) {
+                this.processSimWorld(this.frameData[frameId]);
+            }
+            let loadingMarker = frameId;
+            while (loadingMarker in this.frameData) {
+                loadingMarker ++;
+            }
+            STORE.playback.setLoadingMarker(loadingMarker - 1);
         }
     }
 

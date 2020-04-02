@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 
 #include "modules/perception/lidar/lib/object_filter_bank/object_filter_bank.h"
 
@@ -70,7 +70,8 @@ TEST(LidarLibObjectFilterBankTest, lidar_lib_object_filter_bank_test) {
   putenv(cyber_path);
   char module_path[100] = "MODULE_PATH=";
   putenv(module_path);
-  FLAGS_work_root = "/apollo/modules/perception/testdata/"
+  FLAGS_work_root =
+      "/apollo/modules/perception/testdata/"
       "lidar/lib/object_filter_bank/filter_bank";
 
   ObjectFilterBank filter_bank;

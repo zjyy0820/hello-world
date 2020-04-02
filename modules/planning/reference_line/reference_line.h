@@ -41,7 +41,7 @@ class ReferenceLine {
   ReferenceLine() = default;
   explicit ReferenceLine(const ReferenceLine& reference_line) = default;
   template <typename Iterator>
-  explicit ReferenceLine(const Iterator begin, const Iterator end)
+  ReferenceLine(const Iterator begin, const Iterator end)
       : reference_points_(begin, end),
         map_path_(std::move(std::vector<hdmap::MapPathPoint>(begin, end))) {}
   explicit ReferenceLine(const std::vector<ReferencePoint>& reference_points);
@@ -71,9 +71,11 @@ class ReferenceLine {
    */
   bool Stitch(const ReferenceLine& other);
 
-  bool Shrink(const common::math::Vec2d& point, double look_backward,
-              double look_forward);
-  bool Shrink(const double s, double look_backward, double look_forward);
+  bool Segment(const common::math::Vec2d& point, const double distance_backward,
+               const double distance_forward);
+
+  bool Segment(const double s, const double distance_backward,
+               const double distance_forward);
 
   const hdmap::Path& map_path() const;
   const std::vector<ReferencePoint>& reference_points() const;
@@ -82,6 +84,9 @@ class ReferenceLine {
 
   common::FrenetFramePoint GetFrenetPoint(
       const common::PathPoint& path_point) const;
+
+  std::pair<std::array<double, 3>, std::array<double, 3>> ToFrenetFrame(
+      const common::TrajectoryPoint& traj_point) const;
 
   std::vector<ReferencePoint> GetReferencePoints(double start_s,
                                                  double end_s) const;
@@ -117,6 +122,8 @@ class ReferenceLine {
   bool GetLaneWidth(const double s, double* const lane_left_width,
                     double* const lane_right_width) const;
 
+  bool GetOffsetToMap(const double s, double* l_offset) const;
+
   bool GetRoadWidth(const double s, double* const road_left_width,
                     double* const road_right_width) const;
 
@@ -145,9 +152,9 @@ class ReferenceLine {
   bool IsOnRoad(const SLBoundary& sl_boundary) const;
 
   /**
-   * @brief Check if a box is blocking the road surface. The crieria is to check
-   * whether the remaining space on the road surface is larger than the provided
-   * gap space.
+   * @brief Check if a box is blocking the road surface. The criteria is to
+   * check whether the remaining space on the road surface is larger than the
+   * provided gap space.
    * @param boxed the provided box
    * @param gap check the gap of the space
    * @return true if the box blocks the road.
@@ -187,7 +194,7 @@ class ReferenceLine {
    * @param p1 the second anchor point for interpolation
    * @param s1 the longitutial distance (s) of p1 on current reference line.
    * s1
-   * @param s identifies the the middle point that is going to be
+   * @param s identifies the middle point that is going to be
    * interpolated.
    * s >= s0 && s <= s1
    * @return The interpolated ReferencePoint.

@@ -25,7 +25,7 @@ Preparation consists of the following task sequence:
 
 ## Update the Vehicle Calibration
 
-After preparation, complete the following task sequence from `modules/tools/calibration`:
+After preparation, complete the following task sequence from `modules/tools/vehicle_calibration`:
 
 - Collect data.
 - Process data.
@@ -33,7 +33,7 @@ After preparation, complete the following task sequence from `modules/tools/cali
 - Convert results to `protobuf`.
 
 ### Collect Data
- 
+
  1. Run `python data_collector.py` for different commands, commands like x y z, where x is acceleration command, y is speed limit(mps), z is decceleration command,Positive number for throttle and negative number for brake.Run each command multiple times.
  2. Adjust the command script based on the vehicle response.
  3. Run `python plot_data.py ` to open recorded data and visualize collected data.

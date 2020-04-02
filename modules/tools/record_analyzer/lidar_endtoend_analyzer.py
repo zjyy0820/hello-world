@@ -20,63 +20,59 @@ from common.statistical_analyzer import StatisticalAnalyzer
 from common.statistical_analyzer import PrintColors
 
 
-class LidarEndToEndAnalyzer:
-    """control analyzer"""
+class LidarEndToEndAnalyzer(object):
+    """
+    Control analyzer
+    """
 
     def __init__(self):
-        """init"""
-        self.control_endtoend_latency = []
-        self.control_unprocessed_lidar_timestamps = []
+        """
+        Init
+        """
+        self.modules = ['control', 'planning', 'prediction', 'perception']
+        self.endtoend_latency = {}
+        self.unprocessed_lidar_timestamps = {}
+        for m in self.modules:
+            self.endtoend_latency[m] = []
+            self.unprocessed_lidar_timestamps[m] = []
 
-        self.planning_endtoend_latency = []
-        self.planning_unprocessed_lidar_timestamps = []
+    def put_pb(self, module_name, pb_msg):
+        """
+        Put  data
+        """
+        if module_name not in self.unprocessed_lidar_timestamps:
+            print(module_name, " is not supported")
+            return
 
-    def put_control(self, control_cmd):
-        """put control data"""
-        if control_cmd.header.lidar_timestamp in \
-                self.control_unprocessed_lidar_timestamps:
-            ind = self.control_unprocessed_lidar_timestamps.index(
-                control_cmd.header.lidar_timestamp)
-            del (self.control_unprocessed_lidar_timestamps[ind])
-            self.control_endtoend_latency.append(
-                control_cmd.header.lidar_timestamp / 1.0e-9 -
-                control_cmd.header.timestamp_sec)
+        if pb_msg.header.lidar_timestamp in \
+                self.unprocessed_lidar_timestamps[module_name]:
+            ind = self.unprocessed_lidar_timestamps[module_name].index(
+                pb_msg.header.lidar_timestamp)
+            del (self.unprocessed_lidar_timestamps[module_name][ind])
+            self.endtoend_latency[module_name].append(
+                (pb_msg.header.timestamp_sec -
+                pb_msg.header.lidar_timestamp * 1.0e-9) * 1000.0)
 
-    def put_planning(self, planning_cmd):
-        """put control data"""
-        if planning_cmd.header.lidar_timestamp in \
-                self.planning_unprocessed_lidar_timestamps:
-            ind = self.planning_unprocessed_lidar_timestamps.index(
-                planning_cmd.header.lidar_timestamp)
-            del (self.planning_unprocessed_lidar_timestamps[ind])
-            self.planning_endtoend_latency.append(
-                planning_cmd.header.lidar_timestamp / 1.0e-9 -
-                planning_cmd.header.timestamp_sec)
 
     def put_lidar(self, point_cloud):
-        """put lidar data"""
-        self.control_unprocessed_lidar_timestamps.append(
-            point_cloud.header.lidar_timestamp)
-        self.planning_unprocessed_lidar_timestamps.append(
-            point_cloud.header.lidar_timestamp)
+        """
+        Put lidar data
+        """
+        for m in self.modules:
+            self.unprocessed_lidar_timestamps[m].append(
+                point_cloud.header.lidar_timestamp)
 
     def print_endtoend_latency(self):
-        """print_endtoend_latency"""
-        print "\n\n"
-        print PrintColors.HEADER + "* End to End (Control) Latency (ms)" + \
-            PrintColors.ENDC
-        analyzer = StatisticalAnalyzer()
-        analyzer.print_statistical_results(self.control_endtoend_latency)
+        """
+        Print end to end latency
+        """
+        print("\n\n")
+        for m in self.modules:
+            print(PrintColors.HEADER + "* End to End (" + m
+                + ") Latency (ms)" + PrintColors.ENDC)
+            analyzer = StatisticalAnalyzer()
+            analyzer.print_statistical_results(self.endtoend_latency[m])
 
-        print PrintColors.FAIL + "  - MISS # OF LIDAR: " + \
-            str(len(self.control_unprocessed_lidar_timestamps)) + \
-            PrintColors.ENDC
-
-        print PrintColors.HEADER + "* End to End (Planning) Latency (ms)" + \
-            PrintColors.ENDC
-        analyzer = StatisticalAnalyzer()
-        analyzer.print_statistical_results(self.planning_endtoend_latency)
-
-        print PrintColors.FAIL + "  - MISS # OF LIDAR: " + \
-            str(len(self.planning_unprocessed_lidar_timestamps)) + \
-            PrintColors.ENDC
+            print(PrintColors.FAIL + "  - MISS # OF LIDAR: " + \
+                str(len(self.unprocessed_lidar_timestamps[m])) + \
+                PrintColors.ENDC)

@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright 2018 The Apollo Authors. All Rights Reserved.
+ * Copyright 2019 The Apollo Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
  *****************************************************************************/
 
 #pragma once
-
 
 #include <memory>
 #include <thread>
@@ -78,6 +77,10 @@ class %(car_type_cap)sController final : public VehicleController {
   // drive with old acceleration
   // gas:0.00~99.99 unit:
   void Throttle(double throttle) override;
+
+  // drive with acceleration/deceleration
+  // acc:-7.0~5.0 unit:m/s^2
+  void Acceleration(double acc) override;
 
   // steering with old angle speed
   // angle:-99.99~0.00~99.99, unit:, left:+, right:-

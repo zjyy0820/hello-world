@@ -18,6 +18,9 @@
 
 #include "yaml-cpp/yaml.h"
 
+#include "modules/common/adapters/adapter_gflags.h"
+#include "modules/common/util/message_util.h"
+
 namespace apollo {
 namespace transform {
 
@@ -27,7 +30,7 @@ bool StaticTransformComponent::Init() {
     return false;
   }
   cyber::proto::RoleAttributes attr;
-  attr.set_channel_name("/tf_static");
+  attr.set_channel_name(FLAGS_tf_static_topic);
   attr.mutable_qos_profile()->CopyFrom(
       cyber::transport::QosProfileConf::QOS_PROFILE_TF_STATIC);
   writer_ = node_->CreateWriter<TransformStampeds>(attr);
@@ -54,7 +57,7 @@ void StaticTransformComponent::SendTransforms() {
 bool StaticTransformComponent::ParseFromYaml(
     const std::string& file_path, TransformStamped* transform_stamped) {
   if (!cyber::common::PathExists(file_path)) {
-    AERROR << "Extrinsic yaml file is noe exists: " << file_path;
+    AERROR << "Extrinsic yaml file does not exist: " << file_path;
     return false;
   }
   YAML::Node tf = YAML::LoadFile(file_path);
@@ -86,23 +89,20 @@ void StaticTransformComponent::SendTransform(
     const std::vector<TransformStamped>& msgtf) {
   for (auto it_in = msgtf.begin(); it_in != msgtf.end(); ++it_in) {
     bool match_found = false;
-    int size = transform_stampeds_.transforms_size();
-
-    for (int i = 0; i < size; ++i) {
-      if (it_in->child_frame_id() ==
-          transform_stampeds_.mutable_transforms(i)->child_frame_id()) {
-        auto it_msg = transform_stampeds_.mutable_transforms(i);
-        *it_msg = *it_in;
+    for (auto& it_msg : *transform_stampeds_.mutable_transforms()) {
+      if (it_in->child_frame_id() == it_msg.child_frame_id()) {
+        it_msg = *it_in;
         match_found = true;
         break;
       }
     }
     if (!match_found) {
-      auto ts = transform_stampeds_.add_transforms();
-      *ts = *it_in;
+      *transform_stampeds_.add_transforms() = *it_in;
     }
   }
-  writer_->Write(std::make_shared<TransformStampeds>(transform_stampeds_));
+
+  common::util::FillHeader(node_->Name(), &transform_stampeds_);
+  writer_->Write(transform_stampeds_);
 }
 
 }  // namespace transform

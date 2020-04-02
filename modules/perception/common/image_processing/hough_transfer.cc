@@ -42,10 +42,8 @@ bool HoughTransfer::Init(int img_w, int img_h, float d_r, float d_theta) {
   img_h_ = img_h;
   d_r_ = d_r;
   d_theta_ = static_cast<float>(M_PI) * d_theta / 180.0f;
-  r_size_ = static_cast<int>(2 *
-                             sqrtf(static_cast<float>(img_w_ * img_w_ +
-                                                      img_h_ * img_h_))
-                            / d_r_);
+  r_size_ = static_cast<int>(
+      2 * sqrtf(static_cast<float>(img_w_ * img_w_ + img_h_ * img_h_)) / d_r_);
   theta_size_ = static_cast<int>(M_PI / d_theta_);
 
   ClearWithShrink();
@@ -62,8 +60,9 @@ bool HoughTransfer::Init(int img_w, int img_h, float d_r, float d_theta) {
     for (int img_pos = 0; img_pos < img_w_ * img_h_; ++img_pos) {
       int w = img_pos % img_w_;
       int h = img_pos / img_w_;
-      int r = static_cast<int>((cos(cur_theta) * w + sin(cur_theta) * h)
-                               / d_r_) + r_size_ / 2;
+      int r =
+          static_cast<int>((cos(cur_theta) * w + sin(cur_theta) * h) / d_r_) +
+          r_size_ / 2;
       if (0 <= r && r < r_size_) {
         query_map_[img_pos][theta_idx] = r * theta_size_ + theta_idx;
       }
@@ -88,7 +87,7 @@ bool HoughTransfer::Init(int img_w, int img_h, float d_r, float d_theta) {
 // @brief: HoughTransform in 2D binary image
 // @params[IN] image: 2D binary image.
 //             with_distribute: flag to control whether to calculate element
-//                              lenght,vote_num,pts in HoughLine
+//                              length,vote_num,pts in HoughLine
 bool HoughTransfer::ImageVote(const std::vector<int>& image,
                               bool with_distribute) {
   if (image.size() != query_map_.size()) {
@@ -108,7 +107,7 @@ bool HoughTransfer::ImageVote(const std::vector<int>& image,
 // @brief: transform one point to parameter space in polar coodinates and vote
 // @params[IN] x, y: pos in image.
 //             with_distribute: flag to control whether to calculate element
-//                              lenght,vote_num,pts in HoughLine
+//                              length,vote_num,pts in HoughLine
 void HoughTransfer::PointVote(int x, int y, bool with_distribute) {
   const int pos = y * img_w_ + x;
   PointVote(pos, with_distribute);
@@ -129,7 +128,7 @@ void HoughTransfer::PointVote(int pos, bool with_distribute) {
 // @params[IN] min_pt_num: minimum points on the same line.
 //             r_neibor, theta_neibor: query region
 //             with_distribute: flag to control whether to calculate element
-//                              lenght,vote_num,pts in HoughLine
+//                              length,vote_num,pts in HoughLine
 //             lines: save lines detected.
 bool HoughTransfer::GetLines(int min_pt_num, int r_neibor, int theta_neibor,
                              bool with_distribute,
@@ -140,7 +139,7 @@ bool HoughTransfer::GetLines(int min_pt_num, int r_neibor, int theta_neibor,
   int r_step = 2 * r_neibor + 1;
   int theta_step = 2 * theta_neibor + 1;
 
-  // search one vote neibor for max_vote position in the region
+  // search one vote neighbor for max_vote position in the region
   std::set<int> max_vote_lines;
   GetMaxVotes(min_pt_num, r_neibor, theta_neibor, r_step, theta_step,
               &max_vote_lines);
@@ -159,8 +158,8 @@ bool HoughTransfer::GetLines(int min_pt_num, int r_neibor, int theta_neibor,
 unsigned int HoughTransfer::MemoryConsume() const {
   unsigned int size = 0;
   if (is_prepared()) {
-    size += static_cast<unsigned int>(vote_map_.capacity() *
-                                      sizeof(vote_map_[0]));
+    size +=
+        static_cast<unsigned int>(vote_map_.capacity() * sizeof(vote_map_[0]));
     size += static_cast<unsigned int>(query_map_.capacity() *
                                       sizeof(query_map_[0]));
     size += static_cast<unsigned int>(theta_size_ * query_map_.size() *
@@ -263,10 +262,9 @@ bool HoughTransfer::VotePosToHoughLine(int vote_pos, bool with_distribute,
     const int start_y = start_pos / img_w_;
     const int end_x = end_pos % img_w_;
     const int end_y = end_pos / img_w_;
-    out_line->length = sqrtf(static_cast<float>((start_x - end_x) *
-                                                (start_x - end_x) +
-                                                (start_y - end_y) *
-                                                (start_y - end_y)));
+    out_line->length =
+        sqrtf(static_cast<float>((start_x - end_x) * (start_x - end_x) +
+                                 (start_y - end_y) * (start_y - end_y)));
   }
   return true;
 }

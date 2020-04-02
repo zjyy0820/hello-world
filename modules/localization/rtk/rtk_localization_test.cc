@@ -19,6 +19,7 @@
 #include "google/protobuf/text_format.h"
 #include "gtest/gtest.h"
 
+#include "cyber/common/file.h"
 #include "cyber/common/log.h"
 #include "modules/common/util/util.h"
 
@@ -32,7 +33,7 @@ class RTKLocalizationTest : public ::testing::Test {
  protected:
   template <class T>
   void load_data(const std::string &filename, T *data) {
-    CHECK(common::util::GetProtoFromFile(filename, data))
+    CHECK(cyber::common::GetProtoFromFile(filename, data))
         << "Failed to open file " << filename;
   }
 
@@ -40,7 +41,7 @@ class RTKLocalizationTest : public ::testing::Test {
 };
 
 TEST_F(RTKLocalizationTest, InterpolateIMU) {
-  // timestamp inbetween + time_diff is big enough(>0.001), interpolate
+  // timestamp in between + time_diff is big enough(>0.001), interpolate
   {
     apollo::localization::CorrectedImu imu1;
     load_data("modules/localization/testdata/1_imu_1.pb.txt", &imu1);
@@ -59,7 +60,7 @@ TEST_F(RTKLocalizationTest, InterpolateIMU) {
     EXPECT_EQ(expected_result.DebugString(), imu.DebugString());
   }
 
-  // timestamp inbetween + time_diff is too small(<0.001), no interpolate
+  // timestamp in between + time_diff is too small(<0.001), no interpolate
   {
     apollo::localization::CorrectedImu imu1;
     load_data("modules/localization/testdata/2_imu_1.pb.txt", &imu1);

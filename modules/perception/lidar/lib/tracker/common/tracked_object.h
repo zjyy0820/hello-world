@@ -31,22 +31,22 @@ namespace lidar {
 
 struct TrackedObject {
   TrackedObject() = default;
-  explicit TrackedObject(base::ObjectPtr obj_ptr, const Eigen::Affine3d& pose);
+  TrackedObject(base::ObjectPtr obj_ptr, const Eigen::Affine3d& pose);
   TrackedObject(const TrackedObject& rhs) = default;
   TrackedObject& operator=(const TrackedObject& rhs) = default;
 
   void Reset();
 
-  void Reset(base::ObjectPtr obj_ptr,
-      const Eigen::Affine3d& pose,
+  void Reset(
+      base::ObjectPtr obj_ptr, const Eigen::Affine3d& pose,
       const Eigen::Vector3d& global_to_local_offset = Eigen::Vector3d::Zero(),
       const base::SensorInfo& sensor = base::SensorInfo());
 
   std::string ToString() const;
   void ComputeShapeFeatures();
 
-  void AttachObject(base::ObjectPtr obj_ptr,
-      const Eigen::Affine3d& pose,
+  void AttachObject(
+      base::ObjectPtr obj_ptr, const Eigen::Affine3d& pose,
       const Eigen::Vector3d& global_to_local_offset = Eigen::Vector3d::Zero(),
       const base::SensorInfo& sensor = base::SensorInfo());
 
@@ -56,8 +56,9 @@ struct TrackedObject {
 
   void ToObject(base::ObjectPtr obj_ptr) const;
 
+  float GetVelThreshold(base::ObjectPtr obj) const;
   // ***************************************************
-  // self infomation from match
+  // self information from match
   // ***************************************************
   std::vector<float> shape_features;
   std::vector<float> shape_features_full;
@@ -67,19 +68,19 @@ struct TrackedObject {
   float association_score = 0.0f;
 
   // ***************************************************
-  // self infomation from track
+  // self information from track
   // ***************************************************
   bool is_fake = false;
   int track_id = -1;
   double tracking_time = 0.0;
 
   // ***************************************************
-  // infomation from main car
+  // information from main car
   // ***************************************************
   Eigen::Affine3d sensor_to_local_pose;
 
   // ***************************************************
-  // measurement correlative infomation from object_ptr
+  // measurement correlative information from object_ptr
   // ***************************************************
   base::ObjectPtr object_ptr;
   // corners always store follow const order based on object direction
@@ -97,7 +98,7 @@ struct TrackedObject {
   bool is_background = false;
 
   // ***************************************************
-  // measurement correlative infomation from measurement computer
+  // measurement correlative information from measurement computer
   // ***************************************************
   Eigen::Vector3d measured_barycenter_velocity;
   Eigen::Vector3d measured_center_velocity;
@@ -105,7 +106,7 @@ struct TrackedObject {
   Eigen::Vector3d measured_corners_velocity[4];
 
   // ***************************************************
-  // filter correlative infomation
+  // filter correlative information
   // ***************************************************
   // states
   int boostup_need_history_size = 0;
@@ -121,13 +122,13 @@ struct TrackedObject {
   Eigen::Vector3d belief_velocity_gain;
 
   // filter covariances
-  Eigen::Matrix3d         velocity_covariance;
-  Eigen::Matrix3d         belief_velocity_online_covariance;
+  Eigen::Matrix3d velocity_covariance;
+  Eigen::Matrix3d belief_velocity_online_covariance;
 
   // combine velocity and acceleration
-  Eigen::Vector4d         state;
-  Eigen::Matrix4d         measurement_covariance;
-  Eigen::Matrix4d         state_covariance;
+  Eigen::Vector4d state;
+  Eigen::Matrix4d measurement_covariance;
+  Eigen::Matrix4d state_covariance;
 
   // motion score (calculated in kalman_filter)
   // the three scores are
@@ -138,14 +139,14 @@ struct TrackedObject {
   Eigen::Vector3d motion_score;
 
   // ***************************************************
-  // postprocess correlative infomation
+  // postprocess correlative information
   // ***************************************************
   Eigen::Vector3d output_velocity;
   Eigen::Matrix3d output_velocity_uncertainty;
   Eigen::Vector3d output_direction;
   Eigen::Vector3d output_center;
   Eigen::Vector3d output_size;
-  base::SensorInfo              sensor_info;
+  base::SensorInfo sensor_info;
 };  // struct TrackedObject
 
 typedef std::shared_ptr<TrackedObject> TrackedObjectPtr;

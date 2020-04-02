@@ -24,6 +24,7 @@
 #include "pcl/sample_consensus/ransac.h"
 #include "pcl/sample_consensus/sac_model_plane.h"
 
+#include "cyber/common/log.h"
 #include "modules/localization/msf/common/util/voxel_grid_covariance_hdmap.h"
 
 namespace apollo {
@@ -108,8 +109,7 @@ class FeatureXYPlane {
           cloud_tmp += it->second.cloud_;
         }
       }
-      std::cerr << "the " << iter << " interation: plane_num = " << plane_num
-                << std::endl;
+      AINFO << "the " << iter << " interation: plane_num = " << plane_num;
       total_plane_num += plane_num;
       pointcloud_ptr.reset(new PointCloudT);
       *pointcloud_ptr = cloud_tmp;
@@ -117,12 +117,10 @@ class FeatureXYPlane {
 
     *non_xy_plane_cloud_ = *pointcloud_ptr;
     plane_time = std::clock() - plane_time;
-    std::cerr << "plane_patch takes:"
-              << static_cast<double>(plane_time) / CLOCKS_PER_SEC << "sec."
-              << std::endl;
-    std::cerr << "total_plane_num = " << total_plane_num << std::endl;
-    std::cerr << "total_points_num = " << xy_plane_cloud_->points.size()
-              << std::endl;
+    AINFO << "plane_patch takes:"
+          << static_cast<double>(plane_time) / CLOCKS_PER_SEC << "sec.";
+    AINFO << "total_plane_num = " << total_plane_num;
+    AINFO << "total_points_num = " << xy_plane_cloud_->points.size();
     return;
   }
 
@@ -166,7 +164,7 @@ class FeatureXYPlane {
     // get plane's normal (which is normalized)
     Eigen::VectorXf coeff;
     ransac.getModelCoefficients(coeff);
-    // determin the plane type
+    // determine the plane type
     double tan_theta = 0;
     double tan_refer_theta = std::tan(plane_type_degree_ / 180.0 * M_PI);
     if ((std::abs(coeff(2)) > std::abs(coeff(0))) &&

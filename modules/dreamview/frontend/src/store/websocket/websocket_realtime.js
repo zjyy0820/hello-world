@@ -16,6 +16,8 @@ export default class RealtimeWebSocketEndpoint {
         this.routingTime = undefined;
         this.currentMode = null;
         this.worker = new Worker();
+
+        this.requestHmiStatus = this.requestHmiStatus.bind(this);
     }
 
     initialize() {
@@ -51,31 +53,39 @@ export default class RealtimeWebSocketEndpoint {
                 case "SimWorldUpdate":
                     this.checkMessage(message);
 
-                    const updateCoordination = (this.currentMode !== STORE.hmi.currentMode);
+                    const isNewMode = (this.currentMode &&
+                                       this.currentMode !== STORE.hmi.currentMode);
+                    const isNavigationModeInvolved = (this.currentMode === 'Navigation' ||
+                                                    STORE.hmi.currentMode === 'Navigation');
                     this.currentMode = STORE.hmi.currentMode;
-                    if (STORE.hmi.inNavigationMode) {
-                        // In navigation mode, the coordinate system is FLU and
-                        // relative position of the ego-car is (0, 0). But,
-                        // absolute position of the ego-car is needed in MAP_NAVIGATOR.
+                    if (STORE.hmi.shouldDisplayNavigationMap) {
                         if (MAP_NAVIGATOR.isInitialized()) {
                             MAP_NAVIGATOR.update(message);
                         }
-                        message.autoDrivingCar.positionX = 0;
-                        message.autoDrivingCar.positionY = 0;
-                        message.autoDrivingCar.heading = 0;
 
-                        RENDERER.coordinates.setSystem("FLU");
-                        this.mapUpdatePeriodMs = 100;
+                        if (STORE.hmi.inNavigationMode) {
+                            // In navigation mode, the coordinate system is FLU and
+                            // relative position of the ego-car is (0, 0). But,
+                            // absolute position of the ego-car is needed in MAP_NAVIGATOR.
+                            message.autoDrivingCar.positionX = 0;
+                            message.autoDrivingCar.positionY = 0;
+                            message.autoDrivingCar.heading = 0;
+
+                            RENDERER.coordinates.setSystem("FLU");
+                            this.mapUpdatePeriodMs = 100;
+                        }
                     } else {
                         RENDERER.coordinates.setSystem("ENU");
                         this.mapUpdatePeriodMs = 1000;
                     }
 
-                    STORE.update(message);
+                    STORE.update(message, isNewMode);
                     RENDERER.maybeInitializeOffest(
                         message.autoDrivingCar.positionX,
                         message.autoDrivingCar.positionY,
-                        updateCoordination);
+                        // Updating offset only if navigation mode is involved since
+                        // its coordination system is different from rest of the modes.
+                        isNewMode && isNavigationModeInvolved);
                     RENDERER.updateWorld(message);
                     this.updateMapIndex(message);
                     if (this.routingTime !== message.routingTime) {
@@ -97,6 +107,11 @@ export default class RealtimeWebSocketEndpoint {
                 case "RoutingPointCheckResult":
                     if (message.error) {
                         RENDERER.removeInvalidRoutingPoint(message.pointId, message.error);
+                    }
+                    break;
+                case "DataCollectionProgress":
+                    if (message) {
+                        STORE.hmi.updateDataCollectionProgress(message.data);
                     }
                     break;
             }
@@ -130,11 +145,10 @@ export default class RealtimeWebSocketEndpoint {
                     this.updatePOI = false;
                 }
 
-                const requestPlanningData = STORE.options.showPNCMonitor;
-                this.websocket.send(JSON.stringify({
-                    type : "RequestSimulationWorld",
-                    planning : requestPlanningData,
-                }));
+                this.requestSimulationWorld(STORE.options.showPNCMonitor);
+                if (STORE.hmi.isCalibrationMode) {
+                    this.requestDataCollectionProgress();
+                }
             }
         }, this.simWorldUpdatePeriodMs);
     }
@@ -162,6 +176,13 @@ export default class RealtimeWebSocketEndpoint {
         this.secondLastSeqNum = this.lastSeqNum;
         this.lastSeqNum = world.sequenceNum;
         this.simWorldLastUpdateTimestamp = now;
+    }
+
+    requestSimulationWorld(requestPlanningData) {
+        this.websocket.send(JSON.stringify({
+            type : "RequestSimulationWorld",
+            planning : requestPlanningData,
+        }));
     }
 
     checkRoutingPoint(point) {
@@ -250,6 +271,8 @@ export default class RealtimeWebSocketEndpoint {
             type: "HMIAction",
             action: action,
         }));
+
+        setTimeout(this.requestHmiStatus, 5000);
     }
 
     executeModuleCommand(moduleName, command) {
@@ -263,22 +286,17 @@ export default class RealtimeWebSocketEndpoint {
             action: command,
             value: moduleName
         }));
+
+        setTimeout(this.requestHmiStatus, 5000);
     }
 
-    submitDriveEvent(eventTimeMs, eventMessage, eventTypes) {
+    submitDriveEvent(eventTimeMs, eventMessage, eventTypes, isReportable) {
     	this.websocket.send(JSON.stringify({
             type: "SubmitDriveEvent",
             event_time_ms: eventTimeMs,
             event_msg: eventMessage,
             event_type: eventTypes,
-        }));
-    }
-
-    sendAudioPiece(data) {
-        this.websocket.send(JSON.stringify({
-            type: "HMIAction",
-            action: "RECORD_AUDIO",
-            value: btoa(String.fromCharCode(...data)),
+            is_reportable: isReportable,
         }));
     }
 
@@ -295,7 +313,19 @@ export default class RealtimeWebSocketEndpoint {
         }));
     }
 
+    requestHmiStatus() {
+        this.websocket.send(JSON.stringify({
+            type: "HMIStatus"
+        }));
+    }
+
     publishNavigationInfo(data) {
         this.websocket.send(data);
+    }
+
+    requestDataCollectionProgress() {
+        this.websocket.send(JSON.stringify({
+            type: "RequestDataCollectionProgress",
+        }));
     }
 }

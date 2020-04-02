@@ -34,7 +34,7 @@ using apollo::cyber::proto::DagConfig;
 class ModuleController {
  public:
   explicit ModuleController(const ModuleArgument& args);
-  virtual ~ModuleController();
+  virtual ~ModuleController() = default;
 
   bool Init();
   bool LoadAll();
@@ -43,11 +43,19 @@ class ModuleController {
  private:
   bool LoadModule(const std::string& path);
   bool LoadModule(const DagConfig& dag_config);
+  int GetComponentNum(const std::string& path);
+  int total_component_nums = 0;
+  bool has_timer_component = false;
 
   ModuleArgument args_;
   class_loader::ClassLoaderManager class_loader_manager_;
   std::vector<std::shared_ptr<ComponentBase>> component_list_;
 };
+
+inline ModuleController::ModuleController(const ModuleArgument& args)
+    : args_(args) {}
+
+inline bool ModuleController::Init() { return LoadAll(); }
 
 }  // namespace mainboard
 }  // namespace cyber

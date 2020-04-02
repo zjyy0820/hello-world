@@ -54,7 +54,7 @@ class RTKReplayPlanner : public PlannerWithReferenceLine {
 
   apollo::common::Status Init(const PlanningConfig& config) override;
 
-  virtual void Stop() {}
+  void Stop() override {}
 
   /**
    * @brief Override function Plan in parent class Planner.
@@ -63,8 +63,8 @@ class RTKReplayPlanner : public PlannerWithReferenceLine {
    * @return OK if planning succeeds; error otherwise.
    */
   apollo::common::Status Plan(
-      const common::TrajectoryPoint& planning_init_point,
-      Frame* frame) override;
+      const common::TrajectoryPoint& planning_init_point, Frame* frame,
+      ADCTrajectory* ptr_computed_trajectory) override;
 
   /**
    * @brief Override function Plan in parent class Planner.

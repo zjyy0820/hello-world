@@ -35,8 +35,8 @@
 #include "modules/planning/constraint_checker/constraint_checker.h"
 #include "modules/planning/lattice/behavior/path_time_graph.h"
 #include "modules/planning/lattice/behavior/prediction_querier.h"
-#include "modules/planning/lattice/trajectory1d/lattice_trajectory1d.h"
 #include "modules/planning/lattice/trajectory_generation/backup_trajectory_generator.h"
+#include "modules/planning/lattice/trajectory_generation/lattice_trajectory1d.h"
 #include "modules/planning/lattice/trajectory_generation/trajectory1d_generator.h"
 #include "modules/planning/lattice/trajectory_generation/trajectory_combiner.h"
 #include "modules/planning/lattice/trajectory_generation/trajectory_evaluator.h"
@@ -48,8 +48,8 @@ using apollo::common::ErrorCode;
 using apollo::common::PathPoint;
 using apollo::common::Status;
 using apollo::common::TrajectoryPoint;
-using apollo::common::math::PathMatcher;
 using apollo::common::math::CartesianFrenetConverter;
+using apollo::common::math::PathMatcher;
 using apollo::common::time::Clock;
 
 namespace {
@@ -93,7 +93,8 @@ void ComputeInitFrenetState(const PathPoint& matched_point,
 }  // namespace
 
 Status LatticePlanner::Plan(const TrajectoryPoint& planning_start_point,
-                            Frame* frame) {
+                            Frame* frame,
+                            ADCTrajectory* ptr_computed_trajectory) {
   size_t success_line_count = 0;
   size_t index = 0;
   for (auto& reference_line_info : *frame->mutable_reference_line_info()) {
@@ -166,12 +167,13 @@ Status LatticePlanner::PlanOnReferenceLine(
   // 4. parse the decision and get the planning target.
   auto ptr_path_time_graph = std::make_shared<PathTimeGraph>(
       ptr_prediction_querier->GetObstacles(), *ptr_reference_line,
-      reference_line_info, init_s[0], init_s[0] + FLAGS_decision_horizon, 0.0,
+      reference_line_info, init_s[0],
+      init_s[0] + FLAGS_speed_lon_decision_horizon, 0.0,
       FLAGS_trajectory_time_length, init_d);
 
   double speed_limit =
       reference_line_info->reference_line().GetSpeedLimitFromS(init_s[0]);
-  reference_line_info->SetCruiseSpeed(speed_limit);
+  reference_line_info->SetLatticeCruiseSpeed(speed_limit);
 
   PlanningTarget planning_target = reference_line_info->planning_target();
   if (planning_target.has_stop_point()) {

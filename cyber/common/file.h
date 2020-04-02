@@ -23,7 +23,6 @@
 
 #include <dirent.h>
 #include <fcntl.h>
-#include <stdio.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -43,6 +42,9 @@
 namespace apollo {
 namespace cyber {
 namespace common {
+
+// file type: file or directory
+enum FileType { TYPE_FILE, TYPE_DIR };
 
 bool SetProtoToASCIIFile(const google::protobuf::Message &message,
                          int file_descriptor);
@@ -131,11 +133,11 @@ bool PathExists(const std::string &path);
 bool DirectoryExists(const std::string &directory_path);
 
 /**
- * @brief Expand path pattern to matched pathes.
+ * @brief Expand path pattern to matched paths.
  * @param pattern Path pattern, which may contain wildcards [?*].
  * @return Matched path list.
  */
-std::vector<std::string> Glob(const std::string& pattern);
+std::vector<std::string> Glob(const std::string &pattern);
 
 /**
  * @brief Copy a file.
@@ -191,6 +193,12 @@ std::string GetFileName(const std::string &path,
 
 std::string GetCurrentPath();
 
+// delete file including file or directory
+bool DeleteFile(const std::string &filename);
+
+bool GetType(const std::string &filename, FileType *type);
+
+bool CreateDir(const std::string &dir);
 }  // namespace common
 }  // namespace cyber
 }  // namespace apollo

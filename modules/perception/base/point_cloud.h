@@ -48,6 +48,7 @@ class PointCloud {
       : width_(width), height_(height) {
     points_.assign(width_ * height_, point);
   }
+
   // @brief destructor
   virtual ~PointCloud() = default;
 
@@ -76,7 +77,7 @@ class PointCloud {
   // @brief reserve function wrapper of vector
   inline virtual void reserve(size_t size) { points_.reserve(size); }
   // @brief empty function wrapper of vector
-  inline bool empty() { return points_.empty(); }
+  inline bool empty() const { return points_.empty(); }
   // @brief resize function wrapper of vector
   inline virtual void resize(size_t size) {
     points_.resize(size);
@@ -141,6 +142,23 @@ class PointCloud {
       points_[i] = rhs.points_[indices[i]];
     }
   }
+  template <typename IndexType>
+  inline void CopyPointCloudExclude(const PointCloud<PointT>& rhs,
+                                    const std::vector<IndexType>& indices) {
+    width_ = indices.size();
+    height_ = 1;
+    points_.resize(rhs.size() - indices.size());
+    std::vector<bool> mask(false, rhs.size());
+    for (size_t i = 0; i < indices.size(); ++i) {
+      mask[indices[i]] = true;
+    }
+    for (size_t i = 0; i < rhs.size(); ++i) {
+      if (!mask[i]) {
+        points_.push_back(rhs.points_[i]);
+      }
+    }
+  }
+
   // @brief swap point cloud
   inline void SwapPointCloud(PointCloud<PointT>* rhs) {
     points_.swap(rhs->points_);
@@ -152,18 +170,10 @@ class PointCloud {
   typedef typename std::vector<PointT>::iterator iterator;
   typedef typename std::vector<PointT>::const_iterator const_iterator;
   // @brief vector iterator
-  inline iterator begin() {
-    return points_.begin();
-  }
-  inline iterator end() {
-    return points_.end();
-  }
-  inline const_iterator begin() const {
-    return points_.begin();
-  }
-  inline const_iterator end() const {
-    return points_.end();
-  }
+  inline iterator begin() { return points_.begin(); }
+  inline iterator end() { return points_.end(); }
+  inline const_iterator begin() const { return points_.begin(); }
+  inline const_iterator end() const { return points_.end(); }
   typename std::vector<PointT>* mutable_points() { return &points_; }
   const typename std::vector<PointT>& points() const { return points_; }
 
@@ -209,6 +219,25 @@ class PointCloud {
       }
     }
     sensor_to_world_pose_.setIdentity();
+  }
+
+  // @brief transform the point cloud and save to another pc
+  void TransformPointCloud(const Eigen::Affine3f& transform,
+                           PointCloud<PointT>* out,
+                           bool check_nan = false) const {
+    Eigen::Vector3f point3f;
+    PointT pt;
+    for (auto& point : points_) {
+      if (!check_nan || (!std::isnan(point.x) && !std::isnan(point.y) &&
+                         !std::isnan(point.z))) {
+        point3f << point.x, point.y, point.z;
+        point3f = transform * point3f;
+        pt.x = static_cast<typename PointT::Type>(point3f(0));
+        pt.y = static_cast<typename PointT::Type>(point3f(1));
+        pt.z = static_cast<typename PointT::Type>(point3f(2));
+        out->push_back(pt);
+      }
+    }
   }
   // @brief check data member consistency
   virtual bool CheckConsistency() const { return true; }
@@ -377,6 +406,7 @@ class AttributePointCloud : public PointCloud<PointT> {
       points_label_[i] = rhs.points_label_[indices[i]];
     }
   }
+
   // @brief swap point cloud
   inline void SwapPointCloud(AttributePointCloud<PointT>* rhs) {
     points_.swap(rhs->points_);

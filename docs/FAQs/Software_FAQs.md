@@ -60,4 +60,26 @@ Should you see this error while building Apollo, please confirm the following:
 3. Do not use `sudo` parameter, when executing `dev_start.sh` and `dev_into.sh`
 
 ---
+
+## Build error "docker: Error response from daemon: failed to copy files: userspace copy failed": 
+
+An error message like this means that your system does not have enough space to build Apollo and the build process will fail. To resolve this issue, run the following to free up some space:
+```
+docker/setup_host/cleanup_resources.sh 
+```
+If it does not work, delete the Apollo repo, free up some space and then try again.
+
+---
+## Bootstrap error: unix:///tmp/supervisor.sock refused connection
+
+There could be a number of reasons why this error occurs. 
+Please follow the steps recommended in the [following thread](https://github.com/ApolloAuto/apollo/issues/5344). There are quite a few suggestions. If it still does not work for you, comment on the thread mentioned above.
+
+---
+## My OS keeps freezing when building Apollo 3.5?
+
+If you see an error like this, you do not have enough memory to build Apollo. Please ensure that you have at least **16GB** memory available before building Apollo.
+You could also find `--jobs=$(nproc)` in apollo.sh file and replace it with `--jobs=2`. This will make build process to use only 2 cores. Building will be longer, but will use less memory.
+
+---
 **More Software FAQs to follow.**

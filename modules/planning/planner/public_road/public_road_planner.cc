@@ -16,49 +16,34 @@
 
 #include "modules/planning/planner/public_road/public_road_planner.h"
 
-#include <set>
-
 #include "modules/planning/common/planning_gflags.h"
 
 namespace apollo {
 namespace planning {
 
-using common::Status;
-using common::TrajectoryPoint;
+using apollo::common::Status;
+using apollo::common::TrajectoryPoint;
 
 Status PublicRoadPlanner::Init(const PlanningConfig& config) {
   config_ = config;
-  std::set<ScenarioConfig::ScenarioType> supported_scenarios;
-  const auto& public_road_config =
-      config_.standard_planning_config().planner_public_road_config();
-
-  for (int i = 0; i < public_road_config.scenario_type_size(); ++i) {
-    const ScenarioConfig::ScenarioType scenario =
-        public_road_config.scenario_type(i);
-    supported_scenarios.insert(scenario);
-  }
-  scenario_manager_.Init(supported_scenarios);
-
+  scenario_manager_.Init();
   return Status::OK();
 }
 
 Status PublicRoadPlanner::Plan(const TrajectoryPoint& planning_start_point,
-                               Frame* frame) {
-  DCHECK_NOTNULL(frame);
+                               Frame* frame,
+                               ADCTrajectory* ptr_computed_trajectory) {
   scenario_manager_.Update(planning_start_point, *frame);
   scenario_ = scenario_manager_.mutable_scenario();
   auto result = scenario_->Process(planning_start_point, frame);
 
   if (FLAGS_enable_record_debug) {
-    if (frame->output_trajectory()) {
-      auto scenario_debug = frame->output_trajectory()
-                                ->mutable_debug()
-                                ->mutable_planning_data()
-                                ->mutable_scenario();
-      scenario_debug->set_scenario_type(scenario_->scenario_type());
-      scenario_debug->set_stage_type(scenario_->GetStage());
-      scenario_debug->set_msg(scenario_->GetMsg());
-    }
+    auto scenario_debug = ptr_computed_trajectory->mutable_debug()
+                              ->mutable_planning_data()
+                              ->mutable_scenario();
+    scenario_debug->set_scenario_type(scenario_->scenario_type());
+    scenario_debug->set_stage_type(scenario_->GetStage());
+    scenario_debug->set_msg(scenario_->GetMsg());
   }
 
   if (result == scenario::Scenario::STATUS_DONE) {

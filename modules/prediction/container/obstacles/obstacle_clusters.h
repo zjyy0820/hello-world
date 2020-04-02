@@ -40,11 +40,12 @@ class ObstacleClusters {
    * @brief Obtain a lane graph given a lane info and s
    * @param lane start s
    * @param lane total length
+   * @param if consider lane split ahead
    * @param lane info
    * @return a corresponding lane graph
    */
-  static const LaneGraph& GetLaneGraph(
-      const double start_s, const double length,
+  static LaneGraph GetLaneGraph(
+      const double start_s, const double length, const bool consider_lane_split,
       std::shared_ptr<const apollo::hdmap::LaneInfo> lane_info_ptr);
 
   /**
@@ -52,11 +53,12 @@ class ObstacleClusters {
    *        memorize it.
    * @param lane start s
    * @param lane total length
+   * @param if the obstacle is on lane
    * @param lane info
    * @return a corresponding lane graph
    */
   static LaneGraph GetLaneGraphWithoutMemorizing(
-      const double start_s, const double length,
+      const double start_s, const double length, const bool is_on_lane,
       std::shared_ptr<const apollo::hdmap::LaneInfo> lane_info_ptr);
 
   /**
@@ -66,9 +68,9 @@ class ObstacleClusters {
    * @param the forward obstacle on lane
    * @return If the forward obstacle is found
    */
-  static bool ForwardNearbyObstacle(
-      const LaneSequence& lane_sequence, const double s,
-      LaneObstacle* const lane_obstacle);
+  static bool ForwardNearbyObstacle(const LaneSequence& lane_sequence,
+                                    const double s,
+                                    LaneObstacle* const lane_obstacle);
 
   /**
    * @brief Add an obstacle into clusters
@@ -77,11 +79,8 @@ class ObstacleClusters {
    * @param lane s
    * @param lane l
    */
-  static void AddObstacle(
-      const int obstacle_id,
-      const std::string& lane_id,
-      const double lane_s,
-      const double lane_l);
+  static void AddObstacle(const int obstacle_id, const std::string& lane_id,
+                          const double lane_s, const double lane_l);
 
   /**
    * @brief Sort lane obstacles by lane s
@@ -95,12 +94,11 @@ class ObstacleClusters {
    * @param the forward obstacle on lane
    * @return If the forward obstacle is found
    */
-  static bool ForwardNearbyObstacle(
-      const LaneSequence& lane_sequence,
-      const int obstacle_id,
-      const double obstacle_s,
-      const double obstacle_l,
-      NearbyObstacle* const nearby_obstacle_ptr);
+  static bool ForwardNearbyObstacle(const LaneSequence& lane_sequence,
+                                    const int obstacle_id,
+                                    const double obstacle_s,
+                                    const double obstacle_l,
+                                    NearbyObstacle* const nearby_obstacle_ptr);
 
   /**
    * @brief Get the backward nearest obstacle on lane sequence at s
@@ -109,12 +107,11 @@ class ObstacleClusters {
    * @param the forward obstacle on lane
    * @return If the backward obstacle is found
    */
-  static bool BackwardNearbyObstacle(
-    const LaneSequence& lane_sequence,
-    const int obstacle_id,
-    const double obstacle_s,
-    const double obstacle_l,
-    NearbyObstacle* const nearby_obstacle_ptr);
+  static bool BackwardNearbyObstacle(const LaneSequence& lane_sequence,
+                                     const int obstacle_id,
+                                     const double obstacle_s,
+                                     const double obstacle_l,
+                                     NearbyObstacle* const nearby_obstacle_ptr);
 
   /**
    * @brief Query stop sign by lane ID
@@ -123,15 +120,19 @@ class ObstacleClusters {
    */
   static StopSign QueryStopSignByLaneId(const std::string& lane_id);
 
+  static std::unordered_map<std::string, std::vector<LaneObstacle>>&
+  GetLaneObstacles() {
+    return lane_obstacles_;
+  }
+
  private:
   ObstacleClusters() = delete;
 
   static void Clear();
 
  private:
-  static std::unordered_map<std::string, LaneGraph> lane_graphs_;
-  static std::unordered_map<std::string,
-                            std::vector<LaneObstacle>> lane_obstacles_;
+  static std::unordered_map<std::string, std::vector<LaneObstacle>>
+      lane_obstacles_;
   static std::unordered_map<std::string, StopSign> lane_id_stop_sign_map_;
 };
 

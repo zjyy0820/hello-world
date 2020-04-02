@@ -36,13 +36,14 @@ constexpr double PACKET_RATE_HDL64E_S2 = 3472.17;
 constexpr double PACKET_RATE_HDL64E_S3S = 3472.17;
 constexpr double PACKET_RATE_HDL64E_S3D = 5789;
 constexpr double PACKET_RATE_VLS128 = 6250.0;
+constexpr double PACKET_RATE_VLP32C = 1507.0;
 
 class VelodyneDriver {
  public:
   explicit VelodyneDriver(const Config &config) : config_(config) {}
   virtual ~VelodyneDriver();
 
-  virtual bool Poll(const std::shared_ptr<VelodyneScan>& scan);
+  virtual bool Poll(const std::shared_ptr<VelodyneScan> &scan);
   virtual void Init();
   virtual void PollPositioningPacket();
   void SetPacketRate(const double packet_rate) { packet_rate_ = packet_rate; }
@@ -69,12 +70,11 @@ class VelodyneDriver {
 
 class Velodyne64Driver : public VelodyneDriver {
  public:
-  explicit Velodyne64Driver(const Config &config)
-      : VelodyneDriver(config) {}
+  explicit Velodyne64Driver(const Config &config) : VelodyneDriver(config) {}
   ~Velodyne64Driver() {}
 
   void Init() override;
-  bool Poll(const std::shared_ptr<VelodyneScan>& scan) override;
+  bool Poll(const std::shared_ptr<VelodyneScan> &scan) override;
 
  private:
   bool CheckAngle(const VelodynePacket &packet);

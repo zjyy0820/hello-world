@@ -19,6 +19,7 @@
  **/
 #include "modules/planning/open_space/trajectory_smoother/distance_approach_problem.h"
 
+#include "cyber/common/file.h"
 #include "gtest/gtest.h"
 #include "modules/planning/common/planning_gflags.h"
 
@@ -32,7 +33,7 @@ class DistanceApproachProblemTest : public ::testing::Test {
         "/apollo/modules/planning/testdata/conf/"
         "open_space_standard_parking_lot.pb.txt";
 
-    CHECK(apollo::common::util::GetProtoFromFile(
+    CHECK(apollo::cyber::common::GetProtoFromFile(
         FLAGS_planner_open_space_config_filename, &planner_open_space_config_))
         << "Failed to load open space config file "
         << FLAGS_planner_open_space_config_filename;
@@ -55,7 +56,7 @@ class DistanceApproachProblemTest : public ::testing::Test {
   Eigen::MatrixXi obstacles_edges_num = Eigen::MatrixXi::Zero(1, horizon_ + 1);
   Eigen::MatrixXd obstacles_A = Eigen::MatrixXd::Ones(4, 1);
   Eigen::MatrixXd obstacles_b = Eigen::MatrixXd::Ones(4, 1);
-  apollo::planning::PlannerOpenSpaceConfig planner_open_space_config_;
+  PlannerOpenSpaceConfig planner_open_space_config_;
 };
 
 TEST_F(DistanceApproachProblemTest, initilization) {

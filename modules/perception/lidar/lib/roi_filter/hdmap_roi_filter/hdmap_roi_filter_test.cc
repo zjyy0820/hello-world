@@ -170,16 +170,17 @@ class HdmapROIFilterTest : public ::testing::Test {
     putenv(cyber_path);
     char module_path[50] = "MODULE_PATH=";
     putenv(module_path);
-    FLAGS_work_root = "/apollo/modules/perception/testdata/"
+    FLAGS_work_root =
+        "/apollo/modules/perception/testdata/"
         "lidar/lib/roi_filter/hdmap_roi_filter";
   }
 
  protected:
   void Init() {
     hdmap_roi_filter_ptr_->Init(opts_);
-    EXPECT_TRUE(hdmap_roi_filter_ptr_->range_ - 70.0 < 10e-6);
-    EXPECT_TRUE(hdmap_roi_filter_ptr_->cell_size_ - 0.25 < 10e-6);
-    EXPECT_TRUE(hdmap_roi_filter_ptr_->extend_dist_ - 0.0 < 10e-6);
+    EXPECT_LT(hdmap_roi_filter_ptr_->range_ - 70.0, 10e-6);
+    EXPECT_LT(hdmap_roi_filter_ptr_->cell_size_ - 0.25, 10e-6);
+    EXPECT_LT(hdmap_roi_filter_ptr_->extend_dist_ - 0.0, 10e-6);
     EXPECT_TRUE(hdmap_roi_filter_ptr_->no_edge_table_);
     EXPECT_FALSE(hdmap_roi_filter_ptr_->set_roi_service_);
   }

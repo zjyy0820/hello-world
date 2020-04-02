@@ -16,7 +16,7 @@
 
 #include "modules/tools/visualizer/scene_camera_dialog.h"
 
-#include <QVector3D>
+#include <QtGui/QVector3D>
 
 #include "modules/tools/visualizer/ui_scene_camera_dialog.h"
 
@@ -61,8 +61,8 @@ void SceneCameraDialog::updateCameraPos(const QVector3D& pos) {
 }
 
 void SceneCameraDialog::OnStepSlideChanged(int v) {
-  const float step = static_cast<float>(v) /
-                     static_cast<float>(ui->stepSlider->maximum());
+  const float step =
+      static_cast<float>(v) / static_cast<float>(ui->stepSlider->maximum());
 
   emit sensitivityChanged(step);
 

@@ -30,15 +30,14 @@ using apollo::common::time::Clock;
 MSFLocalizationComponent::MSFLocalizationComponent() {}
 
 bool MSFLocalizationComponent::Init() {
-  Clock::SetMode(Clock::CYBER);
   publisher_.reset(new LocalizationMsgPublisher(this->node_));
 
-  if (InitConfig() != true) {
+  if (!InitConfig()) {
     AERROR << "Init Config failed.";
     return false;
   }
 
-  if (InitIO() != true) {
+  if (!InitIO()) {
     AERROR << "Init IO failed.";
     return false;
   }
@@ -51,12 +50,12 @@ bool MSFLocalizationComponent::InitConfig() {
   bestgnsspos_topic_ = FLAGS_gnss_best_pose_topic;
   gnss_heading_topic_ = FLAGS_heading_topic;
 
-  if (publisher_->InitConfig() != true) {
+  if (!publisher_->InitConfig()) {
     AERROR << "Init publisher config failed.";
     return false;
   }
 
-  if (localization_.Init().ok() != true) {
+  if (!localization_.Init().ok()) {
     AERROR << "Init class MSFLocalization failed.";
     return false;
   }
@@ -91,7 +90,7 @@ bool MSFLocalizationComponent::InitIO() {
       gnss_heading_topic_, gnss_heading_call);
 
   // init writer
-  if (publisher_->InitIO() != true) {
+  if (!publisher_->InitIO()) {
     AERROR << "Init publisher io failed.";
     return false;
   }
@@ -159,25 +158,21 @@ void LocalizationMsgPublisher::PublishPoseBroadcastTF(
   mutable_rotation->set_qw(localization.pose().orientation().qw());
 
   tf2_broadcaster_.SendTransform(tf2_msg);
-  return;
 }
 
 void LocalizationMsgPublisher::PublishPoseBroadcastTopic(
     const LocalizationEstimate& localization) {
   localization_talker_->Write(localization);
-  return;
 }
 
 void LocalizationMsgPublisher::PublishLocalizationMsfGnss(
     const LocalizationEstimate& localization) {
   gnss_local_talker_->Write(localization);
-  return;
 }
 
 void LocalizationMsgPublisher::PublishLocalizationMsfLidar(
     const LocalizationEstimate& localization) {
   lidar_local_talker_->Write(localization);
-  return;
 }
 
 void LocalizationMsgPublisher::PublishLocalizationStatus(

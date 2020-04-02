@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 
 #define private public
 #define protected public
@@ -96,8 +96,8 @@ TEST(CommonIoTest, GetFileList) {
   std::vector<std::string> files;
   EXPECT_TRUE(GetFileList(path, "", &files));
   EXPECT_FALSE(GetFileList("/not_exist_path", "", &files));
-  EXPECT_TRUE(GetFileList(
-      "/apollo/modules/perception/testdata/lib/data", "txt", &files));
+  EXPECT_TRUE(GetFileList("/apollo/modules/perception/testdata/lib/data", "txt",
+                          &files));
 }
 
 }  // namespace common

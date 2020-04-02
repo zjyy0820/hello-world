@@ -18,7 +18,7 @@
 
 #include <utility>
 
-#include "modules/common/util/file.h"
+#include "cyber/common/file.h"
 #include "modules/perception/lib/config_manager/config_manager.h"
 #include "modules/perception/lidar/lib/tracker/common/track_pool_types.h"
 #include "modules/perception/lidar/lib/tracker/multi_lidar_fusion/proto/multi_lidar_fusion_config.pb.h"
@@ -27,7 +27,7 @@ namespace apollo {
 namespace perception {
 namespace lidar {
 
-using apollo::common::util::GetAbsolutePath;
+using cyber::common::GetAbsolutePath;
 
 bool MlfEngine::Init(const MultiTargetTrackerInitOptions& options) {
   auto config_manager = lib::ConfigManager::Instance();
@@ -40,7 +40,7 @@ bool MlfEngine::Init(const MultiTargetTrackerInitOptions& options) {
   config_file = GetAbsolutePath(work_root, root_path);
   config_file = GetAbsolutePath(config_file, "mlf_engine.conf");
   MlfEngineConfig config;
-  CHECK(apollo::common::util::GetProtoFromFile(config_file, &config));
+  CHECK(cyber::common::GetProtoFromFile(config_file, &config));
 
   main_sensor_.clear();
   for (int i = 0; i < config.main_sensor_size(); ++i) {
@@ -57,7 +57,7 @@ bool MlfEngine::Init(const MultiTargetTrackerInitOptions& options) {
   background_objects_.clear();
   foreground_track_data_.clear();
   background_track_data_.clear();
-  if (main_sensor_.size() == 0) {
+  if (main_sensor_.empty()) {
     main_sensor_.emplace("velodyne64");  // default value
   }
 
@@ -80,8 +80,7 @@ bool MlfEngine::Track(const MultiTargetTrackerOptions& options,
     }
   }
   // 1. add global offset to pose (only when no track exists)
-  if (foreground_track_data_.size() == 0 &&
-      background_track_data_.size() == 0) {
+  if (foreground_track_data_.empty() && background_track_data_.empty()) {
     global_to_local_offset_ = -frame->lidar2world_pose.translation();
   }
   sensor_to_local_pose_ = frame->lidar2world_pose;
@@ -112,7 +111,7 @@ bool MlfEngine::Track(const MultiTargetTrackerOptions& options,
   RemoveStaleTrackData("background", frame->timestamp, &background_track_data_);
   AINFO << "MlfEngine publish objects: " << frame->tracked_objects.size()
         << " sensor_name: " << frame->sensor_info.name
-        << " at timestamp: " << std::to_string(frame->timestamp);
+        << " at timestamp: " << frame->timestamp;
   return true;
 }
 
@@ -156,8 +155,8 @@ void MlfEngine::TrackObjectMatchAndAssign(
         << " unassigned_objects " << unassigned_objects.size();
   // 1. for assignment, push object to cache of track_data
   for (auto& pair : assignments) {
-    const size_t& track_id = pair.first;
-    const size_t& object_id = pair.second;
+    const size_t track_id = pair.first;
+    const size_t object_id = pair.second;
     tracks->at(track_id)->PushTrackedObjectToCache(objects[object_id]);
   }
   // 2. for unassigned_objects, create new tracks
@@ -177,7 +176,7 @@ void MlfEngine::TrackStateFilter(const std::vector<MlfTrackDataPtr>& tracks,
     for (auto& obj : objects) {
       tracker_->UpdateTrackDataWithObject(track_data, obj);
     }
-    if (objects.size() == 0) {
+    if (objects.empty()) {
       tracker_->UpdateTrackDataWithoutObject(frame_timestamp, track_data);
     }
   }
@@ -191,13 +190,16 @@ void MlfEngine::CollectTrackedResult(LidarFrame* frame) {
   base::ObjectPool::Instance().BatchGet(num_objects, &tracked_objects);
   size_t pos = 0;
   size_t num_predict = 0;
-  auto collect = [&](std::vector<MlfTrackDataPtr> * tracks) {
+  auto collect = [&](std::vector<MlfTrackDataPtr>* tracks) {
     for (auto& track_data : *tracks) {
       if (!output_predict_objects_ && track_data->is_current_state_predicted_) {
         ++num_predict;
       } else {
-        CHECK(track_data->ToObject(-global_to_local_offset_, frame->timestamp,
-                                   tracked_objects[pos]));
+        if (!track_data->ToObject(-global_to_local_offset_, frame->timestamp,
+                                  tracked_objects[pos])) {
+          AERROR << "Tracking failed";
+          continue;
+        }
         ++pos;
       }
     }
@@ -207,7 +209,10 @@ void MlfEngine::CollectTrackedResult(LidarFrame* frame) {
   if (num_predict != 0) {
     AINFO << "MlfEngine, num_predict: " << num_predict
           << " num_objects: " << num_objects;
-    CHECK(num_predict <= num_objects);
+    if (num_predict > num_objects) {
+      AERROR << "num_predict > num_objects";
+      return;
+    }
     tracked_objects.resize(num_objects - num_predict);
   }
 }

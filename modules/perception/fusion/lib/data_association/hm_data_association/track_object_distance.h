@@ -66,7 +66,7 @@ class TrackObjectDistance {
   // @return the similarity which belongs to [0, 1]. When velodyne64
   // observation is similar to the camera one, the similarity would
   // close to 1. Otherwise, it would close to 0.
-  // @NOTE: orginal method name is compute_velodyne64_camera_dist_score
+  // @NOTE: original method name is compute_velodyne64_camera_dist_score
   double ComputeLidarCameraSimilarity(const SensorObjectConstPtr& lidar,
                                       const SensorObjectConstPtr& camera,
                                       const bool measurement_is_lidar);
@@ -157,16 +157,12 @@ class TrackObjectDistance {
       const Eigen::Matrix4d& world2camera_pose,
       std::vector<Eigen::Vector2d>* radar_box2d_vertices);
   ProjectionCacheObject* BuildProjectionCacheObject(
-      const SensorObjectConstPtr& lidar,
-      const SensorObjectConstPtr& camera,
+      const SensorObjectConstPtr& lidar, const SensorObjectConstPtr& camera,
       const base::BaseCameraModelPtr& camera_model,
-      const std::string& measurement_sensor_id,
-      double measurement_timestamp,
-      const std::string& projection_sensor_id,
-      double projection_timestamp);
+      const std::string& measurement_sensor_id, double measurement_timestamp,
+      const std::string& projection_sensor_id, double projection_timestamp);
   ProjectionCacheObject* QueryProjectionCacheObject(
-      const SensorObjectConstPtr& lidar,
-      const SensorObjectConstPtr& camera,
+      const SensorObjectConstPtr& lidar, const SensorObjectConstPtr& camera,
       const base::BaseCameraModelPtr& camera_model,
       const bool measurement_is_lidar);
   bool IsTrackIdConsistent(const SensorObjectConstPtr& object1,

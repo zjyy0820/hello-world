@@ -19,6 +19,8 @@
 #include <string>
 #include <vector>
 
+#include "boost/circular_buffer.hpp"
+
 #include "modules/perception/base/box.h"
 #include "modules/perception/base/object_types.h"
 #include "modules/perception/base/point_cloud.h"
@@ -63,7 +65,7 @@ struct alignas(16) LidarObjectSupplement {
   // @brief object height above ground
   float height_above_ground = FLT_MAX;
 
-  // @brief raw probablity of each classification method
+  // @brief raw probability of each classification method
   std::vector<std::vector<float>> raw_probs;
   std::vector<std::string> raw_classification_methods;
 };
@@ -153,7 +155,7 @@ struct alignas(16) CameraObjectSupplement {
   double truncated_horizontal = 0.0;
   double truncated_vertical = 0.0;
   // @brief center in camera coordinate system
-  Eigen::Vector3f local_center;
+  Eigen::Vector3f local_center = Eigen::Vector3f(0.0f, 0.0f, 0.0f);
 
   // @brief visual object type, only used in camera module
   VisualObjectType visual_type = VisualObjectType::MAX_OBJECT_TYPE;
@@ -180,6 +182,40 @@ struct alignas(16) CameraObjectSupplement {
 typedef std::shared_ptr<CameraObjectSupplement> CameraObjectSupplementPtr;
 typedef std::shared_ptr<const CameraObjectSupplement>
     CameraObjectSupplementConstPtr;
+
+typedef Eigen::Matrix4f MotionType;
+struct alignas(16) VehicleStatus {
+  float roll_rate = 0;
+  float pitch_rate = 0;
+  float yaw_rate = 0;
+  float velocity = 0;
+  float velocity_x = 0;
+  float velocity_y = 0;
+  float velocity_z = 0;
+  double time_ts = 0;                          // time stamp
+  double time_d = 0;                           // time stamp difference in image
+  MotionType motion = MotionType::Identity();  // Motion Matrix
+};
+
+typedef boost::circular_buffer<VehicleStatus> MotionBuffer;
+typedef std::shared_ptr<MotionBuffer> MotionBufferPtr;
+typedef std::shared_ptr<const MotionBuffer> MotionBufferConstPtr;
+
+struct alignas(16) Vehicle3DStatus {
+  float yaw_delta;  // azimuth angle change
+  float pitch_delta;
+  float roll_delta;
+  float velocity_x;          // east
+  float velocity_y;          // north
+  float velocity_z;          // up
+  double time_ts;            // time stamp
+  double time_d;             // time stamp difference in image
+  Eigen::Matrix4f motion3d;  // 3-d Motion Matrix
+};
+
+typedef boost::circular_buffer<Vehicle3DStatus> Motion3DBuffer;
+typedef std::shared_ptr<Motion3DBuffer> Motion3DBufferPtr;
+typedef std::shared_ptr<const Motion3DBuffer> Motion3DBufferConstPtr;
 
 struct SensorObjectMeasurement {
   void Reset() {

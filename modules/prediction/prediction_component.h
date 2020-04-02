@@ -23,9 +23,13 @@
 #include <memory>
 #include <string>
 
+#include "absl/time/time.h"
+
 #include "cyber/component/component.h"
-#include "modules/planning/proto/planning.pb.h"
-#include "modules/prediction/proto/prediction_obstacle.pb.h"
+#include "modules/prediction/common/message_process.h"
+#include "modules/prediction/container/adc_trajectory/adc_trajectory_container.h"
+#include "modules/prediction/submodules/submodule_output.h"
+#include "modules/storytelling/proto/story.pb.h"
 
 /**
  * @namespace apollo::prediction
@@ -58,8 +62,7 @@ class PredictionComponent
    * @brief Data callback upon receiving a perception obstacle message.
    * @param Perception obstacle message.
    */
-  bool Proc(
-      const std::shared_ptr<perception::PerceptionObstacles> &) override;
+  bool Proc(const std::shared_ptr<perception::PerceptionObstacles>&) override;
 
   /**
    * @brief Load and process feature proto file.
@@ -68,28 +71,31 @@ class PredictionComponent
   void OfflineProcessFeatureProtoFile(const std::string& features_proto_file);
 
  private:
-  void OnLocalization(const localization::LocalizationEstimate &localization);
+  bool ContainerSubmoduleProcess(
+      const std::shared_ptr<perception::PerceptionObstacles>&);
 
-  void OnPlanning(const planning::ADCTrajectory &adc_trajectory);
+  bool PredictionEndToEndProc(
+      const std::shared_ptr<perception::PerceptionObstacles>&);
 
-  void OnPerception(
-      const perception::PerceptionObstacles &perception_obstacles);
-
-  void ProcessOfflineData(const std::string &filename);
-
- private:
   double component_start_time_ = 0.0;
 
   double frame_start_time_ = 0.0;
 
-  std::shared_ptr<cyber::Reader<planning::ADCTrajectory>>
-      planning_reader_;
+  std::shared_ptr<cyber::Reader<planning::ADCTrajectory>> planning_reader_;
 
   std::shared_ptr<cyber::Reader<localization::LocalizationEstimate>>
       localization_reader_;
 
-  std::shared_ptr<cyber::Writer<PredictionObstacles>>
-      prediction_writer_;
+  std::shared_ptr<cyber::Reader<storytelling::Stories>> storytelling_reader_;
+
+  std::shared_ptr<cyber::Writer<PredictionObstacles>> prediction_writer_;
+
+  std::shared_ptr<cyber::Writer<SubmoduleOutput>> container_writer_;
+
+  std::shared_ptr<cyber::Writer<ADCTrajectoryContainer>> adc_container_writer_;
+
+  std::shared_ptr<cyber::Writer<perception::PerceptionObstacles>>
+      perception_obstacles_writer_;
 };
 
 CYBER_REGISTER_COMPONENT(PredictionComponent)

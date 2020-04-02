@@ -17,6 +17,7 @@
 #include "modules/dreamview/backend/map/map_service.h"
 
 #include <algorithm>
+#include <fstream>
 #include <utility>
 
 #include "modules/common/util/json_util.h"
@@ -36,9 +37,9 @@ using apollo::hdmap::Lane;
 using apollo::hdmap::LaneInfoConstPtr;
 using apollo::hdmap::Map;
 using apollo::hdmap::MapPathPoint;
-using apollo::hdmap::PNCJunctionInfoConstPtr;
 using apollo::hdmap::ParkingSpaceInfoConstPtr;
 using apollo::hdmap::Path;
+using apollo::hdmap::PNCJunctionInfoConstPtr;
 using apollo::hdmap::SignalInfoConstPtr;
 using apollo::hdmap::SpeedBumpInfoConstPtr;
 using apollo::hdmap::StopSignInfoConstPtr;
@@ -465,7 +466,7 @@ bool MapService::GetStartPoint(apollo::common::PointENU *start_point) const {
 
 bool MapService::CreatePathsFromRouting(const RoutingResponse &routing,
                                         std::vector<Path> *paths) const {
-  if (routing.road_size() == 0) {
+  if (routing.road().empty()) {
     return false;
   }
 

@@ -11,23 +11,16 @@ cc_proto_library(
 
 proto_library(
     name = "denseline_postprocessor_proto_lib",
-    srcs = [
-        "denseline_postprocessor.proto",
-    ],
+    srcs = ["denseline_postprocessor.proto"],
 )
 
 cc_library(
     name = "denseline_lane_postprocessor",
-    srcs = [
-        "denseline_lane_postprocessor.cc",
-    ],
-    hdrs = [
-        "denseline_lane_postprocessor.h",
-    ],
+    srcs = ["denseline_lane_postprocessor.cc"],
+    hdrs = ["denseline_lane_postprocessor.h"],
     deps = [
         ":denseline_postprocessor_proto",
         "//cyber",
-        "//modules/common/util:file_util",
         "//modules/perception/base",
         "//modules/perception/camera/common",
         "//modules/perception/camera/lib/interface",

@@ -16,8 +16,8 @@
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
-#include <stdlib.h>
 #include <sys/socket.h>
+#include <cstdlib>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -81,4 +81,5 @@ int main(int argc, char* argv[]) {
       "echo_server");
 
   apollo::cyber::WaitForShutdown();
+  return 0;
 }

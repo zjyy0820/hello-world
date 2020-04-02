@@ -14,14 +14,15 @@
  * limitations under the License.
  *****************************************************************************/
 
-#include "./general_message_base.h"
-#include "./general_channel_message.h"
-#include "./general_message.h"
-#include "./screen.h"
+#include "cyber/tools/cyber_monitor/general_message_base.h"
 
 #include <iomanip>
 #include <string>
 #include <vector>
+
+#include "cyber/tools/cyber_monitor/general_channel_message.h"
+#include "cyber/tools/cyber_monitor/general_message.h"
+#include "cyber/tools/cyber_monitor/screen.h"
 
 namespace {
 constexpr int INT_FLOAT_PRECISION = 6;
@@ -76,52 +77,51 @@ int GeneralMessageBase::lineCount(const google::protobuf::Message& msg,
 int GeneralMessageBase::lineCountOfField(
     const google::protobuf::Message& msg, int screenWidth,
     const google::protobuf::FieldDescriptor* field,
-    const google::protobuf::Reflection* reflection,
-    bool is_folded) {
+    const google::protobuf::Reflection* reflection, bool is_folded) {
   int ret = 0;
   if (!is_folded && field->is_repeated()) {
     int size = reflection->FieldSize(msg, field);
     for (int i = 0; i < size; ++i) {
       switch (field->cpp_type()) {
-      case google::protobuf::FieldDescriptor::CPPTYPE_STRING: {
-        std::string scratch;
-        const std::string& value =
-            reflection->GetRepeatedStringReference(msg, field, i, &scratch);
-        ret += calculateStringLines(value, screenWidth);
-        break;
-      }
+        case google::protobuf::FieldDescriptor::CPPTYPE_STRING: {
+          std::string scratch;
+          const std::string& value =
+              reflection->GetRepeatedStringReference(msg, field, i, &scratch);
+          ret += calculateStringLines(value, screenWidth);
+          break;
+        }
 
-      case google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE: {
-        const google::protobuf::Message& childMsg =
-            reflection->GetRepeatedMessage(msg, field, i);
-        ret += lineCount(childMsg, screenWidth);
-        break;
-      }
+        case google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE: {
+          const google::protobuf::Message& childMsg =
+              reflection->GetRepeatedMessage(msg, field, i);
+          ret += lineCount(childMsg, screenWidth);
+          break;
+        }
 
-      default: 
-        ret += 1;
+        default:
+          ret += 1;
       }  // end switch
     }
   } else {
     ret = 1;
     if (!field->is_repeated()) {
       switch (field->cpp_type()) {
-      case google::protobuf::FieldDescriptor::CPPTYPE_STRING: {
-        std::string scratch;
-        const std::string& value =
-            reflection->GetStringReference(msg, field, &scratch);
-        ret += calculateStringLines(value, screenWidth);
-        break;
-      }
+        case google::protobuf::FieldDescriptor::CPPTYPE_STRING: {
+          std::string scratch;
+          const std::string& value =
+              reflection->GetStringReference(msg, field, &scratch);
+          ret += calculateStringLines(value, screenWidth);
+          break;
+        }
 
-      case google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE: {
-        const google::protobuf::Message& childMsg =
-            reflection->GetMessage(msg, field);
-        ret += lineCount(childMsg, screenWidth);
-        break;
-      }
+        case google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE: {
+          const google::protobuf::Message& childMsg =
+              reflection->GetMessage(msg, field);
+          ret += lineCount(childMsg, screenWidth);
+          break;
+        }
 
-      default: {}
+        default: {}
       }  // end switch
     }
   }
@@ -301,9 +301,12 @@ void GeneralMessageBase::PrintField(
     case google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE:
       if (!jumpLines) {
         const std::string& fieldName = field->name();
-        outStr << fieldName << ": ";
-        if (field->is_repeated()) {
-          outStr << "[" << index << "] ";
+        outStr << fieldName;
+        if (!field->is_map()) {
+          outStr << ": ";
+          if (field->is_repeated()) {
+            outStr << "[" << index << "] ";
+          }
         }
         s->AddStr(indent, lineNo++, outStr.str().c_str());
       } else {

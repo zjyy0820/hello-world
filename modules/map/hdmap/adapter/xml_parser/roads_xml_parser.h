@@ -14,6 +14,7 @@ limitations under the License.
 =========================================================================*/
 #pragma once
 
+#include <string>
 #include <vector>
 
 #include "tinyxml2/tinyxml2.h"
@@ -29,6 +30,15 @@ class RoadsXmlParser {
  public:
   static Status Parse(const tinyxml2::XMLElement& xml_node,
                       std::vector<RoadInternal>* roads);
+
+ private:
+  static void Parse_road_objects(const tinyxml2::XMLElement& xml_node,
+                                 RoadInternal* road_info);
+  static void Parse_road_signals(const tinyxml2::XMLElement& xml_node,
+                                 RoadInternal* road_info);
+
+  static Status to_pb_road_type(const std::string& type,
+                                PbRoadType* pb_road_type);
 };
 
 }  // namespace adapter

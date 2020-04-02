@@ -1,19 +1,19 @@
 /******************************************************************************
-* Copyright 2018 The Apollo Authors. All Rights Reserved.
-*
-* Licensed under the Apache License, Version 2.0 (the License);
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-* http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an AS IS BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*****************************************************************************/
-#include <gtest/gtest.h>
+ * Copyright 2018 The Apollo Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the License);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *****************************************************************************/
+#include "gtest/gtest.h"
 
 #include "modules/perception/camera/lib/interface/base_calibration_service.h"
 #include "modules/perception/camera/lib/interface/base_calibrator.h"
@@ -41,49 +41,44 @@ class MyInferenceEngine : public BaseInferenceEngine {
   MyInferenceEngine() : BaseInferenceEngine() {}
   virtual ~MyInferenceEngine() {}
 
-  bool Init(const InferenceEngineInitOptions& options
-      = InferenceEngineInitOptions()) override {
+  bool Init(const InferenceEngineInitOptions& options =
+                InferenceEngineInitOptions()) override {
     return true;
   }
 
   bool Infer(const InferenceEngineOptions& options,
-      CameraFrame* frame) override {
+             CameraFrame* frame) override {
     return true;
   }
 
-  std::string Name() const override {
-    return "MyInferenceEngine";
-  }
+  std::string Name() const override { return "MyInferenceEngine"; }
 };
 
 REGISTER_INFERENCE_ENGINE(MyInferenceEngine);
 
 TEST(ObstacleInterfaceTest, test_inference_engine) {
   BaseInferenceEngine* inference_engine =
-    BaseInferenceEngineRegisterer::GetInstanceByName("MyInferenceEngine");
-  EXPECT_TRUE(inference_engine != NULL);
+      BaseInferenceEngineRegisterer::GetInstanceByName("MyInferenceEngine");
+  EXPECT_NE(inference_engine, nullptr);
   EXPECT_EQ(inference_engine->Name(), "MyInferenceEngine");
 }
-
 
 class MyObstacleDetector : public BaseObstacleDetector {
  public:
   MyObstacleDetector() : BaseObstacleDetector() {}
   virtual ~MyObstacleDetector() {}
 
-  bool Init(const ObstacleDetectorInitOptions& options
-      = ObstacleDetectorInitOptions()) override {
+  bool Init(const ObstacleDetectorInitOptions& options =
+                ObstacleDetectorInitOptions()) override {
     return true;
   }
 
   bool Detect(const ObstacleDetectorOptions& options,
-      CameraFrame* frame) override {
+              CameraFrame* frame) override {
     return true;
   }
 
-  std::string Name() const override {
-    return "MyObstacleDetector";
-  }
+  std::string Name() const override { return "MyObstacleDetector"; }
 };
 
 REGISTER_OBSTACLE_DETECTOR(MyObstacleDetector);
@@ -91,7 +86,7 @@ REGISTER_OBSTACLE_DETECTOR(MyObstacleDetector);
 TEST(ObstacleInterfaceTest, test_camera_detector) {
   BaseObstacleDetector* camera_detector =
       BaseObstacleDetectorRegisterer::GetInstanceByName("MyObstacleDetector");
-  EXPECT_TRUE(camera_detector != NULL);
+  EXPECT_NE(camera_detector, nullptr);
   EXPECT_EQ(camera_detector->Name(), "MyObstacleDetector");
 }
 
@@ -100,37 +95,29 @@ class MyObstacleTracker : public BaseObstacleTracker {
   MyObstacleTracker() : BaseObstacleTracker() {}
   virtual ~MyObstacleTracker() {}
 
-  bool Init(const ObstacleTrackerInitOptions& options) override {
+  bool Init(const ObstacleTrackerInitOptions& options) override { return true; }
+
+  bool Predict(const ObstacleTrackerOptions& options,
+               CameraFrame* frame) override {
     return true;
   }
 
-  bool Predict(
-      const ObstacleTrackerOptions &options,
-      CameraFrame* frame) override {
+  bool Associate2D(const ObstacleTrackerOptions& options,
+                   CameraFrame* frame) override {
     return true;
   }
 
-  bool Associate2D(
-      const ObstacleTrackerOptions &options,
-      CameraFrame* frame) override {
+  bool Associate3D(const ObstacleTrackerOptions& options,
+                   CameraFrame* frame) override {
     return true;
   }
 
-  bool Associate3D(
-      const ObstacleTrackerOptions &options,
-      CameraFrame* frame) override {
+  bool Track(const ObstacleTrackerOptions& options,
+             CameraFrame* frame) override {
     return true;
   }
 
-  bool Track(
-      const ObstacleTrackerOptions &options,
-      CameraFrame* frame) override {
-    return true;
-  }
-
-  std::string Name() const override {
-    return "MyObstacleTracker";
-  }
+  std::string Name() const override { return "MyObstacleTracker"; }
 };  // class MyObstacleTracker
 
 REGISTER_OBSTACLE_TRACKER(MyObstacleTracker);
@@ -138,7 +125,7 @@ REGISTER_OBSTACLE_TRACKER(MyObstacleTracker);
 TEST(ObstacleInterfaceTest, test_camera_tracker) {
   BaseObstacleTracker* camera_tracker =
       BaseObstacleTrackerRegisterer::GetInstanceByName("MyObstacleTracker");
-  EXPECT_TRUE(camera_tracker != NULL);
+  EXPECT_NE(camera_tracker, nullptr);
   EXPECT_EQ(camera_tracker->Name(), "MyObstacleTracker");
 }
 
@@ -151,15 +138,12 @@ class MyObstacleTransformer : public BaseObstacleTransformer {
     return true;
   }
 
-  bool Transform(
-      const ObstacleTransformerOptions& options,
-      CameraFrame* frame) override {
+  bool Transform(const ObstacleTransformerOptions& options,
+                 CameraFrame* frame) override {
     return true;
   }
 
-  std::string Name() const override {
-    return "MyObstacleTransformer";
-  }
+  std::string Name() const override { return "MyObstacleTransformer"; }
 };  // class MyObstacleTransformer
 
 REGISTER_OBSTACLE_TRANSFORMER(MyObstacleTransformer);
@@ -168,7 +152,7 @@ TEST(ObstacleInterfaceTest, test_camera_transformer) {
   BaseObstacleTransformer* camera_transformer =
       BaseObstacleTransformerRegisterer::GetInstanceByName(
           "MyObstacleTransformer");
-  EXPECT_TRUE(camera_transformer != NULL);
+  EXPECT_NE(camera_transformer, nullptr);
   EXPECT_EQ(camera_transformer->Name(), "MyObstacleTransformer");
 }
 
@@ -182,15 +166,12 @@ class MyObstaclePostprocessor : public BaseObstaclePostprocessor {
     return true;
   }
 
-  bool Process(
-      const ObstaclePostprocessorOptions& options,
-      CameraFrame* frame) override {
+  bool Process(const ObstaclePostprocessorOptions& options,
+               CameraFrame* frame) override {
     return true;
   }
 
-  std::string Name() const override {
-    return "MyObstaclePostprocessor";
-  }
+  std::string Name() const override { return "MyObstaclePostprocessor"; }
 };  // class MyObstaclePostprocessor
 
 REGISTER_OBSTACLE_POSTPROCESSOR(MyObstaclePostprocessor);
@@ -199,7 +180,7 @@ TEST(ObstacleInterfaceTest, test_camera_postprocessor) {
   BaseObstaclePostprocessor* camera_postprocessor =
       BaseObstaclePostprocessorRegisterer::GetInstanceByName(
           "MyObstaclePostprocessor");
-  EXPECT_TRUE(camera_postprocessor != NULL);
+  EXPECT_NE(camera_postprocessor, nullptr);
   EXPECT_EQ(camera_postprocessor->Name(), "MyObstaclePostprocessor");
 }
 
@@ -213,15 +194,12 @@ class MyTrafficLightDetector : public BaseTrafficLightDetector {
     return true;
   }
 
-  bool Detect(
-      const TrafficLightDetectorOptions& options,
-      CameraFrame* frame) override {
+  bool Detect(const TrafficLightDetectorOptions& options,
+              CameraFrame* frame) override {
     return true;
   }
 
-  std::string Name() const override {
-    return "MyTrafficLightDetector";
-  }
+  std::string Name() const override { return "MyTrafficLightDetector"; }
 };  // class MyTrafficLightDetector
 
 REGISTER_TRAFFIC_LIGHT_DETECTOR(MyTrafficLightDetector);
@@ -230,7 +208,7 @@ TEST(TrafficLightInterfaceTest, test_traffic_light_detector) {
   BaseTrafficLightDetector* traffic_light_detector =
       BaseTrafficLightDetectorRegisterer::GetInstanceByName(
           "MyTrafficLightDetector");
-  EXPECT_TRUE(traffic_light_detector != NULL);
+  EXPECT_NE(traffic_light_detector, nullptr);
   EXPECT_EQ(traffic_light_detector->Name(), "MyTrafficLightDetector");
 }
 
@@ -244,15 +222,12 @@ class MyTrafficLightTracker : public BaseTrafficLightTracker {
     return true;
   }
 
-  bool Track(
-      const TrafficLightTrackerOptions& options,
-      CameraFrame* frame) override {
+  bool Track(const TrafficLightTrackerOptions& options,
+             CameraFrame* frame) override {
     return true;
   }
 
-  std::string Name() const override {
-    return "MyTrafficLightTracker";
-  }
+  std::string Name() const override { return "MyTrafficLightTracker"; }
 };  // class MyTrafficLightTracker
 
 REGISTER_TRAFFIC_LIGHT_TRACKER(MyTrafficLightTracker);
@@ -261,11 +236,11 @@ TEST(TrafficLightInterfaceTest, test_traffic_light_tracker) {
   BaseTrafficLightTracker* traffic_light_tracker =
       BaseTrafficLightTrackerRegisterer::GetInstanceByName(
           "MyTrafficLightTracker");
-  EXPECT_TRUE(traffic_light_tracker != NULL);
+  EXPECT_NE(traffic_light_tracker, nullptr);
   EXPECT_EQ(traffic_light_tracker->Name(), "MyTrafficLightTracker");
 }
 
-class MyLandmarkDetector :public BaseLandmarkDetector {
+class MyLandmarkDetector : public BaseLandmarkDetector {
  public:
   MyLandmarkDetector() {}
 
@@ -275,24 +250,20 @@ class MyLandmarkDetector :public BaseLandmarkDetector {
     return true;
   }
 
-  bool Detect(
-      const LandmarkDetectorOptions& options,
-      CameraFrame* frame) override {
+  bool Detect(const LandmarkDetectorOptions& options,
+              CameraFrame* frame) override {
     return true;
   }
 
-  std::string Name() const override {
-    return "MyLandmarkDetector";
-  }
+  std::string Name() const override { return "MyLandmarkDetector"; }
 };  // class MyLandmarkDetector
 
 REGISTER_LANDMARK_DETECTOR(MyLandmarkDetector);
 
 TEST(LandmarkDetectorInterfaceTest, test_landmark_detector) {
   BaseLandmarkDetector* landmark_detector =
-      BaseLandmarkDetectorRegisterer::GetInstanceByName(
-          "MyLandmarkDetector");
-  EXPECT_TRUE(landmark_detector != NULL);
+      BaseLandmarkDetectorRegisterer::GetInstanceByName("MyLandmarkDetector");
+  EXPECT_NE(landmark_detector, nullptr);
   EXPECT_EQ(landmark_detector->Name(), "MyLandmarkDetector");
 }
 
@@ -302,28 +273,21 @@ class MyLaneDetector : public BaseLaneDetector {
 
   virtual ~MyLaneDetector() {}
 
-  bool Init(const LaneDetectorInitOptions& options) override {
+  bool Init(const LaneDetectorInitOptions& options) override { return true; }
+
+  bool Detect(const LaneDetectorOptions& options, CameraFrame* frame) override {
     return true;
   }
 
-  bool Detect(
-      const LaneDetectorOptions& options,
-      CameraFrame* frame) override {
-    return true;
-  }
-
-  std::string Name() const override {
-    return "MyLaneDetector";
-  }
+  std::string Name() const override { return "MyLaneDetector"; }
 };  // class MyLaneDetector
 
 REGISTER_LANE_DETECTOR(MyLaneDetector);
 
 TEST(LaneInterfaceTest, test_lane_detector) {
   BaseLaneDetector* lane_detector =
-      BaseLaneDetectorRegisterer::GetInstanceByName(
-          "MyLaneDetector");
-  EXPECT_TRUE(lane_detector != NULL);
+      BaseLaneDetectorRegisterer::GetInstanceByName("MyLaneDetector");
+  EXPECT_NE(lane_detector, nullptr);
   EXPECT_EQ(lane_detector->Name(), "MyLaneDetector");
 }
 
@@ -333,28 +297,21 @@ class MyLaneTracker : public BaseLaneTracker {
 
   virtual ~MyLaneTracker() {}
 
-  bool Init(const LaneTrackerInitOptions& options) override {
+  bool Init(const LaneTrackerInitOptions& options) override { return true; }
+
+  bool Track(const LaneTrackerOptions& options, CameraFrame* frame) override {
     return true;
   }
 
-  bool Track(
-      const LaneTrackerOptions& options,
-      CameraFrame* frame) override {
-    return true;
-  }
-
-  std::string Name() const override {
-    return "MyLaneTracker";
-  }
+  std::string Name() const override { return "MyLaneTracker"; }
 };  // class MyLaneTracker
 
 REGISTER_LANE_TRACKER(MyLaneTracker);
 
 TEST(LaneInterfaceTest, test_lane_tracker) {
   BaseLaneTracker* lane_tracker =
-      BaseLaneTrackerRegisterer::GetInstanceByName(
-          "MyLaneTracker");
-  EXPECT_TRUE(lane_tracker != NULL);
+      BaseLaneTrackerRegisterer::GetInstanceByName("MyLaneTracker");
+  EXPECT_NE(lane_tracker, nullptr);
   EXPECT_EQ(lane_tracker->Name(), "MyLaneTracker");
 }
 
@@ -368,29 +325,24 @@ class MyLanePostprocessor : public BaseLanePostprocessor {
     return true;
   }
 
-  bool Process2D(
-      const LanePostprocessorOptions& options,
-      CameraFrame* frame) override {
+  bool Process2D(const LanePostprocessorOptions& options,
+                 CameraFrame* frame) override {
     return true;
   }
 
-  bool Process3D(
-      const LanePostprocessorOptions& options,
-      CameraFrame* frame) override {
+  bool Process3D(const LanePostprocessorOptions& options,
+                 CameraFrame* frame) override {
     return true;
   }
-  std::string Name() const override {
-    return "MyLanePostprocessor";
-  }
+  std::string Name() const override { return "MyLanePostprocessor"; }
 };  // class MyLanePostprocessor
 
 REGISTER_LANE_POSTPROCESSOR(MyLanePostprocessor);
 
 TEST(LaneInterfaceTest, test_lane_postprocessor) {
   BaseLanePostprocessor* lane_postprocessor =
-      BaseLanePostprocessorRegisterer::GetInstanceByName(
-          "MyLanePostprocessor");
-  EXPECT_TRUE(lane_postprocessor != NULL);
+      BaseLanePostprocessorRegisterer::GetInstanceByName("MyLanePostprocessor");
+  EXPECT_NE(lane_postprocessor, nullptr);
   EXPECT_EQ(lane_postprocessor->Name(), "MyLanePostprocessor");
 }
 
@@ -400,27 +352,24 @@ class MyFeatureExtractor : public BaseFeatureExtractor {
 
   virtual ~MyFeatureExtractor() {}
 
-  bool Init(const FeatureExtractorInitOptions &init_options) override {
+  bool Init(const FeatureExtractorInitOptions& init_options) override {
     return true;
   }
 
-  bool Extract(const FeatureExtractorOptions &options,
-                       CameraFrame *frame) override {
+  bool Extract(const FeatureExtractorOptions& options,
+               CameraFrame* frame) override {
     return true;
   }
 
-  std::string Name() const override {
-    return "MyFeatureExtractor";
-  }
+  std::string Name() const override { return "MyFeatureExtractor"; }
 };  // class MyFeatureExtractor
 
 REGISTER_FEATURE_EXTRACTOR(MyFeatureExtractor);
 
 TEST(FeatureExtractorInterfaceTest, test_feature_extractor) {
   BaseFeatureExtractor* feature_extractor =
-      BaseFeatureExtractorRegisterer::GetInstanceByName(
-          "MyFeatureExtractor");
-  EXPECT_TRUE(feature_extractor != NULL);
+      BaseFeatureExtractorRegisterer::GetInstanceByName("MyFeatureExtractor");
+  EXPECT_NE(feature_extractor, nullptr);
   EXPECT_EQ(feature_extractor->Name(), "MyFeatureExtractor");
 
   const int image_width = 200;
@@ -456,28 +405,21 @@ class MySceneParser : public BaseSceneParser {
 
   virtual ~MySceneParser() {}
 
-  bool Init(const SceneParserInitOptions &options) override {
+  bool Init(const SceneParserInitOptions& options) override { return true; }
+
+  bool Parse(const SceneParserOptions& options, CameraFrame* frame) override {
     return true;
   }
 
-  bool Parse(
-      const SceneParserOptions &options,
-      CameraFrame *frame) override {
-    return true;
-  }
-
-  std::string Name() const override {
-    return "MySceneParser";
-  }
+  std::string Name() const override { return "MySceneParser"; }
 };  // class MySceneParser
 
 REGISTER_SCENE_PARSER(MySceneParser);
 
 TEST(SceneInterfaceTest, test_scene_parser) {
   BaseSceneParser* scene_parser =
-      BaseSceneParserRegisterer::GetInstanceByName(
-          "MySceneParser");
-  EXPECT_TRUE(scene_parser != NULL);
+      BaseSceneParserRegisterer::GetInstanceByName("MySceneParser");
+  EXPECT_NE(scene_parser, nullptr);
   EXPECT_EQ(scene_parser->Name(), "MySceneParser");
 }
 
@@ -487,28 +429,22 @@ class MyCalibrator : public BaseCalibrator {
 
   virtual ~MyCalibrator() {}
 
-  bool Init(const CalibratorInitOptions& options) override {
+  bool Init(const CalibratorInitOptions& options) override { return true; }
+
+  bool Calibrate(const CalibratorOptions& options,
+                 float* pitch_angle) override {
     return true;
   }
 
-  bool Calibrate(
-      const CalibratorOptions& options,
-      float* pitch_angle) override {
-    return true;
-  }
-
-  std::string Name() const override {
-    return "MyCalibrator";
-  }
+  std::string Name() const override { return "MyCalibrator"; }
 };  // class MyCalibrator
 
 REGISTER_CALIBRATOR(MyCalibrator);
 
 TEST(CalibratorInterfaceTest, test_calibrator) {
   BaseCalibrator* calibrator =
-      BaseCalibratorRegisterer::GetInstanceByName(
-          "MyCalibrator");
-  EXPECT_TRUE(calibrator != NULL);
+      BaseCalibratorRegisterer::GetInstanceByName("MyCalibrator");
+  EXPECT_NE(calibrator, nullptr);
   EXPECT_EQ(calibrator->Name(), "MyCalibrator");
 }
 
@@ -522,13 +458,9 @@ class MyCalibrationService : public BaseCalibrationService {
     return true;
   }
 
-  bool BuildIndex() override {
-    return true;
-  }
+  bool BuildIndex() override { return true; }
 
-  std::string Name() const override {
-    return "MyCalibrationService";
-  }
+  std::string Name() const override { return "MyCalibrationService"; }
 };  // class MyCalibrationService
 
 REGISTER_CALIBRATION_SERVICE(MyCalibrationService);
@@ -537,7 +469,7 @@ TEST(CalibrationServiceInterfaceTest, test_calibrator) {
   BaseCalibrationService* calibrator =
       BaseCalibrationServiceRegisterer::GetInstanceByName(
           "MyCalibrationService");
-  EXPECT_TRUE(calibrator != NULL);
+  EXPECT_NE(calibrator, nullptr);
   EXPECT_EQ(calibrator->Name(), "MyCalibrationService");
 }
 
@@ -546,26 +478,23 @@ class MyCameraPerception : public BaseCameraPerception {
   MyCameraPerception() {}
   virtual ~MyCameraPerception() {}
 
-  bool Init(const CameraPerceptionInitOptions &init_options) override {
+  bool Init(const CameraPerceptionInitOptions& init_options) override {
     return true;
   }
-  bool Perception(const CameraPerceptionOptions &options,
-                          CameraFrame *frame) override {
+  bool Perception(const CameraPerceptionOptions& options,
+                  CameraFrame* frame) override {
     return true;
   }
 
-  std::string Name() const override {
-    return "MyCameraPerception";
-  }
+  std::string Name() const override { return "MyCameraPerception"; }
 };  // class MyCameraPerception
 
 PERCEPTION_REGISTER_CAMERA_PERCEPTION(MyCameraPerception);
 
 TEST(CameraPerceptionInterfaceTest, test_camera_perception) {
   BaseCameraPerception* camera_perception =
-      BaseCameraPerceptionRegisterer::GetInstanceByName(
-          "MyCameraPerception");
-  EXPECT_TRUE(camera_perception != NULL);
+      BaseCameraPerceptionRegisterer::GetInstanceByName("MyCameraPerception");
+  EXPECT_NE(camera_perception, nullptr);
   EXPECT_EQ(camera_perception->Name(), "MyCameraPerception");
 }
 

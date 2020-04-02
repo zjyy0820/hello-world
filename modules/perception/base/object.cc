@@ -26,6 +26,7 @@ Object::Object() {
   acceleration_uncertainty << 0.0f, 0, 0, 0, 0.0f, 0, 0, 0, 0.0f;
   type_probs.resize(static_cast<int>(ObjectType::MAX_OBJECT_TYPE), 0);
   sub_type_probs.resize(static_cast<int>(ObjectSubType::MAX_OBJECT_TYPE), 0.0f);
+  b_cipv = false;
 }
 
 void Object::Reset() {

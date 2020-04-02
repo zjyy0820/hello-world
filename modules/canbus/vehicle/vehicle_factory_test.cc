@@ -25,12 +25,7 @@ namespace canbus {
 
 class VehicleFactoryTest : public ::testing::Test {
  public:
-  VehicleFactoryTest() : factory_() {}
-
-  virtual void SetUp() {
-    factory_.RegisterVehicleFactory();
-  }
-  virtual void TearDown() {}
+  virtual void SetUp() { factory_.RegisterVehicleFactory(); }
 
  protected:
   VehicleFactory factory_;
@@ -39,14 +34,23 @@ class VehicleFactoryTest : public ::testing::Test {
 TEST_F(VehicleFactoryTest, CreateVehicle) {
   VehicleParameter parameter;
 
-  parameter.set_brand(VehicleParameter::GEM);
-  EXPECT_TRUE(factory_.CreateVehicle(parameter) != nullptr);
+  parameter.set_brand(apollo::common::GEM);
+  EXPECT_NE(factory_.CreateVehicle(parameter), nullptr);
 
-  parameter.set_brand(VehicleParameter::LINCOLN_MKZ);
-  EXPECT_TRUE(factory_.CreateVehicle(parameter) != nullptr);
+  parameter.set_brand(apollo::common::LINCOLN_MKZ);
+  EXPECT_NE(factory_.CreateVehicle(parameter), nullptr);
 
-  parameter.set_brand(VehicleParameter::GE3);
-  EXPECT_TRUE(factory_.CreateVehicle(parameter) != nullptr);
+  parameter.set_brand(apollo::common::GE3);
+  EXPECT_NE(factory_.CreateVehicle(parameter), nullptr);
+
+  parameter.set_brand(apollo::common::WEY);
+  EXPECT_NE(factory_.CreateVehicle(parameter), nullptr);
+
+  parameter.set_brand(apollo::common::ZHONGYUN);
+  EXPECT_NE(factory_.CreateVehicle(parameter), nullptr);
+
+  parameter.set_brand(apollo::common::CH);
+  EXPECT_NE(factory_.CreateVehicle(parameter), nullptr);
 }
 
 }  // namespace canbus

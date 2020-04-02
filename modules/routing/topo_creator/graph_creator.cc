@@ -18,9 +18,10 @@
 
 #include <vector>
 
+#include "absl/strings/match.h"
+#include "cyber/common/file.h"
 #include "modules/common/configs/vehicle_config_helper.h"
 #include "modules/common/math/math_utils.h"
-#include "modules/common/util/file.h"
 #include "modules/map/hdmap/adapter/opendrive_adapter.h"
 #include "modules/routing/common/routing_gflags.h"
 #include "modules/routing/topo_creator/edge_creator.h"
@@ -29,16 +30,14 @@
 namespace apollo {
 namespace routing {
 
-using ::google::protobuf::RepeatedPtrField;
 using apollo::common::PointENU;
 using apollo::common::VehicleConfigHelper;
-using apollo::common::math::Vec2d;
 using apollo::common::math::kMathEpsilon;
+using apollo::common::math::Vec2d;
 using apollo::hdmap::Id;
 using apollo::hdmap::LaneBoundary;
 using apollo::hdmap::LaneBoundaryType;
-
-using apollo::common::util::EndWith;
+using ::google::protobuf::RepeatedPtrField;
 
 namespace {
 
@@ -62,14 +61,14 @@ GraphCreator::GraphCreator(const std::string& base_map_file_path,
       routing_conf_(routing_conf) {}
 
 bool GraphCreator::Create() {
-  if (common::util::EndWith(base_map_file_path_, ".xml")) {
+  if (absl::EndsWith(base_map_file_path_, ".xml")) {
     if (!hdmap::adapter::OpendriveAdapter::LoadData(base_map_file_path_,
                                                     &pbmap_)) {
       AERROR << "Failed to load base map file from " << base_map_file_path_;
       return false;
     }
   } else {
-    if (!common::util::GetProtoFromFile(base_map_file_path_, &pbmap_)) {
+    if (!cyber::common::GetProtoFromFile(base_map_file_path_, &pbmap_)) {
       AERROR << "Failed to load base map file from " << base_map_file_path_;
       return false;
     }
@@ -120,7 +119,6 @@ bool GraphCreator::Create() {
     }
   }
 
-  std::string edge_id = "";
   for (const auto& lane : pbmap_.lane()) {
     const auto& lane_id = lane.id().id();
     if (forbidden_lane_id_set_.find(lane_id) != forbidden_lane_id_set_.end()) {
@@ -143,8 +141,8 @@ bool GraphCreator::Create() {
     }
   }
 
-  if (!EndWith(dump_topo_file_path_, ".bin") &&
-      !EndWith(dump_topo_file_path_, ".txt")) {
+  if (!absl::EndsWith(dump_topo_file_path_, ".bin") &&
+      !absl::EndsWith(dump_topo_file_path_, ".txt")) {
     AERROR << "Failed to dump topo data into file, incorrect file type "
            << dump_topo_file_path_;
     return false;
@@ -152,12 +150,12 @@ bool GraphCreator::Create() {
   auto type_pos = dump_topo_file_path_.find_last_of(".") + 1;
   std::string bin_file = dump_topo_file_path_.replace(type_pos, 3, "bin");
   std::string txt_file = dump_topo_file_path_.replace(type_pos, 3, "txt");
-  if (!common::util::SetProtoToASCIIFile(graph_, txt_file)) {
+  if (!cyber::common::SetProtoToASCIIFile(graph_, txt_file)) {
     AERROR << "Failed to dump topo data into file " << txt_file;
     return false;
   }
   AINFO << "Txt file is dumped successfully. Path: " << txt_file;
-  if (!common::util::SetProtoToBinaryFile(graph_, bin_file)) {
+  if (!cyber::common::SetProtoToBinaryFile(graph_, bin_file)) {
     AERROR << "Failed to dump topo data into file " << bin_file;
     return false;
   }

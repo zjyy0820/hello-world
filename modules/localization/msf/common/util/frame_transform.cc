@@ -40,7 +40,7 @@ bool FrameTransform::LatlonToUtmXY(double lon_rad, double lat_rad,
   }
   double longitude = lon_rad;
   double latitude = lat_rad;
-  pj_transform(pj_latlon, pj_utm, 1, 1, &longitude, &latitude, NULL);
+  pj_transform(pj_latlon, pj_utm, 1, 1, &longitude, &latitude, nullptr);
   utm_xy->x = longitude;
   utm_xy->y = latitude;
   pj_free(pj_latlon);
@@ -61,7 +61,7 @@ bool FrameTransform::UtmXYToLatlon(double x, double y, int zone, bool southhemi,
   if (!(pj_utm = pj_init_plus(utm_dst.str().c_str()))) {
     return false;
   }
-  pj_transform(pj_utm, pj_latlon, 1, 1, &x, &y, NULL);
+  pj_transform(pj_utm, pj_latlon, 1, 1, &x, &y, nullptr);
   latlon->log = x;
   latlon->lat = y;
   pj_free(pj_latlon);
@@ -69,8 +69,7 @@ bool FrameTransform::UtmXYToLatlon(double x, double y, int zone, bool southhemi,
   return true;
 }
 
-bool FrameTransform::XYZToBlh(const Vector3d &xyz,
-                              Vector3d *blh) {
+bool FrameTransform::XYZToBlh(const Vector3d &xyz, Vector3d *blh) {
   projPJ pj_xyz;
   projPJ pj_blh;
   std::string xyz_src = "+proj=geocent +datum=WGS84";
@@ -92,8 +91,7 @@ bool FrameTransform::XYZToBlh(const Vector3d &xyz,
   pj_free(pj_blh);
   return true;
 }
-bool FrameTransform::BlhToXYZ(const Vector3d &blh,
-                              Vector3d *xyz) {
+bool FrameTransform::BlhToXYZ(const Vector3d &blh, Vector3d *xyz) {
   projPJ pj_xyz;
   projPJ pj_blh;
   std::string blh_src = "+proj=latlong +datum=WGS84";

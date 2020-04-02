@@ -25,8 +25,8 @@
 #include <unistd.h>
 #include <string>
 
+#include "cyber/common/file.h"
 #include "cyber/common/log.h"
-#include "modules/common/util/file.h"
 #include "modules/common/util/map_util.h"
 #include "modules/monitor/common/monitor_manager.h"
 #include "modules/monitor/software/summary_monitor.h"
@@ -42,13 +42,8 @@ namespace apollo {
 namespace monitor {
 namespace {
 
-bool SocketCanTest(std::string* message) {
-  const int dev_handler = socket(PF_CAN, SOCK_RAW, CAN_RAW);
-  if (dev_handler < 0) {
-    *message = "Open can device failed";
-    return false;
-  }
-
+// Test Socket CAN on an open handler.
+bool SocketCanHandlerTest(const int dev_handler, std::string* message) {
   // init config and state
   // 1. set receive message_id filter, ie white list
   struct can_filter filter[1];
@@ -82,7 +77,7 @@ bool SocketCanTest(std::string* message) {
   struct sockaddr_can addr;
   addr.can_family = AF_CAN;
   addr.can_ifindex = ifr.ifr_ifindex;
-  ret = bind(dev_handler, reinterpret_cast<struct sockaddr *>(&addr),
+  ret = bind(dev_handler, reinterpret_cast<struct sockaddr*>(&addr),
              sizeof(addr));
 
   if (ret < 0) {
@@ -93,12 +88,23 @@ bool SocketCanTest(std::string* message) {
   return true;
 }
 
+// Open a Socket CAN handler and test.
+bool SocketCanTest(std::string* message) {
+  const int dev_handler = socket(PF_CAN, SOCK_RAW, CAN_RAW);
+  if (dev_handler < 0) {
+    *message = "Open can device failed";
+    return false;
+  }
+  const bool ret = SocketCanHandlerTest(dev_handler, message);
+  close(dev_handler);
+  return ret;
+}
+
 }  // namespace
 
-SocketCanMonitor::SocketCanMonitor() :
-    RecurrentRunner(FLAGS_socket_can_monitor_name,
-                    FLAGS_socket_can_monitor_interval) {
-}
+SocketCanMonitor::SocketCanMonitor()
+    : RecurrentRunner(FLAGS_socket_can_monitor_name,
+                      FLAGS_socket_can_monitor_interval) {}
 
 void SocketCanMonitor::RunOnce(const double current_time) {
   auto manager = MonitorManager::Instance();

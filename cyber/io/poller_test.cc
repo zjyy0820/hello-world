@@ -17,9 +17,11 @@
 #include "cyber/io/poller.h"
 
 #include <fcntl.h>
-#include <gtest/gtest.h>
 #include <unistd.h>
 #include <thread>
+#include "gtest/gtest.h"
+
+#include "cyber/init.h"
 
 namespace apollo {
 namespace cyber {
@@ -103,5 +105,6 @@ TEST(PollerTest, operation) {
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
+  apollo::cyber::Init(argv[0]);
   return RUN_ALL_TESTS();
 }

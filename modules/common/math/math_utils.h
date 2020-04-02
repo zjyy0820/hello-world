@@ -108,7 +108,7 @@ double NormalizeAngle(const double angle);
  * @brief Calculate the difference between angle from and to
  * @param from the start angle
  * @param from the end angle
- * @return The difference between from and to. The range is between [0, PI).
+ * @return The difference between from and to. The range is between [-PI, PI).
  */
 double AngleDiff(const double from, const double to);
 
@@ -166,12 +166,10 @@ T Clamp(const T value, T bound1, T bound2) {
 // Gaussian
 double Gaussian(const double u, const double std, const double x);
 
-// Sigmoid
-double Sigmoid(const double x);
+inline double Sigmoid(const double x) { return 1.0 / (1.0 + std::exp(-x)); }
 
 // Rotate a 2d vector counter-clockwise by theta
-Eigen::Vector2d RotateVector2d(
-    const Eigen::Vector2d& v_in, const double theta);
+Eigen::Vector2d RotateVector2d(const Eigen::Vector2d &v_in, const double theta);
 
 inline std::pair<double, double> RFUToFLU(const double x, const double y) {
   return std::make_pair(y, -x);

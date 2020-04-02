@@ -1,22 +1,23 @@
 /******************************************************************************
-* Copyright 2018 The Apollo Authors. All Rights Reserved.
-*
-* Licensed under the Apache License, Version 2.0 (the License);
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-* http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an AS IS BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*****************************************************************************/
-#include <gtest/gtest.h>
-#include <opencv2/opencv.hpp>
+ * Copyright 2018 The Apollo Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the License);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *****************************************************************************/
 
 #include <fstream>
+
+#include "gtest/gtest.h"
+#include "opencv2/opencv.hpp"
 
 #include "modules/perception/base/distortion_model.h"
 #include "modules/perception/base/object_types.h"
@@ -27,11 +28,11 @@
 DEFINE_string(test_list, "full_test_list.txt", "test image list");
 DEFINE_string(image_root, "", "root dir of images");
 DEFINE_string(image_ext, ".jpg", "extension of image name");
-DEFINE_string(det_dir, "/tmp", "output dir");
+DEFINE_string(dest_dir, "/tmp", "output dir");
 DEFINE_string(vis_dir, "", "output dir");
 DEFINE_string(pre_detected_dir, "", "pre-detected obstacles (skip Detect)");
-DEFINE_int32(height, 1080, "output dir");
-DEFINE_int32(width, 1920, "output dir");
+DEFINE_int32(height, 1080, "image height");
+DEFINE_int32(width, 1920, "image width");
 DEFINE_string(detector, "YoloObstacleDetector", "detector");
 DEFINE_string(transformer, "MultiCueObstacleTransformer", "transformer");
 DEFINE_string(detector_root, "./data/yolo", "detector data root");
@@ -45,28 +46,26 @@ namespace perception {
 namespace camera {
 
 static const cv::Scalar kBoxColorMap[] = {
-  cv::Scalar(0, 0, 0),        // 0
-  cv::Scalar(128, 128, 128),  // 1
-  cv::Scalar(255, 0, 0),      // 2
-  cv::Scalar(0, 255, 0),      // 3
-  cv::Scalar(0, 0, 255),      // 4
-  cv::Scalar(255, 255, 0),    // 5
-  cv::Scalar(0, 255, 255),    // 6
-  cv::Scalar(255, 0, 255),    // 7
-  cv::Scalar(255, 255, 255),  // 8
+    cv::Scalar(0, 0, 0),        // 0
+    cv::Scalar(128, 128, 128),  // 1
+    cv::Scalar(255, 0, 0),      // 2
+    cv::Scalar(0, 255, 0),      // 3
+    cv::Scalar(0, 0, 255),      // 4
+    cv::Scalar(255, 255, 0),    // 5
+    cv::Scalar(0, 255, 255),    // 6
+    cv::Scalar(255, 0, 255),    // 7
+    cv::Scalar(255, 255, 255),  // 8
 };
 
 static const cv::Scalar kFaceColorMap[] = {
-  cv::Scalar(255, 255, 255),  // 0
-  cv::Scalar(255, 0, 0),      // 1
-  cv::Scalar(0, 255, 0),      // 2
-  cv::Scalar(0, 0, 255),      // 3
+    cv::Scalar(255, 255, 255),  // 0
+    cv::Scalar(255, 0, 0),      // 1
+    cv::Scalar(0, 255, 0),      // 2
+    cv::Scalar(0, 0, 255),      // 3
 };
 
 base::ObjectSubType GetObjectSubType(const std::string &type_name) {
-  if (type_name == "") {
-    return base::ObjectSubType::UNKNOWN;
-  } else if (type_name == "car") {
+  if (type_name == "car") {
     return base::ObjectSubType::CAR;
   } else if (type_name == "van") {
     return base::ObjectSubType::VAN;
@@ -85,6 +84,7 @@ base::ObjectSubType GetObjectSubType(const std::string &type_name) {
   } else if (type_name == "trafficcone") {
     return base::ObjectSubType::TRAFFICCONE;
   } else {
+    // type_name is "" or unknown
     return base::ObjectSubType::UNKNOWN;
   }
 }
@@ -92,8 +92,8 @@ base::ObjectSubType GetObjectSubType(const std::string &type_name) {
 bool LoadFromKitti(const std::string &kitti_path, CameraFrame *frame) {
   frame->detected_objects.clear();
   FILE *fp = fopen(kitti_path.c_str(), "r");
-  if (!fp) {
-    std::cout << "load obj file: " << kitti_path << " failed!" << std::endl;
+  if (fp == nullptr) {
+    AERROR << "Failed to load object file: " << kitti_path;
     return false;
   }
   while (!feof(fp)) {
@@ -109,31 +109,29 @@ bool LoadFromKitti(const std::string &kitti_path, CameraFrame *frame) {
     memset(type, 0, sizeof(type));
 
     int ret = 0;
-    ret = fscanf(fp,
-        "%254s %f %f %lf %f %f %f %f %f %f %f %lf %lf %lf %f %f",
-        type, &trash, &trash, &obj->camera_supplement.alpha,
-        &x1, &y1, &x2, &y2,
-        &obj->size[2], &obj->size[1], &obj->size[0],
-        &obj->center[0], &obj->center[1], &obj->center[2],
-        &obj->theta, &score);
+    ret = fscanf(fp, "%254s %f %f %lf %f %f %f %f %f %f %f %lf %lf %lf %f %f",
+                 type, &trash, &trash, &obj->camera_supplement.alpha, &x1, &y1,
+                 &x2, &y2, &obj->size[2], &obj->size[1], &obj->size[0],
+                 &obj->center[0], &obj->center[1], &obj->center[2], &obj->theta,
+                 &score);
     AINFO << "fscanf return: " << ret;
-    if (FLAGS_dist_type == "H-from-h")  {
+    if (FLAGS_dist_type == "H-from-h") {
       obj->size[0] = static_cast<float>(obj->center[2]);
-    } else if (FLAGS_dist_type == "H-on-h")  {
+    } else if (FLAGS_dist_type == "H-on-h") {
       obj->size[0] = static_cast<float>(obj->center[2]) * (y2 - y1);
     }
     obj->camera_supplement.box.xmin = std::max<float>(x1, 0);
     obj->camera_supplement.box.ymin = std::max<float>(y1, 0);
     obj->camera_supplement.box.xmax =
-             std::min<float>(x2, static_cast<float>(FLAGS_width));
+        std::min<float>(x2, static_cast<float>(FLAGS_width));
     obj->camera_supplement.box.ymax =
-             std::min<float>(y2, static_cast<float>(FLAGS_height));
+        std::min<float>(y2, static_cast<float>(FLAGS_height));
     obj->camera_supplement.area_id = 5;
 
     obj->sub_type = GetObjectSubType(type);
     obj->type = base::kSubType2TypeMap.at(obj->sub_type);
-    obj->type_probs.assign(
-        static_cast<int>(base::ObjectType::MAX_OBJECT_TYPE), 0);
+    obj->type_probs.assign(static_cast<int>(base::ObjectType::MAX_OBJECT_TYPE),
+                           0);
     obj->sub_type_probs.assign(
         static_cast<int>(base::ObjectSubType::MAX_OBJECT_TYPE), 0);
     obj->sub_type_probs[static_cast<int>(obj->sub_type)] = score;
@@ -169,8 +167,7 @@ int main() {
   init_options.conf_file = FLAGS_detector_conf;
 
   base::BrownCameraDistortionModel model;
-  common::LoadBrownCameraIntrinsic("params/front_6mm_intrinsics.yaml",
-                                   &model);
+  common::LoadBrownCameraIntrinsic("params/front_6mm_intrinsics.yaml", &model);
   init_options.base_camera_model = model.get_camera_model();
   auto pinhole =
       static_cast<base::PinholeCameraModel *>(model.get_camera_model().get());
@@ -211,15 +208,15 @@ int main() {
   std::string image_name;
   while (fin >> image_name) {
     AINFO << "image: " << image_name;
-    std::string image_path = FLAGS_image_root + "/" + \
-                             image_name + FLAGS_image_ext;
-    std::string result_path = FLAGS_det_dir + "/" + image_name + ".txt";
+    std::string image_path =
+        FLAGS_image_root + "/" + image_name + FLAGS_image_ext;
+    std::string result_path = FLAGS_dest_dir + "/" + image_name + ".txt";
 
     auto cv_img = cv::imread(image_path, CV_LOAD_IMAGE_COLOR);
 
     if (FLAGS_pre_detected_dir != "") {
-      std::string kitti_path = FLAGS_pre_detected_dir + "/" + \
-                               image_name + ".txt";
+      std::string kitti_path =
+          FLAGS_pre_detected_dir + "/" + image_name + ".txt";
       if (!LoadFromKitti(kitti_path, &frame)) {
         AINFO << "loading kitti result failed: " << kitti_path;
         continue;
@@ -240,8 +237,8 @@ int main() {
     EXPECT_TRUE(transformer->Transform(transformer_options, &frame));
 
     FILE *fp = fopen(result_path.c_str(), "w");
-    if (fp == NULL) {
-      AINFO << "Failed to open " << result_path;
+    if (fp == nullptr) {
+      AINFO << "Failed to open result path: " << result_path;
       return -1;
     }
     int obj_id = 0;
@@ -253,45 +250,30 @@ int main() {
               "%s 0 0 %6.3f %8.2f %8.2f %8.2f %8.2f %6.3f %6.3f %6.3f "
               "%6.3f %6.3f %6.3f %6.3f %6.3f "
               "%4d %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\n",
-              base::kSubType2NameMap.at(obj->sub_type).c_str(),
-              supp.alpha,
-              supp.box.xmin,
-              supp.box.ymin,
-              supp.box.xmax,
-              supp.box.ymax,
-              obj->size[2],
-              obj->size[1],
-              obj->size[0],
-              obj->center[0],
-              obj->center[1] + obj->size[2] * .5,
-              obj->center[2],
+              base::kSubType2NameMap.at(obj->sub_type).c_str(), supp.alpha,
+              supp.box.xmin, supp.box.ymin, supp.box.xmax, supp.box.ymax,
+              obj->size[2], obj->size[1], obj->size[0], obj->center[0],
+              obj->center[1] + obj->size[2] * .5, obj->center[2],
               supp.alpha + atan2(obj->center[0], obj->center[2]),
-              obj->type_probs[static_cast<int>(obj->type)],
-              area_id,
-              supp.visible_ratios[0],
-              supp.visible_ratios[1],
-              supp.visible_ratios[2],
-              supp.visible_ratios[3],
-              supp.cut_off_ratios[0],
-              supp.cut_off_ratios[1],
-              supp.cut_off_ratios[2],
-              supp.cut_off_ratios[3]);
+              obj->type_probs[static_cast<int>(obj->type)], area_id,
+              supp.visible_ratios[0], supp.visible_ratios[1],
+              supp.visible_ratios[2], supp.visible_ratios[3],
+              supp.cut_off_ratios[0], supp.cut_off_ratios[1],
+              supp.cut_off_ratios[2], supp.cut_off_ratios[3]);
       if (FLAGS_vis_dir != "") {
-        cv::rectangle(cv_img,
-                      cv::Point(static_cast<int>(box.xmin),
-                                static_cast<int>(box.ymin)),
-                      cv::Point(static_cast<int>(box.xmax),
-                                static_cast<int>(box.ymax)),
-                      cv::Scalar(0, 0, 0), 8);
+        cv::rectangle(
+            cv_img,
+            cv::Point(static_cast<int>(box.xmin), static_cast<int>(box.ymin)),
+            cv::Point(static_cast<int>(box.xmax), static_cast<int>(box.ymax)),
+            cv::Scalar(0, 0, 0), 8);
         float xmid = (box.xmin + box.xmax) / 2;
         CHECK(area_id > 0 && area_id < 9);
-        if (area_id % 2 == 1) {
-          cv::rectangle(cv_img,
-                        cv::Point(static_cast<int>(box.xmin),
-                                  static_cast<int>(box.ymin)),
-                        cv::Point(static_cast<int>(box.xmax),
-                                  static_cast<int>(box.ymax)),
-                        kFaceColorMap[area_id / 2], 2);
+        if (area_id & 1) {
+          cv::rectangle(
+              cv_img,
+              cv::Point(static_cast<int>(box.xmin), static_cast<int>(box.ymin)),
+              cv::Point(static_cast<int>(box.xmax), static_cast<int>(box.ymax)),
+              kFaceColorMap[area_id / 2], 2);
         } else {
           auto &tl = supp.cut_off_ratios[2];
           auto &tr = supp.cut_off_ratios[3];
@@ -308,35 +290,32 @@ int main() {
           } else {
             xmid = x + w * left_ratio;
           }
-          cv::rectangle(cv_img,
-                        cv::Point(static_cast<int>(box.xmin),
-                                  static_cast<int>(box.ymin)),
-                        cv::Point(static_cast<int>(xmid),
-                                  static_cast<int>(box.ymax)),
-                        kFaceColorMap[(area_id / 2) % 4], 3);
-          cv::rectangle(cv_img,
-                        cv::Point(static_cast<int>(xmid),
-                                  static_cast<int>(box.ymin)),
-                        cv::Point(static_cast<int>(box.xmax),
-                                  static_cast<int>(box.ymax)),
-                        kFaceColorMap[area_id / 2 - 1], 2);
+          cv::rectangle(
+              cv_img,
+              cv::Point(static_cast<int>(box.xmin), static_cast<int>(box.ymin)),
+              cv::Point(static_cast<int>(xmid), static_cast<int>(box.ymax)),
+              kFaceColorMap[(area_id / 2) % 4], 3);
+          cv::rectangle(
+              cv_img,
+              cv::Point(static_cast<int>(xmid), static_cast<int>(box.ymin)),
+              cv::Point(static_cast<int>(box.xmax), static_cast<int>(box.ymax)),
+              kFaceColorMap[area_id / 2 - 1], 2);
         }
-        fprintf(stderr, "obj-%02d: %.3f %.3f %.3f %.3f -- %.3f %.3f %.3f %.3f "
+        fprintf(stderr,
+                "obj-%02d: %.3f %.3f %.3f %.3f -- %.3f %.3f %.3f %.3f "
                 "-- %.0f %.0f %.0f %d\n",
-                obj_id,
-                supp.visible_ratios[0], supp.visible_ratios[1],
+                obj_id, supp.visible_ratios[0], supp.visible_ratios[1],
                 supp.visible_ratios[2], supp.visible_ratios[3],
                 supp.cut_off_ratios[0], supp.cut_off_ratios[1],
-                supp.cut_off_ratios[2], supp.cut_off_ratios[3],
-                box.xmin, xmid, box.xmax, area_id);
+                supp.cut_off_ratios[2], supp.cut_off_ratios[3], box.xmin, xmid,
+                box.xmax, area_id);
         std::stringstream text;
         auto &name = base::kSubType2NameMap.at(obj->sub_type);
         text << name[0] << name[1] << name[2] << " - " << obj_id++;
-        cv::putText(cv_img,
-                    text.str(),
-                    cv::Point(static_cast<int>(box.xmin),
-                              static_cast<int>(box.ymin)),
-                    cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(255, 0, 0), 2);
+        cv::putText(
+            cv_img, text.str(),
+            cv::Point(static_cast<int>(box.xmin), static_cast<int>(box.ymin)),
+            cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(255, 0, 0), 2);
       }
     }
     if (FLAGS_vis_dir != "") {
@@ -356,7 +335,8 @@ int main() {
 
 int main(int argc, char *argv[]) {
   google::ParseCommandLineFlags(&argc, &argv, true);
-  google::SetUsageMessage("command line brew\n"
-                          "Usage: camera_benchmark <args>\n");
+  google::SetUsageMessage(
+      "command line brew\n"
+      "Usage: camera_benchmark <args>\n");
   return apollo::perception::camera::main();
 }

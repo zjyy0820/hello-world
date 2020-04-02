@@ -22,7 +22,6 @@
 #include "cyber/component/component.h"
 #include "modules/localization/proto/localization.pb.h"
 #include "modules/perception/base/sensor_meta.h"
-#include "modules/perception/lib/utils/time_util.h"
 #include "modules/perception/map/hdmap/hdmap_input.h"
 #include "modules/perception/onboard/common_flags/common_flags.h"
 #include "modules/perception/onboard/inner_component_messages/inner_component_messages.h"
@@ -57,12 +56,12 @@ class RadarDetectionComponent : public cyber::Component<ContiRadar> {
   bool Proc(const std::shared_ptr<ContiRadar>& message) override;
 
  private:
-  int InitAlgorithmPlugin();
+  bool InitAlgorithmPlugin();
   bool InternalProc(const std::shared_ptr<ContiRadar>& in_message,
-                   std::shared_ptr<SensorFrameMessage> out_message);
-  int GetCarLocalizationSpeed(double timestamp,
-                              Eigen::Vector3f* car_linear_speed,
-                              Eigen::Vector3f* car_angular_speed);
+                    std::shared_ptr<SensorFrameMessage> out_message);
+  bool GetCarLocalizationSpeed(double timestamp,
+                               Eigen::Vector3f* car_linear_speed,
+                               Eigen::Vector3f* car_angular_speed);
 
   RadarDetectionComponent(const RadarDetectionComponent&) = delete;
   RadarDetectionComponent& operator=(const RadarDetectionComponent&) = delete;

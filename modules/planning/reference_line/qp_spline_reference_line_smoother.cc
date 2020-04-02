@@ -27,7 +27,6 @@
 #include "cyber/common/log.h"
 #include "modules/common/math/vec2d.h"
 #include "modules/common/time/time.h"
-#include "modules/common/util/file.h"
 #include "modules/common/util/util.h"
 #include "modules/planning/common/planning_gflags.h"
 #include "modules/planning/math/curve_math.h"
@@ -36,8 +35,6 @@
 
 namespace apollo {
 namespace planning {
-
-using apollo::common::time::Clock;
 
 QpSplineReferenceLineSmoother::QpSplineReferenceLineSmoother(
     const ReferenceLineSmootherConfig& config)
@@ -75,13 +72,15 @@ bool QpSplineReferenceLineSmoother::Smooth(
     return false;
   }
 
-  auto start = Clock::NowInSeconds();
+  auto start = std::chrono::system_clock::now();
   if (!Solve()) {
     AERROR << "Solve spline smoother problem failed";
   }
-  auto end = Clock::NowInSeconds();
+  auto end = std::chrono::system_clock::now();
+
+  std::chrono::duration<double> diff = end - start;
   ADEBUG << "QpSplineReferenceLineSmoother solve time is "
-         << (end - start) * 1000 << " ms.";
+         << diff.count() * 1000.0 << " ms.";
 
   // mapping spline to reference line point
   const double start_t = t_knots_.front();

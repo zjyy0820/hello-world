@@ -46,7 +46,7 @@ LocalizationIntegImpl::~LocalizationIntegImpl() {
 
 Status LocalizationIntegImpl::Init(const LocalizationIntegParam& params) {
   enable_lidar_localization_ = params.enable_lidar_localization;
-  if (params.enable_lidar_localization == true) {
+  if (params.enable_lidar_localization) {
     auto state = lidar_process_->Init(params);
     if (!state.ok()) {
       return state;
@@ -93,11 +93,8 @@ Status LocalizationIntegImpl::Init(const LocalizationIntegParam& params) {
   return Status::OK();
 }
 
-
 void LocalizationIntegImpl::PcdProcess(const LidarFrame& lidar_frame) {
   PcdProcessImpl(lidar_frame);
-
-  return;
 }
 
 void LocalizationIntegImpl::PcdProcessImpl(const LidarFrame& pcd_data) {
@@ -121,8 +118,8 @@ void LocalizationIntegImpl::PcdProcessImpl(const LidarFrame& pcd_data) {
     imu_altitude_from_lidar_localization_available_ = true;
   }
 
-  lastest_lidar_localization_ = LocalizationResult(
-      LocalizationMeasureState(state), lidar_localization);
+  lastest_lidar_localization_ =
+      LocalizationResult(LocalizationMeasureState(state), lidar_localization);
 }
 
 void LocalizationIntegImpl::RawImuProcessRfu(const ImuData& imu_data) {
@@ -145,6 +142,10 @@ void LocalizationIntegImpl::ImuProcessImpl(const ImuData& imu_data) {
   IntegState state;
   LocalizationEstimate integ_localization;
   integ_process_->GetResult(&state, &integ_localization);
+  ImuData corrected_imu;
+  integ_process_->GetCorrectedImu(&corrected_imu);
+  InertialParameter earth_param;
+  integ_process_->GetEarthParameter(&earth_param);
   // check msf running status and set msf_status in integ_localization
 
   LocalizationIntegStatus integ_status;
@@ -161,30 +162,36 @@ void LocalizationIntegImpl::ImuProcessImpl(const ImuData& imu_data) {
   }
 
   // set linear acceleration
-  Eigen::Vector3d orig_acceleration(imu_data.fb[0], imu_data.fb[1],
-                                    imu_data.fb[2]);
+  Eigen::Vector3d orig_acceleration(corrected_imu.fb[0], corrected_imu.fb[1],
+                                    corrected_imu.fb[2]);
   const apollo::common::Quaternion& orientation =
       integ_localization.pose().orientation();
   Eigen::Quaternion<double> quaternion(orientation.qw(), orientation.qx(),
                                        orientation.qy(), orientation.qz());
-  Eigen::Vector3d vec_acceleration = static_cast<Eigen::Vector3d>(
-      quaternion.toRotationMatrix() * orig_acceleration);
+  Eigen::Vector3d vec_acceleration =
+      static_cast<Eigen::Vector3d>(quaternion * orig_acceleration);
+
+  // Remove gravity.
+  vec_acceleration(2) -= earth_param.g;
 
   apollo::common::Point3D* linear_acceleration =
       posepb_loc->mutable_linear_acceleration();
   linear_acceleration->set_x(vec_acceleration(0));
   linear_acceleration->set_y(vec_acceleration(1));
-  linear_acceleration->set_z(vec_acceleration(2) - 9.8);
+  linear_acceleration->set_z(vec_acceleration(2));
+
+  Eigen::Vector3d vec_acceleration_vrf =
+      quaternion.inverse() * vec_acceleration;
 
   apollo::common::Point3D* linear_acceleration_vrf =
       posepb_loc->mutable_linear_acceleration_vrf();
-  linear_acceleration_vrf->set_x(imu_data.fb[0]);
-  linear_acceleration_vrf->set_y(imu_data.fb[1]);
-  linear_acceleration_vrf->set_z(imu_data.fb[2]);
+  linear_acceleration_vrf->set_x(vec_acceleration_vrf(0));
+  linear_acceleration_vrf->set_y(vec_acceleration_vrf(1));
+  linear_acceleration_vrf->set_z(vec_acceleration_vrf(2));
 
   // set angular velocity
-  Eigen::Vector3d orig_angular_velocity(imu_data.wibb[0], imu_data.wibb[1],
-                                        imu_data.wibb[2]);
+  Eigen::Vector3d orig_angular_velocity(
+      corrected_imu.wibb[0], corrected_imu.wibb[1], corrected_imu.wibb[2]);
   Eigen::Vector3d vec_angular_velocity = static_cast<Eigen::Vector3d>(
       quaternion.toRotationMatrix() * orig_angular_velocity);
   apollo::common::Point3D* angular_velocity =
@@ -195,13 +202,13 @@ void LocalizationIntegImpl::ImuProcessImpl(const ImuData& imu_data) {
 
   apollo::common::Point3D* angular_velocity_vrf =
       posepb_loc->mutable_angular_velocity_vrf();
-  angular_velocity_vrf->set_x(imu_data.wibb[0]);
-  angular_velocity_vrf->set_y(imu_data.wibb[1]);
-  angular_velocity_vrf->set_z(imu_data.wibb[2]);
+  angular_velocity_vrf->set_x(corrected_imu.wibb[0]);
+  angular_velocity_vrf->set_y(corrected_imu.wibb[1]);
+  angular_velocity_vrf->set_z(corrected_imu.wibb[2]);
 
-  lastest_integ_localization_ = LocalizationResult(
-      LocalizationMeasureState(static_cast<int>(state)),
-      integ_localization, integ_status);
+  lastest_integ_localization_ =
+      LocalizationResult(LocalizationMeasureState(static_cast<int>(state)),
+                         integ_localization, integ_status);
 
   InsPva integ_sins_pva;
   double covariance[9][9];
@@ -221,7 +228,6 @@ void LocalizationIntegImpl::ImuProcessImpl(const ImuData& imu_data) {
       gnss_process_->IntegSinsPvaProcess(integ_sins_pva, covariance);
     }
   }
-  return;
 }
 
 void LocalizationIntegImpl::RawObservationProcess(
@@ -231,8 +237,6 @@ void LocalizationIntegImpl::RawObservationProcess(
   }
 
   RawObservationProcessImpl(raw_obs_msg);
-
-  return;
 }
 
 void LocalizationIntegImpl::RawEphemerisProcess(
@@ -242,8 +246,6 @@ void LocalizationIntegImpl::RawEphemerisProcess(
   }
 
   RawEphemerisProcessImpl(gnss_orbit_msg);
-
-  return;
 }
 
 void LocalizationIntegImpl::GnssBestPoseProcess(
@@ -253,8 +255,6 @@ void LocalizationIntegImpl::GnssBestPoseProcess(
   }
 
   GnssBestPoseProcessImpl(bestgnsspos_msg);
-
-  return;
 }
 
 void LocalizationIntegImpl::RawObservationProcessImpl(
@@ -275,14 +275,11 @@ void LocalizationIntegImpl::RawObservationProcessImpl(
   TransferGnssMeasureToLocalization(measure, &gnss_localization);
 
   lastest_gnss_localization_ = LocalizationResult(state, gnss_localization);
-
-  return;
 }
 
 void LocalizationIntegImpl::RawEphemerisProcessImpl(
     const drivers::gnss::GnssEphemeris& gnss_orbit_msg) {
   gnss_process_->RawEphemerisProcess(gnss_orbit_msg);
-  return;
 }
 
 void LocalizationIntegImpl::GnssBestPoseProcessImpl(
@@ -297,16 +294,14 @@ void LocalizationIntegImpl::GnssBestPoseProcessImpl(
     TransferGnssMeasureToLocalization(measure, &gnss_localization);
     expert_.GetGnssStatus(gnss_localization.mutable_msf_status());
 
-    lastest_gnss_localization_ = LocalizationResult(
-        LocalizationMeasureState::OK, gnss_localization);
+    lastest_gnss_localization_ =
+        LocalizationResult(LocalizationMeasureState::OK, gnss_localization);
   }
-  return;
 }
 
 void LocalizationIntegImpl::GnssHeadingProcess(
     const drivers::gnss::Heading& gnssheading_msg) {
   GnssHeadingProcessImpl(gnssheading_msg);
-  return;
 }
 
 void LocalizationIntegImpl::GnssHeadingProcessImpl(
@@ -365,22 +360,20 @@ void LocalizationIntegImpl::TransferGnssMeasureToLocalization(
   orientation_std_dev->set_x(-1.0);
   orientation_std_dev->set_y(-1.0);
   orientation_std_dev->set_z(-1.0);
-
-  return;
 }
 
-const LocalizationResult& LocalizationIntegImpl::
-    GetLastestLidarLocalization() const {
+const LocalizationResult& LocalizationIntegImpl::GetLastestLidarLocalization()
+    const {
   return lastest_lidar_localization_;
 }
 
-const LocalizationResult& LocalizationIntegImpl::
-    GetLastestIntegLocalization() const {
+const LocalizationResult& LocalizationIntegImpl::GetLastestIntegLocalization()
+    const {
   return lastest_integ_localization_;
 }
 
-const LocalizationResult& LocalizationIntegImpl::
-    GetLastestGnssLocalization() const {
+const LocalizationResult& LocalizationIntegImpl::GetLastestGnssLocalization()
+    const {
   return lastest_gnss_localization_;
 }
 

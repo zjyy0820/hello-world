@@ -36,8 +36,6 @@ class SpeedLimit {
 
   double GetSpeedLimitByS(const double s) const;
 
-  double MinValidS() const;
-
   void Clear();
 
  private:

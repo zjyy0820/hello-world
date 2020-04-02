@@ -14,13 +14,14 @@
  * limitations under the License.
  *****************************************************************************/
 
+#include "modules/planning/common/obstacle_blocking_analyzer.h"
+
 #include <algorithm>
 #include <memory>
 #include <vector>
 
-#include "modules/planning/common/obstacle_blocking_analyzer.h"
-
 #include "modules/common/configs/vehicle_config_helper.h"
+#include "modules/common/util/point_factory.h"
 #include "modules/map/hdmap/hdmap_util.h"
 #include "modules/planning/common/frame.h"
 #include "modules/planning/common/planning_gflags.h"
@@ -31,13 +32,63 @@ namespace planning {
 using apollo::common::VehicleConfigHelper;
 using apollo::hdmap::HDMapUtil;
 
+constexpr double kAdcDistanceThreshold = 35.0;  // unit: m
+constexpr double kObstaclesDistanceThreshold = 15.0;
+
+bool IsNonmovableObstacle(const ReferenceLineInfo& reference_line_info,
+                          const Obstacle& obstacle) {
+  // Obstacle is far away.
+  const SLBoundary& adc_sl_boundary = reference_line_info.AdcSlBoundary();
+  if (obstacle.PerceptionSLBoundary().start_s() >
+      adc_sl_boundary.end_s() + kAdcDistanceThreshold) {
+    ADEBUG << " - It is too far ahead and we are not so sure of its status.";
+    return false;
+  }
+
+  // Obstacle is parked obstacle.
+  if (IsParkedVehicle(reference_line_info.reference_line(), &obstacle)) {
+    ADEBUG << "It is Parked and NON-MOVABLE.";
+    return true;
+  }
+
+  // Obstacle is blocked by others too.
+  for (const auto* other_obstacle :
+       reference_line_info.path_decision().obstacles().Items()) {
+    if (other_obstacle->Id() == obstacle.Id()) {
+      continue;
+    }
+    if (other_obstacle->IsVirtual()) {
+      continue;
+    }
+    if (other_obstacle->PerceptionSLBoundary().start_l() >
+            obstacle.PerceptionSLBoundary().end_l() ||
+        other_obstacle->PerceptionSLBoundary().end_l() <
+            obstacle.PerceptionSLBoundary().start_l()) {
+      // not blocking the backside vehicle
+      continue;
+    }
+    double delta_s = other_obstacle->PerceptionSLBoundary().start_s() -
+                     obstacle.PerceptionSLBoundary().end_s();
+    if (delta_s < 0.0 || delta_s > kObstaclesDistanceThreshold) {
+      continue;
+    }
+
+    // TODO(All): Fix the segmentation bug for large vehicles, otherwise
+    // the follow line will be problematic.
+    ADEBUG << " - It is blocked by others, and will move later.";
+    return false;
+  }
+
+  ADEBUG << "IT IS NON-MOVABLE!";
+  return true;
+}
+
 // This is the side-pass condition for every obstacle.
 // TODO(all): if possible, transform as many function parameters into GFLAGS.
-bool IsBlockingObstacleToSidePass(
-    const Frame& frame, const Obstacle* obstacle,
-    double block_obstacle_min_speed,
-    double min_front_sidepass_distance,
-    bool enable_obstacle_blocked_check) {
+bool IsBlockingObstacleToSidePass(const Frame& frame, const Obstacle* obstacle,
+                                  double block_obstacle_min_speed,
+                                  double min_front_sidepass_distance,
+                                  bool enable_obstacle_blocked_check) {
   // Get the necessary info.
   const auto& reference_line_info = frame.reference_line_info().front();
   const auto& reference_line = reference_line_info.reference_line();
@@ -52,23 +103,21 @@ bool IsBlockingObstacleToSidePass(
   }
 
   // Obstacle is moving.
-  if (!obstacle->IsStatic() ||
-      obstacle->speed() > block_obstacle_min_speed) {
+  if (!obstacle->IsStatic() || obstacle->speed() > block_obstacle_min_speed) {
     ADEBUG << " - It is non-static.";
     return false;
   }
 
   // Obstacle is behind ADC.
-  if (obstacle->PerceptionSLBoundary().start_s() <=
-      adc_sl_boundary.end_s()) {
+  if (obstacle->PerceptionSLBoundary().start_s() <= adc_sl_boundary.end_s()) {
     ADEBUG << " - It is behind ADC.";
     return false;
   }
 
   // Obstacle is far away.
-  constexpr double kAdcDistanceThreshold = 15.0;  // unit: m
+  static constexpr double kAdcDistanceSidePassThreshold = 15.0;
   if (obstacle->PerceptionSLBoundary().start_s() >
-      adc_sl_boundary.end_s() + kAdcDistanceThreshold) {
+      adc_sl_boundary.end_s() + kAdcDistanceSidePassThreshold) {
     ADEBUG << " - It is too far ahead.";
     return false;
   }
@@ -120,8 +169,8 @@ bool IsBlockingObstacleToSidePass(
   return true;
 }
 
-double GetDistanceBetweenADCAndObstacle(
-    const Frame& frame, const Obstacle* obstacle) {
+double GetDistanceBetweenADCAndObstacle(const Frame& frame,
+                                        const Obstacle* obstacle) {
   const auto& reference_line_info = frame.reference_line_info().front();
   const SLBoundary& adc_sl_boundary = reference_line_info.AdcSlBoundary();
   double distance_between_adc_and_obstacle =
@@ -129,26 +178,24 @@ double GetDistanceBetweenADCAndObstacle(
   return distance_between_adc_and_obstacle;
 }
 
-bool IsBlockingDrivingPathObstacle(
-    const ReferenceLine& reference_line, const Obstacle* obstacle) {
+bool IsBlockingDrivingPathObstacle(const ReferenceLine& reference_line,
+                                   const Obstacle* obstacle) {
   const double driving_width =
       reference_line.GetDrivingWidth(obstacle->PerceptionSLBoundary());
   const double adc_width =
       VehicleConfigHelper::GetConfig().vehicle_param().width();
   ADEBUG << " (driving width = " << driving_width
          << ", adc_width = " << adc_width << ")";
-  if (driving_width >
-      adc_width + FLAGS_static_decision_nudge_l_buffer +
-      FLAGS_side_pass_driving_width_l_buffer) {
+  if (driving_width > adc_width + FLAGS_static_obstacle_nudge_l_buffer +
+                          FLAGS_side_pass_driving_width_l_buffer) {
     // TODO(jiacheng): make this a GFLAG:
     // side_pass_context_.scenario_config_.min_l_nudge_buffer()
     ADEBUG << "It is NOT blocking our path.";
     return false;
-  } else {
-    ADEBUG << "It is blocking our path.";
-    return true;
   }
-  return false;
+
+  ADEBUG << "It is blocking our path.";
+  return true;
 }
 
 bool IsParkedVehicle(const ReferenceLine& reference_line,
@@ -171,8 +218,8 @@ bool IsParkedVehicle(const ReferenceLine& reference_line,
   std::vector<std::shared_ptr<const hdmap::LaneInfo>> lanes;
   auto obstacle_box = obstacle->PerceptionBoundingBox();
   HDMapUtil::BaseMapPtr()->GetLanes(
-      common::util::MakePointENU(obstacle_box.center().x(),
-                                 obstacle_box.center().y(), 0.0),
+      common::util::PointFactory::ToPointENU(obstacle_box.center().x(),
+                                             obstacle_box.center().y()),
       std::min(obstacle_box.width(), obstacle_box.length()), &lanes);
   bool is_on_parking_lane = false;
   if (lanes.size() == 1 &&
@@ -181,7 +228,7 @@ bool IsParkedVehicle(const ReferenceLine& reference_line,
   }
 
   bool is_parked = is_on_parking_lane || is_at_road_edge;
-  return (is_parked && obstacle->IsStatic());
+  return is_parked && obstacle->IsStatic();
 }
 
 }  // namespace planning

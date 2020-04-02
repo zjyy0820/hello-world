@@ -146,7 +146,7 @@ bool MeasureRepublishProcess::NovatelBestgnssposProcess(
 
   // If sins is align, we only need measure of xyz from bestgnsspos.
   // If sins is not align, in order to init sins, we need
-  // (1) send a initial measure of xyz; (2) send measure of xyz and velocity.
+  // (1) send an initial measure of xyz; (2) send measure of xyz and velocity.
   if (is_sins_align) {
     TransferXYZFromBestgnsspose(bestgnsspos_msg, measure);
   } else {
@@ -273,8 +273,8 @@ void MeasureRepublishProcess::GnssLocalProcess(
       pre_yaw_from_vel = yaw_from_vel;
       return;
     } else {
-      constexpr double rad_round = 2 * M_PI;
-      constexpr double rad_pi = M_PI;
+      static constexpr double rad_round = 2 * M_PI;
+      static constexpr double rad_pi = M_PI;
 
       double delta_yaw = yaw_from_vel - pre_yaw_from_vel;
       if (delta_yaw > rad_pi) {
@@ -291,7 +291,7 @@ void MeasureRepublishProcess::GnssLocalProcess(
       }
       double yaw_incr = delta_yaw / delta_time;
       // 0.0872rad = 5deg
-      constexpr double rad_5deg = 5 * DEG_TO_RAD;
+      static constexpr double rad_5deg = 5 * DEG_TO_RAD;
       if ((yaw_incr > rad_5deg) || (yaw_incr < -rad_5deg)) {
         AWARN << "yaw velocity is large! pre, "
               << "cur yaw from vel and velocity: "
@@ -316,22 +316,18 @@ void MeasureRepublishProcess::GnssLocalProcess(
          << "[std_x:" << measure_data.variance[0][0] << "]"
          << "[std_y:" << measure_data.variance[1][1] << "]"
          << "[std_z:" << measure_data.variance[2][2] << "]";
-  return;
 }
 
 void MeasureRepublishProcess::IntegPvaProcess(const InsPva& inspva_msg) {
   const InsPva& integ_pva = inspva_msg;
 
-  integ_pva_mutex_.lock();
+  std::lock_guard<std::mutex> lock(integ_pva_mutex_);
   if (integ_pva_list_.size() < pva_buffer_size_) {
     integ_pva_list_.push_back(integ_pva);
   } else {
     integ_pva_list_.pop_front();
     integ_pva_list_.push_back(integ_pva);
   }
-  integ_pva_mutex_.unlock();
-
-  return;
 }
 
 bool MeasureRepublishProcess::LidarLocalProcess(
@@ -376,7 +372,7 @@ bool MeasureRepublishProcess::LidarLocalProcess(
   double latitude_var = lidar_local_msg.uncertainty().position_std_dev().y();
   double yaw_var = lidar_local_msg.uncertainty().orientation_std_dev().z();
 
-  constexpr double height_var = 0.03 * 0.03;
+  static constexpr double height_var = 0.03 * 0.03;
   measure_data.variance[0][0] = longitude_var;
   measure_data.variance[1][1] = latitude_var;
   measure_data.variance[2][2] = height_var;
@@ -399,13 +395,8 @@ bool MeasureRepublishProcess::LidarLocalProcess(
 }
 
 bool MeasureRepublishProcess::IsSinsAlign() {
-  integ_pva_mutex_.lock();
-  bool is_sins_align = false;
-  if (!integ_pva_list_.empty()) {
-    is_sins_align = integ_pva_list_.back().init_and_alignment;
-  }
-  integ_pva_mutex_.unlock();
-  return is_sins_align;
+  std::lock_guard<std::mutex> lock(integ_pva_mutex_);
+  return !integ_pva_list_.empty() && integ_pva_list_.back().init_and_alignment;
 }
 
 void MeasureRepublishProcess::TransferXYZFromBestgnsspose(
@@ -437,7 +428,6 @@ void MeasureRepublishProcess::TransferXYZFromBestgnsspose(
   }
   height_mutex_.unlock();
   measure->is_have_variance = true;
-  return;
 }
 
 void MeasureRepublishProcess::TransferFirstMeasureFromBestgnsspose(
@@ -455,7 +445,6 @@ void MeasureRepublishProcess::TransferFirstMeasureFromBestgnsspose(
   measure->gnss_vel.vu = 0.0;
   AINFO << "Novatel bestgnsspose publish: "
         << "send sins init position using novatel bestgnsspos!";
-  return;
 }
 
 bool MeasureRepublishProcess::CalculateVelFromBestgnsspose(
@@ -513,8 +502,8 @@ bool MeasureRepublishProcess::CalculateVelFromBestgnsspose(
     pre_yaw_from_vel = yaw_from_vel;
     return false;
   } else {
-    constexpr double rad_round = 2 * M_PI;
-    constexpr double rad_pi = M_PI;
+    static constexpr double rad_round = 2 * M_PI;
+    static constexpr double rad_pi = M_PI;
 
     double delta_yaw = yaw_from_vel - pre_yaw_from_vel;
     if (delta_yaw > rad_pi) {
@@ -524,9 +513,9 @@ bool MeasureRepublishProcess::CalculateVelFromBestgnsspose(
       delta_yaw = delta_yaw + rad_round;
     }
 
-    AINFO << "yaw caculated from position difference: "
+    AINFO << "yaw calculated from position difference: "
           << yaw_from_vel * RAD_TO_DEG;
-    constexpr double rad_5deg = 5 * DEG_TO_RAD;
+    static constexpr double rad_5deg = 5 * DEG_TO_RAD;
     if (delta_yaw > rad_5deg || delta_yaw < -rad_5deg) {
       AWARN << "novatel bestgnsspos delta yaw is large! "
             << "pre, cur yaw from vel and delta: "

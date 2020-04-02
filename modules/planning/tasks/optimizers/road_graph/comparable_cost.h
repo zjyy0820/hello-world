@@ -20,9 +20,6 @@
 
 #pragma once
 
-#include <array>
-#include <cmath>
-
 namespace apollo {
 namespace planning {
 
@@ -56,9 +53,9 @@ class ComparableCost {
       }
     }
 
-    constexpr double kEpsilon = 1e-12;
+    static constexpr double kEpsilon = 1e-12;
     const double diff = safety_cost + smoothness_cost - other.safety_cost -
-                       other.smoothness_cost;
+                        other.smoothness_cost;
     if (std::fabs(diff) < kEpsilon) {
       return 0;
     } else if (diff > 0) {

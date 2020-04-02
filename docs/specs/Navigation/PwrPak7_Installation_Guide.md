@@ -34,7 +34,7 @@ Follow these steps:
 
 * Before taking the measurement, turn on the IPC.
 * When the PwrPak7 and the GPS Antenna are in position, the distance from the PwrPak7 to the GPS Antenna must be measured. The center of the PwrPak7 IMU and the center of the antenna are labeled on the exterior of the devices.
-* The distance should be measured as: X offset, Y offset, and Z offset. The axis should be determined by the IMU. The error of offset must be within one centimeter to achieve high accuracy in positioning and localization. 
+* The distance should be measured as: X offset, Y offset, and Z offset. The axis should be determined by the IMU. The error of offset must be within one centimeter to achieve high accuracy in positioning and localization.
 
 ### Configuring the PwrPak7
 
@@ -43,7 +43,7 @@ Configure the GPS and IMU as shown below. This process can be done either by key
 For PwrPak7:
 
 ```
-WIFICONFIG STATE OFF
+WIFICONFIG OFF
 UNLOGALL THISPORT
 INSCOMMAND ENABLE
 SETIMUORIENTATION 5
@@ -52,6 +52,7 @@ VEHICLEBODYROTATION 0 0 0
 SERIALCONFIG COM1 9600 N 8 1 N OFF
 SERIALCONFIG COM2 9600 N 8 1 N OFF
 INTERFACEMODE COM1 NOVATEL NOVATEL ON
+INTERFACEMODE COM2 NOVATEL NOVATEL ON
 INTERFACEMODE USB2 RTCMV3 NONE OFF
 PPSCONTROL ENABLE POSITIVE 1.0 10000
 MARKCONTROL MARK1 ENABLE POSITIVE
@@ -60,7 +61,7 @@ RTKSOURCE AUTO ANY
 PSRDIFFSOURCE AUTO ANY
 SETINSTRANSLATION ANT1 0.00 1.10866 1.14165 0.05 0.05 0.08
 SETINSTRANSLATION ANT2 0.00 1.10866 1.14165 0.05 0.05 0.08
-SETINSTRANSLATION USER 0 0 0
+SETINSTRANSLATION USER 0.00 0.00 0.00
 EVENTOUTCONTROL MARK2 ENABLE POSITIVE 999999990 10
 EVENTOUTCONTROL MARK1 ENABLE POSITIVE 500000000 500000000
 
@@ -95,7 +96,7 @@ For example:
 SETINSTRANSLATION ANT1 -0.05 0.5 0.8 0.05 0.05 0.08
 ```
 
-The first 3 numbers indicate the result of the lever arm distance measurement. The last 3 numbers are the uncertainty of the measurement. 
+The first 3 numbers indicate the result of the lever arm distance measurement. The last 3 numbers are the uncertainty of the measurement.
 
 ### References
 

@@ -36,18 +36,21 @@ class KeepClear : public TrafficRule {
   virtual ~KeepClear() = default;
 
   common::Status ApplyRule(Frame* const frame,
-                 ReferenceLineInfo* const reference_line_info);
+                           ReferenceLineInfo* const reference_line_info);
 
  private:
+  bool IsCreeping(const double pnc_junction_start_s,
+                  const double adc_front_edge_s) const;
+
   bool BuildKeepClearObstacle(Frame* const frame,
                               ReferenceLineInfo* const reference_line_info,
                               const std::string& virtual_obstacle_id,
                               const double keep_clear_start_s,
                               const double keep_clear_end_s);
+
  private:
-  static constexpr char const* const KEEP_CLEAR_VO_ID_PREFIX = "KC_";
-  static constexpr char const* const KEEP_CLEAR_JUNCTION_VO_ID_PREFIX =
-      "KC_JC_";
+  static constexpr char const* KEEP_CLEAR_VO_ID_PREFIX = "KC_";
+  static constexpr char const* KEEP_CLEAR_JUNCTION_VO_ID_PREFIX = "KC_JC_";
 };
 
 }  // namespace planning

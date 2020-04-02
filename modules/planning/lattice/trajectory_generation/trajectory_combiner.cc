@@ -25,10 +25,10 @@
 namespace apollo {
 namespace planning {
 
-using apollo::common::math::CartesianFrenetConverter;
-using apollo::common::math::PathMatcher;
 using apollo::common::PathPoint;
 using apollo::common::TrajectoryPoint;
+using apollo::common::math::CartesianFrenetConverter;
+using apollo::common::math::PathMatcher;
 
 DiscretizedTrajectory TrajectoryCombiner::Combine(
     const std::vector<PathPoint>& reference_line, const Curve1d& lon_trajectory,
@@ -40,7 +40,7 @@ DiscretizedTrajectory TrajectoryCombiner::Combine(
   double accumulated_trajectory_s = 0.0;
   PathPoint prev_trajectory_point;
 
-  double last_s = -FLAGS_lattice_epsilon;
+  double last_s = -FLAGS_numerical_epsilon;
   double t_param = 0.0;
   while (t_param < FLAGS_trajectory_time_length) {
     // linear extrapolation is handled internally in LatticeTrajectory1d;
@@ -52,7 +52,7 @@ DiscretizedTrajectory TrajectoryCombiner::Combine(
     last_s = s;
 
     double s_dot =
-        std::max(FLAGS_lattice_epsilon, lon_trajectory.Evaluate(1, t_param));
+        std::max(FLAGS_numerical_epsilon, lon_trajectory.Evaluate(1, t_param));
     double s_ddot = lon_trajectory.Evaluate(2, t_param);
     if (s > s_ref_max) {
       break;

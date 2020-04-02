@@ -23,13 +23,31 @@ DECLARE_string(prediction_module_name);
 DECLARE_string(prediction_conf_file);
 DECLARE_string(prediction_adapter_config_filename);
 DECLARE_string(prediction_data_dir);
+DECLARE_string(offline_feature_proto_file_name);
+DECLARE_string(output_filename);
+DECLARE_string(extract_feature_type);
 
 DECLARE_bool(prediction_test_mode);
 DECLARE_double(prediction_test_duration);
 
-DECLARE_bool(prediction_offline_mode);
 DECLARE_string(prediction_offline_bags);
+DECLARE_int32(prediction_offline_mode);
+DECLARE_bool(enable_multi_thread);
+DECLARE_int32(max_thread_num);
+DECLARE_int32(max_caution_thread_num);
+DECLARE_bool(enable_async_draw_base_image);
+DECLARE_bool(use_cuda);
 
 // Bag replay timestamp gap
 DECLARE_double(replay_timestamp_gap);
 DECLARE_int32(max_num_dump_feature);
+DECLARE_int32(max_num_dump_dataforlearn);
+
+// Submodules
+DECLARE_bool(use_lego);
+DECLARE_string(container_topic_name);
+DECLARE_string(adccontainer_topic_name);
+DECLARE_string(evaluator_topic_name);
+DECLARE_string(container_submodule_name);
+DECLARE_string(evaluator_submodule_name);
+DECLARE_string(perception_obstacles_topic_name);

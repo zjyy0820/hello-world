@@ -1,18 +1,18 @@
 /******************************************************************************
-* Copyright 2018 The Apollo Authors. All Rights Reserved.
-*
-* Licensed under the Apache License, Version 2.0 (the License);
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-* http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an AS IS BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*****************************************************************************/
+ * Copyright 2018 The Apollo Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the License);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *****************************************************************************/
 
 #include "cyber/common/log.h"
 #include "gtest/gtest.h"
@@ -38,7 +38,7 @@ TEST(KalmanTest, copy_test) {
     kf.Correct(measure);
   }
   KalmanFilterConstVelocity kf2 = kf;
-  EXPECT_TRUE(kf2.get_state() == kf.get_state());
+  EXPECT_EQ(kf2.get_state(), kf.get_state());
 }
 
 TEST(KalmanTest, zero_test) {
@@ -53,7 +53,7 @@ TEST(KalmanTest, zero_test) {
   for (int i = 0; i < 10; ++i) {
     kf.Predict(10);
     kf.Correct(measure);
-    EXPECT_TRUE(state == kf.get_state());
+    EXPECT_EQ(state, kf.get_state());
   }
 }
 
@@ -77,57 +77,57 @@ TEST(KalmanTest, kalman_test) {
     kf.Correct(z);
     Eigen::Vector4d state = kf.get_state();
     if (i > 10) {
-      EXPECT_TRUE(std::fabs(state[2] - speed[0]) < 0.05);
-      EXPECT_TRUE(std::fabs(state[3] - speed[1]) < 0.05);
-      EXPECT_TRUE(std::fabs(state[0] - x[0]) < 0.05);
-      EXPECT_TRUE(std::fabs(state[1] - x[1]) < 0.05);
+      EXPECT_LT(std::fabs(state[2] - speed[0]), 0.05);
+      EXPECT_LT(std::fabs(state[3] - speed[1]), 0.05);
+      EXPECT_LT(std::fabs(state[0] - x[0]), 0.05);
+      EXPECT_LT(std::fabs(state[1] - x[1]), 0.05);
     }
   }
 }
 
 TEST(EKFTest, ekf_test) {
-//  ExtendedKalmanFilter ekf;
-//  Eigen::Vector3d x;
-//  Eigen::Vector3d z;  // observation: x, y, theta
-//  float speed = 3.0f;
-//  float theta = 0.5f;
-//  ekf.Init();
-//  ekf.measure_noise_ *= 5;
-//  ekf.Predict(1.f);
-//  x << 0.f, 0.f, theta;
-//  z << 0.f, 0.f, theta;
-//  ekf.Correct(z);
-//  Eigen::Vector4d state = ekf.get_state();
-//  ASSERT_TRUE(std::fabs(state[0]) < 1e-6);
-//  ASSERT_TRUE(std::fabs(state[1]) < 1e-6);
-//  ASSERT_TRUE(std::fabs(state[2]) < 1e-6);
-//  ASSERT_TRUE(std::fabs(state[3] - 0.5f) < 1e-6);
-//
-//  auto gen_rand_number = [](float l, float h) {
-//    return l + static_cast<float>(rand()) /    // NOLINT
-//        (static_cast<float>(RAND_MAX / (h - l)));
-//  };
-//
-//  for (int i = 0; i < 100; ++i) {
-//    // speed = 3 m/s, delta_x = speed * cos(theta)
-//    // delta_y = speed * sin(theta)
-//    x[0] += speed * std::cos(theta);
-//    x[1] += speed * std::sin(theta);
-//    z << x[0], x[1], x[2];
-//    speed += 0.01;
-//    theta += gen_rand_number(-0.01, 0.01);
-//
-//    ekf.Predict(1.f);
-//    ekf.Correct(z);
-//    Eigen::Vector4d state = ekf.get_state();
-//
-//    if (i > 10) {
-//      ASSERT_TRUE(std::fabs(state[0] - x[0]) < 0.1f);
-//      ASSERT_TRUE(std::fabs(state[1] - x[1]) < 0.1f);
-//      ASSERT_TRUE(std::fabs(state[2] - speed) < 0.1f);
-//      ASSERT_TRUE(std::fabs(state[3] - theta) < 0.1f);
-//    }
-//  }
+  //  ExtendedKalmanFilter ekf;
+  //  Eigen::Vector3d x;
+  //  Eigen::Vector3d z;  // observation: x, y, theta
+  //  float speed = 3.0f;
+  //  float theta = 0.5f;
+  //  ekf.Init();
+  //  ekf.measure_noise_ *= 5;
+  //  ekf.Predict(1.f);
+  //  x << 0.f, 0.f, theta;
+  //  z << 0.f, 0.f, theta;
+  //  ekf.Correct(z);
+  //  Eigen::Vector4d state = ekf.get_state();
+  //  ASSERT_TRUE(std::fabs(state[0]) < 1e-6);
+  //  ASSERT_TRUE(std::fabs(state[1]) < 1e-6);
+  //  ASSERT_TRUE(std::fabs(state[2]) < 1e-6);
+  //  ASSERT_TRUE(std::fabs(state[3] - 0.5f) < 1e-6);
+  //
+  //  auto gen_rand_number = [](float l, float h) {
+  //    return l + static_cast<float>(rand()) /    // NOLINT
+  //        (static_cast<float>(RAND_MAX / (h - l)));
+  //  };
+  //
+  //  for (int i = 0; i < 100; ++i) {
+  //    // speed = 3 m/s, delta_x = speed * cos(theta)
+  //    // delta_y = speed * sin(theta)
+  //    x[0] += speed * std::cos(theta);
+  //    x[1] += speed * std::sin(theta);
+  //    z << x[0], x[1], x[2];
+  //    speed += 0.01;
+  //    theta += gen_rand_number(-0.01, 0.01);
+  //
+  //    ekf.Predict(1.f);
+  //    ekf.Correct(z);
+  //    Eigen::Vector4d state = ekf.get_state();
+  //
+  //    if (i > 10) {
+  //      ASSERT_TRUE(std::fabs(state[0] - x[0]) < 0.1f);
+  //      ASSERT_TRUE(std::fabs(state[1] - x[1]) < 0.1f);
+  //      ASSERT_TRUE(std::fabs(state[2] - speed) < 0.1f);
+  //      ASSERT_TRUE(std::fabs(state[3] - theta) < 0.1f);
+  //    }
+  //  }
 }
 
 TEST(MeanFilterTest, mean_filter_test) {
@@ -161,8 +161,8 @@ TEST(MeanFilterTest, mean_filter_test) {
 }
 TEST(SimilarTest, cpu_test) {
   CosineSimilar similar;
-  using base::ObjectPtr;
   using base::Object;
+  using base::ObjectPtr;
 
   ObjectPtr object1(new Object);
   object1->camera_supplement.object_feature.push_back(0.707f);
@@ -183,7 +183,7 @@ TEST(SimilarTest, cpu_test) {
   base::Blob<float> sim;
   similar.Calc(&frame1, &frame2, &sim);
   const float *sim_data = sim.cpu_data();
-  ASSERT_TRUE(fabs(sim_data[0] - 1) < 1e-3f);  // NOLINT
+  ASSERT_TRUE(fabs(sim_data[0] - 1) < 1e-3f);    // NOLINT
   ASSERT_TRUE(fabs(sim_data[1] - 0.0) < 1e-3f);  // NOLINT
 
   frame1.detected_objects.clear();
@@ -194,8 +194,8 @@ TEST(SimilarTest, cpu_test) {
 TEST(SimilarTest, GPU_test) {
   inference::CudaUtil::set_device_id(0);
   GPUSimilar similar;
-  using base::ObjectPtr;
   using base::Object;
+  using base::ObjectPtr;
 
   std::vector<int> shape(2);
   const float *sim_data;
@@ -220,8 +220,8 @@ TEST(SimilarTest, GPU_test) {
 
   similar.Calc(&frame1, &frame1, sim1.get());
   sim_data = sim1->cpu_data();
-  ASSERT_TRUE(sim1->shape(0) == 1);  // NOLINT
-  ASSERT_TRUE(sim1->shape(1) == 1);  // NOLINT
+  ASSERT_TRUE(sim1->shape(0) == 1);           // NOLINT
+  ASSERT_TRUE(sim1->shape(1) == 1);           // NOLINT
   ASSERT_TRUE(fabs(sim_data[0] - 1) < 1e-3);  // NOLINT
 
   frame2.detected_objects.push_back(object);
@@ -245,9 +245,9 @@ TEST(SimilarTest, GPU_test) {
   ASSERT_TRUE(sim2->shape(1) == 3);  // NOLINT
   sim_data = sim2->cpu_data();
 
-  ASSERT_TRUE(fabs(sim_data[0] - 1) < 1e-3);  // NOLINT
+  ASSERT_TRUE(fabs(sim_data[0] - 1) < 1e-3);            // NOLINT
   ASSERT_TRUE(fabs(sim_data[1] - sqrt(2) / 2) < 1e-3);  // NOLINT
-  ASSERT_TRUE(fabs(sim_data[2] - 0) < 1e-3);  // NOLINT
+  ASSERT_TRUE(fabs(sim_data[2] - 0) < 1e-3);            // NOLINT
 }
 
 TEST(AngleTest, angle_test) {
@@ -278,10 +278,10 @@ TEST(KalmanConstTest, const_filter_test) {
     filter.process_noise_ << 0.1;
     std::srand(static_cast<unsigned int>(std::time(NULL)));
     std::vector<double> measurements = {
-        1.27201411, -0.27051547, -2.50816196,  0.05856895, -3.14114835,
-        1.3873894 ,  0.90496925, -0.00598577,  0.48878823,  0.75704055,
-        0.19266443,  2.05814734,  0.44203236, -0.36923239, -2.74245158,
-       1.71922351,  0.50960368, -1.24154697, -1.7048239 ,  0.80218156};
+        1.27201411, -0.27051547, -2.50816196, 0.05856895,  -3.14114835,
+        1.3873894,  0.90496925,  -0.00598577, 0.48878823,  0.75704055,
+        0.19266443, 2.05814734,  0.44203236,  -0.36923239, -2.74245158,
+        1.71922351, 0.50960368,  -1.24154697, -1.7048239,  0.80218156};
 
     for (size_t i = 0; i < measurements.size(); ++i) {
       param << measurements[i];
@@ -289,7 +289,7 @@ TEST(KalmanConstTest, const_filter_test) {
       filter.Correct(param);
 
       auto state = filter.get_state();
-      EXPECT_TRUE(std::fabs(state(0, 0)) < 1.0);
+      EXPECT_LT(std::fabs(state(0, 0)), 1.0);
     }
   }
 
@@ -299,7 +299,7 @@ TEST(KalmanConstTest, const_filter_test) {
     param << 0.0;
     EXPECT_FALSE(filter.Predict(1.0));
     filter.Correct(param);
-    EXPECT_TRUE((filter.get_state() - param).norm() < 1e-4);
+    EXPECT_LT((filter.get_state() - param).norm(), 1e-4);
   }
 }
 

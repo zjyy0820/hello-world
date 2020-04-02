@@ -19,13 +19,10 @@
 #include "modules/common/adapters/adapter_gflags.h"
 #include "modules/common/math/quaternion.h"
 #include "modules/common/time/time.h"
-#include "modules/common/util/file.h"
-#include "modules/common/util/string_tokenizer.h"
-
 #include "modules/localization/common/localization_gflags.h"
 #include "modules/localization/msf/common/io/pcl_point_types.h"
 #include "modules/localization/msf/common/io/velodyne_utility.h"
-#include "modules/localization/msf/local_map/base_map/base_map_config.h"
+#include "modules/localization/msf/local_pyramid_map/base_map/base_map_config.h"
 
 namespace apollo {
 namespace localization {
@@ -54,14 +51,6 @@ bool OnlineVisualizerComponent::Init() {
 }
 
 bool OnlineVisualizerComponent::InitConfig() {
-//  msf_config::Config msf_config;
-//  if (!apollo::cyber::common::GetProtoFromFile(config_file_path_,
-//                                                   &msf_config)) {
-//    return false;
-//  }
-//  AINFO << "Msf localization config: " << msf_config.DebugString();
-
-//  map_folder_ = msf_config.map_dir() + "/" + FLAGS_local_map_name;
   map_folder_ = FLAGS_map_dir + "/" + FLAGS_local_map_name;
   map_visual_folder_ = FLAGS_map_visual_dir;
   lidar_extrinsic_file_ = FLAGS_lidar_extrinsics_file;
@@ -69,10 +58,7 @@ bool OnlineVisualizerComponent::InitConfig() {
   lidar_local_topic_ = FLAGS_localization_lidar_topic;
   gnss_local_topic_ = FLAGS_localization_gnss_topic;
   fusion_local_topic_ = FLAGS_localization_topic;
-
-//  lidar_local_topic_ = msf_config.lidar_localization_topic();
-//  gnss_local_topic_ = msf_config.gnss_localization_topic();
-//  fusion_local_topic_ = msf_config.localization_topic();
+  ndt_local_topic_ = FLAGS_localization_ndt_topic;
 
   Eigen::Affine3d velodyne_extrinsic;
   bool success =
@@ -83,7 +69,7 @@ bool OnlineVisualizerComponent::InitConfig() {
   }
   std::cout << "Load lidar extrinsic succeed." << std::endl;
 
-  BaseMapConfig map_config;
+  pyramid_map::BaseMapConfig map_config;
   std::string config_file = map_folder_ + "/config.xml";
   map_config.map_version_ = "lossy_map";
   success = map_config.Load(config_file);
@@ -132,14 +118,21 @@ bool OnlineVisualizerComponent::InitIO() {
   fusion_local_listener_ = this->node_->CreateReader<LocalizationEstimate>(
       fusion_local_topic_, fusion_local_call);
 
+  // Ndt Localization
+  std::function<void(const std::shared_ptr<LocalizationEstimate> &)>
+      ndt_local_call =
+          std::bind(&OnlineVisualizerComponent::OnLidarLocalization, this,
+                    std::placeholders::_1);
+  lidar_local_listener_ = this->node_->CreateReader<LocalizationEstimate>(
+      ndt_local_topic_, ndt_local_call);
+
   return true;
 }
 
 bool OnlineVisualizerComponent::Proc(
     const std::shared_ptr<drivers::PointCloud> &msg) {
   LidarVisFrame lidar_vis_frame;
-  lidar_vis_frame.timestamp =
-      cyber::Time(msg->measurement_time()).ToSecond();
+  lidar_vis_frame.timestamp = cyber::Time(msg->measurement_time()).ToSecond();
 
   std::vector<unsigned char> intensities;
   ParsePointCloudMessage(msg, &lidar_vis_frame.pt3ds, &intensities);
@@ -256,7 +249,7 @@ void OnlineVisualizerComponent::ParsePointCloudMessage(
       }
     }
   } else {
-    AINFO << "Receiving un-origanized-point-cloud, width " << msg->width()
+    AINFO << "Receiving un-organized-point-cloud, width " << msg->width()
           << " height " << msg->height() << "size " << msg->point_size();
     for (int i = 0; i < msg->point_size(); ++i) {
       Eigen::Vector3d pt3d;
@@ -271,7 +264,6 @@ void OnlineVisualizerComponent::ParsePointCloudMessage(
       }
     }
   }
-  return;
 }
 
 }  // namespace msf

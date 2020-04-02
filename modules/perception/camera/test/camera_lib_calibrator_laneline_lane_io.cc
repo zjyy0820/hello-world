@@ -1,19 +1,21 @@
 /******************************************************************************
-* Copyright 2018 The Apollo Authors. All Rights Reserved.
-*
-* Licensed under the Apache License, Version 2.0 (the License);
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-* http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an AS IS BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*****************************************************************************/
+ * Copyright 2018 The Apollo Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the License);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *****************************************************************************/
 #include "modules/perception/camera/test/camera_lib_calibrator_laneline_lane_io.h"
+
+#include "absl/strings/str_split.h"
 
 namespace apollo {
 namespace perception {
@@ -42,11 +44,11 @@ bool ParseOneLaneLine(const std::string &s, LaneLine *lane_line) {
       Eigen::Vector2f pt;
       ss_temp << x;
       ss_temp >> pt(0);
-      assert(ss_temp.fail() == false);
+      assert(!ss_temp.fail());
       ss_temp.clear();
       ss_temp << y;
       ss_temp >> pt(1);
-      assert(ss_temp.fail() == false);
+      assert(!ss_temp.fail());
       ss_temp.clear();
       lane_line->lane_point.push_back(pt);
       i = j + 1;
@@ -110,22 +112,6 @@ bool LoadLaneDet(const std::string &filename, EgoLane *ego_lane) {
 //   return true;
 // }
 
-std::vector<std::string> Split(const std::string &s,
-                               const std::string &seperator) {
-  std::vector<std::string> result = {};
-  std::string::size_type pos2 = s.find(seperator);
-  std::string::size_type pos1 = 0;
-  while (std::string::npos != pos2) {
-    result.push_back(s.substr(pos1, pos2 - pos1));
-    pos1 = pos2 + seperator.size();
-    pos2 = s.find(seperator, pos1);
-  }
-  if (pos1 != s.length()) {
-    result.push_back(s.substr(pos1));
-  }
-  return result;
-}
-
 bool LoadCamera2WorldTfs(const std::string &filename,
                          std::vector<std::string> *frame_list,
                          std::vector<double> *time_stamps,
@@ -141,11 +127,10 @@ bool LoadCamera2WorldTfs(const std::string &filename,
   }
   std::stringstream ss_temp;
   std::string line;
-  std::string seperator = "\t";
   const int kLength = 18;  // 2 info items + 4 * 4 transform
   const int kShift = 2;
   while (getline(fin, line)) {
-    std::vector<std::string> tf_info = Split(line, seperator);
+    const std::vector<std::string> tf_info = absl::StrSplit(line, '\t');
     assert(tf_info.size() == kLength);
 
     frame_list->push_back(tf_info[0]);
@@ -165,7 +150,7 @@ bool LoadCamera2WorldTfs(const std::string &filename,
       float val = 0.0f;
       ss_temp << tf_info[i];
       ss_temp >> val;
-      assert(ss_temp.fail() == false);
+      assert(!ss_temp.fail());
       ss_temp.clear();
       tf(r, c) = val;
       // std::cout << val << std::endl;

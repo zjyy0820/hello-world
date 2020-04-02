@@ -19,10 +19,13 @@
 #include <memory>
 #include <thread>
 
+#include "gtest/gtest_prod.h"
+
 #include "modules/canbus/vehicle/vehicle_controller.h"
 
 #include "modules/canbus/proto/canbus_conf.pb.h"
 #include "modules/canbus/proto/chassis.pb.h"
+#include "modules/canbus/proto/chassis_detail.pb.h"
 #include "modules/canbus/proto/vehicle_parameter.pb.h"
 #include "modules/common/proto/error_code.pb.h"
 #include "modules/control/proto/control_cmd.pb.h"
@@ -67,6 +70,10 @@ class LexusController final : public VehicleController {
    */
   Chassis chassis() override;
 
+  FRIEND_TEST(LexusControllerTest, SetDrivingMode);
+  FRIEND_TEST(LexusControllerTest, Status);
+  FRIEND_TEST(LexusControllerTest, UpdateDrivingMode);
+
  private:
   // main logical function for operation the car enter or exit the auto driving
   void Emergency() override;
@@ -86,6 +93,10 @@ class LexusController final : public VehicleController {
   // drive with old acceleration
   // gas:0.00~99.99 unit:
   void Throttle(double throttle) override;
+
+  // drive with acceleration/deceleration
+  // acc:-7.0~5.0 unit:m/s^2
+  void Acceleration(double acc) override;
 
   // steering with old angle speed
   // angle:-99.99~0.00~99.99, unit:, left:+, right:-

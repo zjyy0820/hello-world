@@ -49,9 +49,9 @@ bool DstManager::AddApp(const std::string &app_name,
   }
   dst_data.init_ = true;
   BuildNamesMap(fod_subset_names, &dst_data);
-  map_mutex_.lock();
+
+  std::lock_guard<std::mutex> lock(map_mutex_);
   dst_common_data_[app_name] = dst_data;
-  map_mutex_.unlock();
   return true;
 }
 
@@ -64,7 +64,10 @@ bool DstManager::IsAppAdded(const std::string &app_name) {
 }
 
 DstCommonDataPtr DstManager::GetAppDataPtr(const std::string &app_name) {
-  CHECK(IsAppAdded(app_name));
+  if (!IsAppAdded(app_name)) {
+    AERROR << "app_name is not available";
+    return nullptr;
+  }
   auto iter = dst_common_data_.find(app_name);
   if (iter != dst_common_data_.end()) {
     return &iter->second;
@@ -179,8 +182,8 @@ void DstManager::BuildNamesMap(const std::vector<std::string> &fod_subset_names,
     dst_data->fod_subset_names_[i] =
         std::bitset<64>(dst_data->fod_subsets_[i]).to_string();
   }
-  // set fod to unkown
-  dst_data->fod_subset_names_[dst_data->fod_loc_] = "unkown";
+  // set fod to unknown
+  dst_data->fod_subset_names_[dst_data->fod_loc_] = "unknown";
   for (size_t i = 0;
        i < std::min(fod_subset_names.size(), dst_data->fod_subsets_.size());
        ++i) {
@@ -290,7 +293,7 @@ std::string Dst::PrintBba() const {
   for (const auto &fod_subset_name : fod_subset_names) {
     header += (boost::format("%20s") % fod_subset_name).str();
   }
-  res = res + header + "\n";
+  res += header + "\n";
   res += print_row("belief_mass", bba_vec_);
   // res += print_row("support", support_vec_);
   // res += print_row("uncertainty", uncertainty_vec_);
@@ -340,15 +343,14 @@ void Dst::ComputeProbability() const {
       dst_data_ptr_->fod_subset_cardinalities_;
   for (size_t i = 0; i < combination_relations.size(); ++i) {
     const auto &combination_pairs = combination_relations[i];
-    double intersection_card = static_cast<double>(
-                                   fod_subset_cardinalities[i]);
+    double intersection_card = static_cast<double>(fod_subset_cardinalities[i]);
     for (auto combination_pair : combination_pairs) {
       size_t a_ind = combination_pair.first;
       size_t b_ind = combination_pair.second;
       probability_vec_[a_ind] +=
-          intersection_card / static_cast<double>(
-                                  fod_subset_cardinalities[b_ind]) *
-                                  bba_vec_[b_ind];
+          intersection_card /
+          static_cast<double>(fod_subset_cardinalities[b_ind]) *
+          bba_vec_[b_ind];
     }
   }
 }

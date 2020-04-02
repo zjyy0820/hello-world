@@ -25,6 +25,7 @@
 
 #include "modules/prediction/container/adc_trajectory/adc_trajectory_container.h"
 #include "modules/prediction/container/obstacles/obstacle.h"
+#include "modules/prediction/container/obstacles/obstacles_container.h"
 #include "modules/prediction/proto/prediction_obstacle.pb.h"
 
 /**
@@ -47,21 +48,20 @@ class Predictor {
   virtual ~Predictor() = default;
 
   /**
-   * @brief Get prediction trajectories
-   */
-  virtual const std::vector<Trajectory>& trajectories();
-
-  /**
    * @brief Make prediction
    * @param Obstacle pointer
+   * @param Obstacles container
+   * @return If predicted successfully
    */
-  virtual void Predict(Obstacle* obstacle) = 0;
+  virtual bool Predict(const ADCTrajectoryContainer* adc_trajectory_container,
+                       Obstacle* obstacle,
+                       ObstaclesContainer* obstacles_container) = 0;
 
   /**
    * @brief Get trajectory size
    * @return Size of trajectories
    */
-  size_t NumOfTrajectories();
+  int NumOfTrajectories(const Obstacle& obstacle);
 
   /**
    * @brief Clear all trajectories
@@ -71,9 +71,16 @@ class Predictor {
   /**
    * @brief Trim prediction trajectories by adc trajectory
    * @param ADC trajectory container
+   * @param obstacle,
    */
-  void TrimTrajectories(const Obstacle* obstacle,
-                        const ADCTrajectoryContainer* adc_trajectory_container);
+  void TrimTrajectories(const ADCTrajectoryContainer& adc_trajectory_container,
+                        Obstacle* obstacle);
+
+  /**
+   * @brief get the predictor type
+   * @return the predictor type
+   */
+  const ObstacleConf::PredictorType& predictor_type();
 
  protected:
   /**
@@ -88,19 +95,21 @@ class Predictor {
    * @brief Set equal probability to prediction trajectories
    * @param probability total probability
    * @param start_index The start index to set equal probability
+   * @param obstacle
    */
-  void SetEqualProbability(const double probability, const size_t start_index);
+  void SetEqualProbability(const double probability, const int start_index,
+                           Obstacle* obstacle_ptr);
 
   /**
    * @brief Trim a single prediction trajectory,
    *        keep the portion that is not in junction.
    * @param adc_segments trajectory segments of ADC trajectory
+   * @param obstacle
    * @param trajectory The trimed prediction trajectory
    * @return If the prediction trajectory is trimed
    */
-  bool TrimTrajectory(const Obstacle* obstacle,
-                      const ADCTrajectoryContainer* adc_trajectory_container,
-                      Trajectory* trajectory);
+  bool TrimTrajectory(const ADCTrajectoryContainer& adc_trajectory_container,
+                      Obstacle* obstacle, Trajectory* trajectory);
 
   /**
    * @brief Determine if an obstacle is supposed to stop within a distance
@@ -113,7 +122,7 @@ class Predictor {
                       double* acceleration);
 
  protected:
-  std::vector<Trajectory> trajectories_;
+  ObstacleConf::PredictorType predictor_type_;
 };
 
 }  // namespace prediction

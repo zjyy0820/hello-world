@@ -4,15 +4,10 @@ package(default_visibility = ["//visibility:public"])
 
 cc_library(
     name = "roi_boundary_filter",
-    srcs = [
-        "roi_boundary_filter.cc",
-    ],
-    hdrs = [
-        "roi_boundary_filter.h",
-    ],
+    srcs = ["roi_boundary_filter.cc"],
+    hdrs = ["roi_boundary_filter.h"],
     deps = [
         "//cyber",
-        "//modules/common/util:file_util",
         "//modules/perception/base:point_cloud",
         "//modules/perception/common/geometry:common",
         "//modules/perception/lib/config_manager",
@@ -20,14 +15,13 @@ cc_library(
         "//modules/perception/proto:roi_boundary_filter_config_proto",
         "@eigen",
     ],
+    alwayslink = True,
 )
 
 cc_test(
     name = "roi_boundary_filter_test",
     size = "small",
-    srcs = [
-        "roi_boundary_filter_test.cc",
-    ],
+    srcs = ["roi_boundary_filter_test.cc"],
     deps = [
         ":roi_boundary_filter",
         "//modules/perception/common:perception_gflags",

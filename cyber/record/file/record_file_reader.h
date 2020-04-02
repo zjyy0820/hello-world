@@ -17,15 +17,16 @@
 #ifndef CYBER_RECORD_FILE_RECORD_FILE_READER_H_
 #define CYBER_RECORD_FILE_RECORD_FILE_READER_H_
 
-#include <google/protobuf/io/coded_stream.h>
-#include <google/protobuf/io/zero_copy_stream_impl.h>
-#include <google/protobuf/message.h>
-#include <google/protobuf/text_format.h>
 #include <fstream>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <utility>
+
+#include "google/protobuf/io/coded_stream.h"
+#include "google/protobuf/io/zero_copy_stream_impl.h"
+#include "google/protobuf/message.h"
+#include "google/protobuf/text_format.h"
 
 #include "cyber/common/log.h"
 #include "cyber/record/file/record_file_base.h"
@@ -42,30 +43,27 @@ using google::protobuf::io::ZeroCopyInputStream;
 
 class RecordFileReader : public RecordFileBase {
  public:
-  RecordFileReader();
-  virtual ~RecordFileReader();
+  RecordFileReader() = default;
+  virtual ~RecordFileReader() = default;
   bool Open(const std::string& path) override;
   void Close() override;
   bool Reset();
   bool ReadSection(Section* section);
-  bool SkipSection(uint64_t size);
+  bool SkipSection(int64_t size);
   template <typename T>
-  bool ReadSection(uint64_t size, T* message);
+  bool ReadSection(int64_t size, T* message);
   bool ReadIndex();
   bool EndOfFile() { return end_of_file_; }
 
  private:
   bool ReadHeader();
-  bool end_of_file_;
+  bool end_of_file_ = false;
 };
 
 template <typename T>
-bool RecordFileReader::ReadSection(uint64_t size, T* message) {
-  if (size > INT_MAX) {
-    AERROR << "Size is larger than " << INT_MAX;
-    return false;
-  } else if (size == 0) {
-    AERROR << "Size is zero.";
+bool RecordFileReader::ReadSection(int64_t size, T* message) {
+  if (size < INT_MIN || size > INT_MAX) {
+    AERROR << "Size value greater than the range of int value.";
     return false;
   }
   FileInputStream raw_input(fd_, static_cast<int>(size));

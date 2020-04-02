@@ -61,8 +61,8 @@ bool KalmanFilter::Init(const Eigen::VectorXd &initial_belief_states,
 
 bool KalmanFilter::Predict(const Eigen::MatrixXd &transform_matrix,
                            const Eigen::MatrixXd &env_uncertainty_matrix) {
-  if (init_ == false) {
-    AERROR << "Predict: Kalman Filter initalize not sucessfully";
+  if (!init_) {
+    AERROR << "Predict: Kalman Filter initialize not successfully";
     return false;
   }
   if (transform_matrix.rows() != states_num_) {
@@ -92,8 +92,8 @@ bool KalmanFilter::Predict(const Eigen::MatrixXd &transform_matrix,
 
 bool KalmanFilter::Correct(const Eigen::VectorXd &cur_observation,
                            const Eigen::MatrixXd &cur_observation_uncertainty) {
-  if (init_ == false) {
-    AERROR << "Correct: Kalman Filter initalize not sucessfully";
+  if (!init_) {
+    AERROR << "Correct: Kalman Filter initialize not successfully";
     return false;
   }
   if (cur_observation.rows() != states_num_) {
@@ -129,8 +129,8 @@ bool KalmanFilter::Correct(const Eigen::VectorXd &cur_observation,
 }
 
 bool KalmanFilter::SetControlMatrix(const Eigen::MatrixXd &control_matrix) {
-  if (init_ == false) {
-    AERROR << "SetControlMatrix: Kalman Filter initalize not sucessfully";
+  if (!init_) {
+    AERROR << "SetControlMatrix: Kalman Filter initialize not successfully";
     return false;
   }
   if (control_matrix.rows() != states_num_ ||

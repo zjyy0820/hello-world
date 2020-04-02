@@ -49,9 +49,14 @@ MAP_COLLECTION_DATA_TOPICS = [
     '/tf_static',
     '/apollo/sensor/camera/front_12mm/image/compressed',
     '/apollo/sensor/camera/front_6mm/image/compressed',
-    '/apollo/sensor/lidar16/front/center/PointCloud2',
+    '/apollo/sensor/lidar16/front/up/Scan',
+    '/apollo/sensor/lidar16/front/up/PointCloud2',
+    '/apollo/sensor/lidar16/front/up/compensator/PointCloud2',
     '/apollo/sensor/lidar128/PointCloud2',
     '/apollo/sensor/lidar128/compensator/PointCloud2',
+    '/apollo/sensor/velodyne64/PointCloud2',
+    '/apollo/sensor/velodyne64/compensator/PointCloud2',
+    '/apollo/sensor/velodyne64/VelodyneScan',
 ]
 
 def shell_cmd(cmd, alert_on_failure=True):

@@ -73,7 +73,6 @@ void LocalizationGnssProcess::SetDefaultOption() {
   gnss_lever_arm_.arm_x = -0.030;
   gnss_lever_arm_.arm_y = 0.338;
   gnss_lever_arm_.arm_z = 1.291;
-  return;
 }
 
 void LocalizationGnssProcess::RawObservationProcess(
@@ -136,7 +135,7 @@ void LocalizationGnssProcess::RawEphemerisProcess(
   auto gnss_orbit = msg;
   if (gnss_orbit.gnss_type() == drivers::gnss::GnssType::GLO_SYS) {
     /* caros driver (derived from rtklib src) set glonass eph toe as the GPST,
-     * and here convert it back to UTC(+0), so leap seconds shoudl be in
+     * and here convert it back to UTC(+0), so leap seconds should be in
      * accordance with the GNSS-Driver
      */
     double leap_sec =
@@ -157,7 +156,6 @@ void LocalizationGnssProcess::RawEphemerisProcess(
   GnssEphemerisMsg gnss_orbit_msg;
   GnssMagTransfer::Transfer(gnss_orbit, &gnss_orbit_msg);
   gnss_solver_->save_gnss_ephemris(gnss_orbit_msg);
-  return;
 }
 
 void LocalizationGnssProcess::IntegSinsPvaProcess(const InsPva &sins_pva_msg,
@@ -191,7 +189,6 @@ void LocalizationGnssProcess::IntegSinsPvaProcess(const InsPva &sins_pva_msg,
 
   gnss_solver_->motion_update(sec_s, llh, std_pos, velocity, std_vel, euler,
                               lever_arm);
-  return;
 }
 
 LocalizationMeasureState LocalizationGnssProcess::GetResult(
@@ -316,7 +313,7 @@ bool LocalizationGnssProcess::GnssPosition(EpochObservationMsg *raw_rover_obs) {
   }
   LogPnt(gnss_pnt_result_, gnss_solver_->get_ratio());
   if (!sins_align_finish_) {
-    AWARN << "Sins-ekf has not converged or finished its aligment!";
+    AWARN << "Sins-ekf has not converged or finished its alignment!";
   }
   if (gnss_pnt_result_.has_std_pos_x_m() &&
       gnss_pnt_result_.has_std_pos_y_m() &&

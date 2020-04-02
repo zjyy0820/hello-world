@@ -6,6 +6,7 @@ import "modules/common/proto/header.proto";
 import "modules/common/proto/vehicle_signal.proto";
 import "modules/common/proto/drive_state.proto";
 import "modules/common/proto/geometry.proto";
+import "modules/common/configs/proto/vehicle_config.proto";
 
 // next id :31
 message Chassis {
@@ -27,6 +28,12 @@ message Chassis {
     // car chassis report error, like steer, brake, throttle, gear fault
     CHASSIS_ERROR = 2;
 
+    // classify the types of the car chassis errors
+    CHASSIS_ERROR_ON_STEER = 6;
+    CHASSIS_ERROR_ON_BRAKE = 7;
+    CHASSIS_ERROR_ON_THROTTLE = 8;
+    CHASSIS_ERROR_ON_GEAR = 9;
+
     MANUAL_INTERVENTION = 3;  // human manual intervention
 
     // receive car chassis can frame not in period
@@ -46,22 +53,31 @@ message Chassis {
   }
 
   optional bool engine_started = 3;
+
   // Engine speed in RPM.
   optional float engine_rpm = 4 [default = nan];
+
   // Vehicle Speed in meters per second.
   optional float speed_mps = 5 [default = nan];
+
   // Vehicle odometer in meters.
   optional float odometer_m = 6 [default = nan];
+
   // Fuel range in meters.
   optional int32 fuel_range_m = 7;
+
   // Real throttle location in [%], ranging from 0 to 100.
   optional float throttle_percentage = 8 [default = nan];
+
   // Real brake location in [%], ranging from 0 to 100.
   optional float brake_percentage = 9 [default = nan];
-  // Real gear location.
-  // optional int32 gear_location = 10; deprecated use enum replace this [id 23]
-  // Real steering location in [%], ranging from 0 to 100.
+
+  // Real steering location in [%], ranging from -100 to 100.
+  // steering_angle / max_steering_angle
+  // Clockwise: negative
+  // CountClockwise: positive
   optional float steering_percentage = 11 [default = nan];
+
   // Applied steering torque in [Nm].
   optional float steering_torque_nm = 12 [default = nan];
 
@@ -101,7 +117,13 @@ message Chassis {
   optional Surround surround = 31;
 
   // Vehicle registration information
-  optional License license = 32;
+  optional License license = 32 [deprecated = true];
+
+  // Real gear location.
+  // optional int32 gear_location = 10 [deprecated = true]; deprecated use enum
+  // replace this [id 23]
+
+  optional apollo.common.VehicleID vehicle_id = 33;
 }
 
 message ChassisGPS {
@@ -191,5 +213,5 @@ message Surround {
 }
 
 message License {
-  optional string vin = 1;
+  optional string vin = 1 [deprecated = true];
 }

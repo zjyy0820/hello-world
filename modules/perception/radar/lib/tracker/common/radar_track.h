@@ -1,18 +1,18 @@
 /******************************************************************************
-* Copyright 2018 The Apollo Authors. All Rights Reserved.
-*
-* Licensed under the Apache License, Version 2.0 (the License);
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-* http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an AS IS BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*****************************************************************************/
+ * Copyright 2018 The Apollo Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the License);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *****************************************************************************/
 #pragma once
 
 #include <memory>
@@ -34,7 +34,7 @@ namespace radar {
 
 class RadarTrack {
  public:
-  explicit RadarTrack(const base::ObjectPtr &obs, const double timestamp);
+  RadarTrack(const base::ObjectPtr &obs, const double timestamp);
   ~RadarTrack() {}
   // update the object after association with a radar obervation
   void UpdataObsRadar(const base::ObjectPtr &obs_radar, const double timestamp);
@@ -46,9 +46,7 @@ class RadarTrack {
   double GetTrackingTime();
   bool IsDead() { return is_dead_; }
   void SetDead() { is_dead_ = true; }
-  bool ConfirmTrack() {
-    return (tracked_times_ > s_tracked_times_threshold_) ? true : false;
-  }
+  bool ConfirmTrack() { return tracked_times_ > s_tracked_times_threshold_; }
   static void SetTrackedTimesThreshold(const int &threshold) {
     s_tracked_times_threshold_ = threshold;
   }

@@ -52,12 +52,13 @@ Eigen::Matrix<T, N, N> PseudoInverse(const Eigen::Matrix<T, N, N> &m,
                                      const double epsilon = 1.0e-6) {
   Eigen::JacobiSVD<Eigen::Matrix<T, N, N>> svd(
       m, Eigen::ComputeFullU | Eigen::ComputeFullV);
-  return static_cast<Eigen::Matrix<T, N, N>>(svd.matrixV() *
-         (svd.singularValues().array().abs() > epsilon)
-             .select(svd.singularValues().array().inverse(), 0)
-             .matrix()
-             .asDiagonal() *
-         svd.matrixU().adjoint());
+  return static_cast<Eigen::Matrix<T, N, N>>(
+      svd.matrixV() *
+      (svd.singularValues().array().abs() > epsilon)
+          .select(svd.singularValues().array().inverse(), 0)
+          .matrix()
+          .asDiagonal() *
+      svd.matrixU().adjoint());
 }
 
 /**
@@ -141,7 +142,7 @@ template <typename T, int M, int N, typename D>
 void DenseToCSCMatrix(const Eigen::Matrix<T, M, N> &dense_matrix,
                       std::vector<T> *data, std::vector<D> *indices,
                       std::vector<D> *indptr) {
-  constexpr double epsilon = 1e-9;
+  static constexpr double epsilon = 1e-9;
   int data_count = 0;
   for (int c = 0; c < dense_matrix.cols(); ++c) {
     indptr->emplace_back(data_count);

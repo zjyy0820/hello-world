@@ -7,8 +7,8 @@ cc_library(
     srcs = ["node.cc"],
     hdrs = ["node.h"],
     deps = [
-        "node_channel_impl",
-        "node_service_impl",
+        ":node_channel_impl",
+        ":node_service_impl",
     ],
 )
 
@@ -16,8 +16,8 @@ cc_library(
     name = "node_channel_impl",
     hdrs = ["node_channel_impl.h"],
     deps = [
-        "reader",
-        "writer",
+        ":reader",
+        ":writer",
         "//cyber/blocker:intra_reader",
         "//cyber/blocker:intra_writer",
         "//cyber/common:global_data",
@@ -26,12 +26,23 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "node_channel_impl_test",
+    size = "small",
+    srcs = ["node_channel_impl_test.cc"],
+    deps = [
+        "//cyber",
+        "//cyber/proto:unit_test_cc_proto",
+        "@gtest//:main",
+    ],
+)
+
 cc_library(
     name = "node_service_impl",
     hdrs = ["node_service_impl.h"],
     deps = [
-        "reader",
-        "writer",
+        ":reader",
+        ":writer",
         "//cyber/common:global_data",
         "//cyber/service",
         "//cyber/service:client",
@@ -42,9 +53,7 @@ cc_library(
 cc_test(
     name = "node_test",
     size = "small",
-    srcs = [
-        "node_test.cc",
-    ],
+    srcs = ["node_test.cc"],
     deps = [
         "//cyber",
         "//cyber/proto:unit_test_cc_proto",
@@ -56,7 +65,7 @@ cc_library(
     name = "reader",
     hdrs = ["reader.h"],
     deps = [
-        "reader_base",
+        ":reader_base",
         "//cyber/blocker",
         "//cyber/common:global_data",
         "//cyber/croutine:routine_factory",
@@ -78,11 +87,22 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "reader_test",
+    size = "small",
+    srcs = ["reader_test.cc"],
+    deps = [
+        "//cyber",
+        "//cyber/proto:unit_test_cc_proto",
+        "@gtest",
+    ],
+)
+
 cc_library(
     name = "writer",
     hdrs = ["writer.h"],
     deps = [
-        "writer_base",
+        ":writer_base",
         "//cyber/common:log",
         "//cyber/proto:topology_change_cc_proto",
         "//cyber/service_discovery:topology_manager",
@@ -106,6 +126,18 @@ cc_test(
     srcs = ["writer_reader_test.cc"],
     deps = [
         "//cyber",
+        "//cyber/proto:unit_test_cc_proto",
+        "@gtest",
+    ],
+)
+
+cc_test(
+    name = "writer_test",
+    size = "small",
+    srcs = ["writer_test.cc"],
+    deps = [
+        "//cyber",
+        "//cyber/node:writer_base",
         "//cyber/proto:unit_test_cc_proto",
         "@gtest",
     ],

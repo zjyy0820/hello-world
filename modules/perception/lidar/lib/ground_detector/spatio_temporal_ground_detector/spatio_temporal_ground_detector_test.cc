@@ -14,8 +14,8 @@
  * limitations under the License.
  *****************************************************************************/
 
-#include <gtest/gtest.h>
-#include <pcl/io/pcd_io.h>
+#include "gtest/gtest.h"
+#include "pcl/io/pcd_io.h"
 
 #define private public
 #include "modules/perception/lidar/lib/ground_detector/spatio_temporal_ground_detector/spatio_temporal_ground_detector.h"
@@ -42,8 +42,8 @@ bool LoadPCDFile(const std::string& file_path, base::PointFCloudPtr cloud_out) {
   cloud_out->resize(org_cloud.size());
   int pid = 0;
   for (size_t i = 0; i < org_cloud.size(); ++i) {
-    if (isnan(org_cloud.at(i).x) || isnan(org_cloud.at(i).y) ||
-        isnan(org_cloud.at(i).z)) {
+    if (std::isnan(org_cloud.at(i).x) || std::isnan(org_cloud.at(i).y) ||
+        std::isnan(org_cloud.at(i).z)) {
       continue;
     }
     base::PointF& pt = cloud_out->at(pid++);

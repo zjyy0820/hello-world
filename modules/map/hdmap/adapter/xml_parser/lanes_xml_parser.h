@@ -50,8 +50,14 @@ class LanesXmlParser {
   static Status ParseSpeed(const tinyxml2::XMLElement& xml_node, PbLane* lane);
   static Status ParseSampleAssociates(const tinyxml2::XMLElement& xml_node,
                                       PbLane* lane);
+  static Status ParseSingleSideRoadSampleAssociates(
+      const tinyxml2::XMLElement& xml_node, bool bleft, PbLane* lane);
+  static Status ParseLeftRoadSampleAssociates(
+      const tinyxml2::XMLElement& xml_node, PbLane* lane);
+  static Status ParseRightRoadSampleAssociates(
+      const tinyxml2::XMLElement& xml_node, PbLane* lane);
   static Status ParseRoadSampleAssociates(const tinyxml2::XMLElement& xml_node,
-                                      PbLane* lane);
+                                          PbLane* lane);
   static Status ParseObjectOverlapGroup(
       const tinyxml2::XMLElement& xml_node,
       std::vector<OverlapWithLane>* object_overlaps);
@@ -70,15 +76,15 @@ class LanesXmlParser {
   static Status ToPbDirection(const std::string& type,
                               PbLaneDirection* pb_direction);
 
-  static void ParseLaneLink(const tinyxml2::XMLElement& xml_node,
-                            PbLane* lane);
+  static void ParseLaneLink(const tinyxml2::XMLElement& xml_node, PbLane* lane);
   static Status ParseLaneBorderMark(const tinyxml2::XMLElement& xml_node,
                                     PbLaneBoundaryTypeType* boundary_type);
   static Status ToPbLaneMarkType(const std::string& type,
                                  const std::string& color,
                                  PbLaneBoundaryTypeType* boundary_type);
-  static Status ParseRegionOverlap(const tinyxml2::XMLElement& xml_node,
-                                std::vector<PbRegionOverlap>* region_overlaps);
+  static Status ParseRegionOverlap(
+      const tinyxml2::XMLElement& xml_node,
+      std::vector<PbRegionOverlap>* region_overlaps);
 };
 
 }  // namespace adapter

@@ -26,15 +26,12 @@
 #include "modules/localization/proto/localization.pb.h"
 #include "modules/perception/proto/traffic_light_detection.pb.h"
 #include "modules/planning/common/planning_gflags.h"
+#include "modules/planning/planning_base.h"
 #include "modules/planning/proto/pad_msg.pb.h"
 #include "modules/planning/proto/planning.pb.h"
 #include "modules/planning/proto/planning_config.pb.h"
 #include "modules/prediction/proto/prediction_obstacle.pb.h"
 #include "modules/routing/proto/routing.pb.h"
-
-#include "modules/planning/open_space_planning.h"
-#include "modules/planning/planning_base.h"
-#include "modules/planning/std_planning.h"
 
 namespace apollo {
 namespace planning {
@@ -60,10 +57,11 @@ class PlanningComponent final
   void CheckRerouting();
   bool CheckInput();
 
+ private:
   std::shared_ptr<cyber::Reader<perception::TrafficLightDetection>>
       traffic_light_reader_;
   std::shared_ptr<cyber::Reader<routing::RoutingResponse>> routing_reader_;
-  std::shared_ptr<cyber::Reader<planning::PadMessage>> pad_message_reader_;
+  std::shared_ptr<cyber::Reader<planning::PadMessage>> pad_msg_reader_;
   std::shared_ptr<cyber::Reader<relative_map::MapMsg>> relative_map_reader_;
 
   std::shared_ptr<cyber::Writer<ADCTrajectory>> planning_writer_;
@@ -72,7 +70,7 @@ class PlanningComponent final
   std::mutex mutex_;
   perception::TrafficLightDetection traffic_light_;
   routing::RoutingResponse routing_;
-  PadMessage pad_message_;
+  planning::PadMessage pad_msg_;
   relative_map::MapMsg relative_map_;
 
   LocalView local_view_;

@@ -15,16 +15,18 @@
  *****************************************************************************/
 #include "modules/perception/onboard/component/fusion_camera_detection_component.h"
 
-#include <boost/format.hpp>
-#include <yaml-cpp/yaml.h>
+#include "absl/strings/str_cat.h"
+#include "boost/algorithm/string.hpp"
+#include "boost/format.hpp"
+#include "yaml-cpp/yaml.h"
 
+#include "cyber/common/file.h"
 #include "cyber/common/log.h"
 #include "modules/common/math/math_utils.h"
+#include "modules/common/time/time.h"
 #include "modules/common/time/time_util.h"
-#include "modules/common/util/file.h"
 #include "modules/perception/common/perception_gflags.h"
 #include "modules/perception/common/sensor_manager/sensor_manager.h"
-#include "modules/perception/lib/utils/time_util.h"
 #include "modules/perception/onboard/common_flags/common_flags.h"
 #include "modules/perception/onboard/component/camera_perception_viz_message.h"
 
@@ -32,16 +34,25 @@ namespace apollo {
 namespace perception {
 namespace onboard {
 
-using apollo::common::util::GetAbsolutePath;
+using apollo::cyber::common::GetAbsolutePath;
+
+static void fill_lane_msg(const base::LaneLineCubicCurve &curve_coord,
+                          apollo::perception::LaneMarker *lane_marker) {
+  lane_marker->set_c0_position(curve_coord.d);
+  lane_marker->set_c1_heading_angle(curve_coord.c);
+  lane_marker->set_c2_curvature(curve_coord.b);
+  lane_marker->set_c3_curvature_derivative(curve_coord.a);
+  lane_marker->set_longitude_start(curve_coord.x_start);
+  lane_marker->set_longitude_end(curve_coord.x_end);
+}
 
 static int GetGpuId(const camera::CameraPerceptionInitOptions &options) {
   camera::app::PerceptionParam perception_param;
-  std::string work_root = "";
-  camera::GetCyberWorkRoot(&work_root);
+  std::string work_root = camera::GetCyberWorkRoot();
   std::string config_file =
       GetAbsolutePath(options.root_dir, options.conf_file);
   config_file = GetAbsolutePath(work_root, config_file);
-  if (!apollo::common::util::GetProtoFromFile(config_file, &perception_param)) {
+  if (!cyber::common::GetProtoFromFile(config_file, &perception_param)) {
     AERROR << "Read config failed: " << config_file;
     return -1;
   }
@@ -85,8 +96,8 @@ bool SetCameraHeight(const std::string &sensor_name,
 // @description: load camera extrinsics from yaml file
 bool LoadExtrinsics(const std::string &yaml_file,
                     Eigen::Matrix4d *camera_extrinsic) {
-  if (!apollo::common::util::PathExists(yaml_file)) {
-    AINFO << yaml_file << " not exist!";
+  if (!apollo::cyber::common::PathExists(yaml_file)) {
+    AINFO << yaml_file << " does not exist!";
     return false;
   }
   YAML::Node node = YAML::LoadFile(yaml_file);
@@ -142,6 +153,7 @@ bool GetProjectMatrix(
     const std::map<std::string, Eigen::Matrix4d> &extrinsic_map,
     const std::map<std::string, Eigen::Matrix3f> &intrinsic_map,
     Eigen::Matrix3d *project_matrix, double *pitch_diff = nullptr) {
+  // TODO(techoe): This condition should be removed.
   if (camera_names.size() != 2) {
     AINFO << "camera number must be 2!";
     return false;
@@ -166,16 +178,19 @@ bool GetProjectMatrix(
 FusionCameraDetectionComponent::~FusionCameraDetectionComponent() {}
 
 bool FusionCameraDetectionComponent::Init() {
-  // TODO(someone): read output-channel name from config
-  writer_ = node_->CreateWriter<PerceptionObstacles>("/perception/obstacles");
-  sensorframe_writer_ = node_->CreateWriter<SensorFrameMessage>(
-      "/perception/inner/PrefusedObjects");
-  camera_viz_writer_ = node_->CreateWriter<CameraPerceptionVizMessage>(
-      "/perception/inner/camera_viz_msg");
   if (InitConfig() != cyber::SUCC) {
     AERROR << "InitConfig() failed.";
     return false;
   }
+  writer_ =
+      node_->CreateWriter<PerceptionObstacles>(output_obstacles_channel_name_);
+  sensorframe_writer_ =
+      node_->CreateWriter<SensorFrameMessage>(prefused_channel_name_);
+  camera_viz_writer_ = node_->CreateWriter<CameraPerceptionVizMessage>(
+      camera_perception_viz_message_channel_name_);
+  camera_debug_writer_ =
+      node_->CreateWriter<apollo::perception::camera::CameraDebug>(
+          camera_debug_channel_name_);
   if (InitSensorInfo() != cyber::SUCC) {
     AERROR << "InitSensorInfo() failed.";
     return false;
@@ -196,7 +211,49 @@ bool FusionCameraDetectionComponent::Init() {
     AERROR << "InitCameraListeners() failed.";
     return false;
   }
+  if (InitMotionService() != cyber::SUCC) {
+    AERROR << "InitMotionService() failed.";
+    return false;
+  }
+
   SetCameraHeightAndPitch();
+
+  // Init visualizer
+  // TODO(techoe, yg13): homography from image to ground should be
+  // computed from camera height and pitch.
+  // Apply online calibration to adjust pitch/height automatically
+  // Temporary code is used here for test
+
+  double pitch_adj_degree = 0.0;
+  double yaw_adj_degree = 0.0;
+  double roll_adj_degree = 0.0;
+  // load in lidar to imu extrinsic
+  Eigen::Matrix4d ex_lidar2imu;
+  LoadExtrinsics(FLAGS_obs_sensor_intrinsic_path + "/" +
+                     "velodyne128_novatel_extrinsics.yaml",
+                 &ex_lidar2imu);
+  AINFO << "velodyne128_novatel_extrinsics: " << ex_lidar2imu;
+
+  CHECK(visualize_.Init_all_info_single_camera(
+      camera_names_, visual_camera_, intrinsic_map_, extrinsic_map_,
+      ex_lidar2imu, pitch_adj_degree, yaw_adj_degree, roll_adj_degree,
+      image_height_, image_width_));
+
+  homography_im2car_ = visualize_.homography_im2car(visual_camera_);
+  camera_obstacle_pipeline_->SetIm2CarHomography(homography_im2car_);
+
+  if (enable_cipv_) {
+    cipv_.Init(homography_im2car_, min_laneline_length_for_cipv_,
+               average_lane_width_in_meter_, max_vehicle_width_in_meter_,
+               average_frame_rate_, image_based_cipv_, debug_level_);
+  }
+
+  if (enable_visualization_) {
+    if (write_visual_img_) {
+      visualize_.write_out_img_ = true;
+      visualize_.SetDirectory(visual_debug_folder_);
+    }
+  }
 
   return true;
 }
@@ -207,8 +264,7 @@ void FusionCameraDetectionComponent::OnReceiveImage(
   std::lock_guard<std::mutex> lock(mutex_);
   const double msg_timestamp = message->measurement_time() + timestamp_offset_;
   AINFO << "Enter FusionCameraDetectionComponent::Proc(), "
-        << " camera_name: " << camera_name
-        << " image ts: " + std::to_string(msg_timestamp);
+        << " camera_name: " << camera_name << " image ts: " << msg_timestamp;
   // timestamp should be almost monotonic
   if (last_timestamp_ - msg_timestamp > ts_diff_) {
     AINFO << "Received an old message. Last ts is " << std::setprecision(19)
@@ -221,7 +277,7 @@ void FusionCameraDetectionComponent::OnReceiveImage(
 
   // for e2e lantency statistics
   {
-    const double cur_time = lib::TimeUtil::GetCurrentTime();
+    const double cur_time = apollo::common::time::Clock::NowInSeconds();
     const double start_latency = (cur_time - message->measurement_time()) * 1e3;
     AINFO << "FRAME_STATISTICS:Camera:Start:msg_time[" << camera_name << "-"
           << GLOG_TIMESTAMP(message->measurement_time()) << "]:cur_time["
@@ -241,8 +297,8 @@ void FusionCameraDetectionComponent::OnReceiveImage(
   if (InternalProc(message, camera_name, &error_code, prefused_message.get(),
                    out_message.get()) != cyber::SUCC) {
     AERROR << "InternalProc failed, error_code: " << error_code;
-    if (MakeProtobufMsg(msg_timestamp, seq_num_, std::vector<base::ObjectPtr>(),
-                        error_code, out_message.get()) != cyber::SUCC) {
+    if (MakeProtobufMsg(msg_timestamp, seq_num_, {}, {}, error_code,
+                        out_message.get()) != cyber::SUCC) {
       AERROR << "MakeProtobufMsg failed";
       return;
     }
@@ -252,18 +308,16 @@ void FusionCameraDetectionComponent::OnReceiveImage(
     return;
   }
 
-  bool send_sensorframe_ret =
-      sensorframe_writer_->Write(prefused_message);
-  AINFO << "send out prefused msg, ts: " << std::to_string(msg_timestamp)
-      << "ret: " << send_sensorframe_ret;
+  bool send_sensorframe_ret = sensorframe_writer_->Write(prefused_message);
+  AINFO << "send out prefused msg, ts: " << msg_timestamp
+        << "ret: " << send_sensorframe_ret;
   // Send output msg
   if (output_final_obstacles_) {
     writer_->Write(out_message);
   }
   // for e2e lantency statistics
   {
-    const double end_timestamp =
-        apollo::perception::lib::TimeUtil::GetCurrentTime();
+    const double end_timestamp = apollo::common::time::Clock::NowInSeconds();
     const double end_latency =
         (end_timestamp - message->measurement_time()) * 1e3;
     AINFO << "FRAME_STATISTICS:Camera:End:msg_time[" << camera_name << "-"
@@ -317,19 +371,37 @@ int FusionCameraDetectionComponent::InitConfig() {
   camera_perception_viz_message_channel_name_ =
       fusion_camera_detection_param
           .camera_perception_viz_message_channel_name();
+  visual_debug_folder_ = fusion_camera_detection_param.visual_debug_folder();
+  visual_camera_ = fusion_camera_detection_param.visual_camera();
   output_final_obstacles_ =
       fusion_camera_detection_param.output_final_obstacles();
   prefused_channel_name_ =
       fusion_camera_detection_param.prefused_channel_name();
   default_camera_pitch_ =
-    static_cast<float>(fusion_camera_detection_param.default_camera_pitch());
+      static_cast<float>(fusion_camera_detection_param.default_camera_pitch());
   default_camera_height_ =
-    static_cast<float>(fusion_camera_detection_param.default_camera_height());
+      static_cast<float>(fusion_camera_detection_param.default_camera_height());
   output_camera_debug_msg_ =
       fusion_camera_detection_param.output_camera_debug_msg();
   camera_debug_channel_name_ =
       fusion_camera_detection_param.camera_debug_channel_name();
   ts_diff_ = fusion_camera_detection_param.ts_diff();
+  write_visual_img_ = fusion_camera_detection_param.write_visual_img();
+
+  min_laneline_length_for_cipv_ = static_cast<float>(
+      fusion_camera_detection_param.min_laneline_length_for_cipv());
+  average_lane_width_in_meter_ = static_cast<float>(
+      fusion_camera_detection_param.average_lane_width_in_meter());
+  max_vehicle_width_in_meter_ = static_cast<float>(
+      fusion_camera_detection_param.max_vehicle_width_in_meter());
+  average_frame_rate_ =
+      static_cast<float>(fusion_camera_detection_param.average_frame_rate());
+
+  image_based_cipv_ =
+      static_cast<float>(fusion_camera_detection_param.image_based_cipv());
+
+  debug_level_ = static_cast<int>(fusion_camera_detection_param.debug_level());
+  enable_cipv_ = fusion_camera_detection_param.enable_cipv();
 
   std::string format_str = R"(
       FusionCameraDetectionComponent InitConfig success
@@ -342,16 +414,20 @@ int FusionCameraDetectionComponent::InitConfig() {
       enable_visualization:    %d
       output_obstacles_channel_name:    %s
       camera_perception_viz_message_channel_name:    %s
+      visual_debug_folder_:     %s
+      visual_camera_:     %s
       output_final_obstacles:    %s
-      prefused_channel_name:    %s)";
+      prefused_channel_name:    %s
+      write_visual_img_:    %s)";
   std::string config_info_str =
       str(boost::format(format_str.c_str()) % camera_names_[0] %
           camera_names_[1] % camera_perception_init_options_.root_dir %
           camera_perception_init_options_.conf_file % frame_capacity_ %
           image_channel_num_ % enable_undistortion_ % enable_visualization_ %
           output_obstacles_channel_name_ %
-          camera_perception_viz_message_channel_name_ %
-          output_final_obstacles_ % prefused_channel_name_);
+          camera_perception_viz_message_channel_name_ % visual_debug_folder_ %
+          visual_camera_ % output_final_obstacles_ % prefused_channel_name_ %
+          write_visual_img_);
   AINFO << config_info_str;
 
   return cyber::SUCC;
@@ -363,7 +439,7 @@ int FusionCameraDetectionComponent::InitSensorInfo() {
     return cyber::FAIL;
   }
 
-  auto* sensor_manager = common::SensorManager::Instance();
+  auto *sensor_manager = common::SensorManager::Instance();
   for (size_t i = 0; i < camera_names_.size(); ++i) {
     if (!sensor_manager->IsSensorExist(camera_names_[i])) {
       AERROR << ("sensor_name: " + camera_names_[i] + " not exists.");
@@ -399,7 +475,7 @@ int FusionCameraDetectionComponent::InitSensorInfo() {
       image_channel_num: %d)";
   std::string sensor_info_str =
       str(boost::format(format_str.c_str()) % camera_names_[0] %
-          camera_names_[0] % tf_camera_frame_id_map_[camera_names_[0]] %
+          camera_names_[1] % tf_camera_frame_id_map_[camera_names_[0]] %
           tf_camera_frame_id_map_[camera_names_[1]] % image_width_ %
           image_height_ % image_channel_num_);
   AINFO << sensor_info_str;
@@ -413,6 +489,7 @@ int FusionCameraDetectionComponent::InitAlgorithmPlugin() {
     AERROR << "camera_obstacle_pipeline_->Init() failed";
     return cyber::FAIL;
   }
+  AINFO << "camera_obstacle_pipeline_->Init() succeed";
   return cyber::SUCC;
 }
 
@@ -423,7 +500,7 @@ int FusionCameraDetectionComponent::InitCameraFrames() {
   }
   // fixed size
   camera_frames_.resize(frame_capacity_);
-  if (camera_frames_.size() == 0) {
+  if (camera_frames_.empty()) {
     AERROR << "frame_capacity_ must > 0";
     return cyber::FAIL;
   }
@@ -453,8 +530,8 @@ int FusionCameraDetectionComponent::InitCameraFrames() {
   //  init extrinsic/intrinsic
   for (const auto &camera_name : camera_names_) {
     base::BaseCameraModelPtr model;
-    model = common::SensorManager::Instance()->GetUndistortCameraModel(
-        camera_name);
+    model =
+        common::SensorManager::Instance()->GetUndistortCameraModel(camera_name);
     auto pinhole = static_cast<base::PinholeCameraModel *>(model.get());
     Eigen::Matrix3f intrinsic = pinhole->get_intrinsic_params();
     intrinsic_map_[camera_name] = intrinsic;
@@ -465,6 +542,8 @@ int FusionCameraDetectionComponent::InitCameraFrames() {
                        "_extrinsics.yaml",
                    &extrinsic);
     extrinsic_map_[camera_name] = extrinsic;
+    AINFO << "#extrinsics of " << camera_name << ": "
+          << extrinsic_map_[camera_name];
   }
 
   // Init camera height
@@ -479,6 +558,7 @@ int FusionCameraDetectionComponent::InitCameraFrames() {
     frame.track_feature_blob.reset(new base::Blob<float>());
     frame.lane_detected_blob.reset(new base::Blob<float>());
   }
+
   return cyber::SUCC;
 }
 
@@ -513,6 +593,62 @@ int FusionCameraDetectionComponent::InitCameraListeners() {
   return cyber::SUCC;
 }
 
+int FusionCameraDetectionComponent::InitMotionService() {
+  const std::string &channel_name_local = "/apollo/perception/motion_service";
+  std::function<void(const MotionServiceMsgType &)> motion_service_callback =
+      std::bind(&FusionCameraDetectionComponent::OnMotionService, this,
+                std::placeholders::_1);
+  auto motion_service_reader =
+      node_->CreateReader(channel_name_local, motion_service_callback);
+  // initialize motion buffer
+  if (motion_buffer_ == nullptr) {
+    motion_buffer_ = std::make_shared<base::MotionBuffer>(motion_buffer_size_);
+  } else {
+    motion_buffer_->set_capacity(motion_buffer_size_);
+  }
+  return cyber::SUCC;
+}
+
+// On receiving motion service input, convert it to motion_buff_
+void FusionCameraDetectionComponent::OnMotionService(
+    const MotionServiceMsgType &message) {
+  // Comment: use the circular buff to do it smartly, only push the latest
+  // circular_buff only saves only the incremental motion between frames.
+  // motion_service is now hard-coded for camera front 6mm
+  base::VehicleStatus vehicledata;
+  vehicledata.roll_rate = message->vehicle_status()[0].roll_rate();
+  vehicledata.pitch_rate = message->vehicle_status()[0].pitch_rate();
+  vehicledata.yaw_rate = message->vehicle_status()[0].yaw_rate();
+  vehicledata.velocity = message->vehicle_status()[0].velocity();
+  vehicledata.velocity_x = message->vehicle_status()[0].velocity_x();
+  vehicledata.velocity_y = message->vehicle_status()[0].velocity_y();
+  vehicledata.velocity_z = message->vehicle_status()[0].velocity_z();
+  vehicledata.time_ts = message->vehicle_status()[0].time_ts();
+  vehicledata.time_d = message->vehicle_status()[0].time_d();
+
+  base::MotionType motion_2d = base::MotionType::Identity();
+  motion_2d(0, 0) = message->vehicle_status()[0].motion().m00();
+  motion_2d(0, 1) = message->vehicle_status()[0].motion().m01();
+  motion_2d(0, 2) = message->vehicle_status()[0].motion().m02();
+  motion_2d(0, 3) = message->vehicle_status()[0].motion().m03();
+  motion_2d(1, 0) = message->vehicle_status()[0].motion().m10();
+  motion_2d(1, 1) = message->vehicle_status()[0].motion().m11();
+  motion_2d(1, 2) = message->vehicle_status()[0].motion().m12();
+  motion_2d(1, 3) = message->vehicle_status()[0].motion().m13();
+  motion_2d(2, 0) = message->vehicle_status()[0].motion().m20();
+  motion_2d(2, 1) = message->vehicle_status()[0].motion().m21();
+  motion_2d(2, 2) = message->vehicle_status()[0].motion().m22();
+  motion_2d(2, 3) = message->vehicle_status()[0].motion().m23();
+  motion_2d(3, 0) = message->vehicle_status()[0].motion().m30();
+  motion_2d(3, 1) = message->vehicle_status()[0].motion().m31();
+  motion_2d(3, 2) = message->vehicle_status()[0].motion().m32();
+  motion_2d(3, 3) = message->vehicle_status()[0].motion().m33();
+  vehicledata.motion = motion_2d;
+
+  motion_buffer_->push_back(vehicledata);
+  // TODO(@yg13): output motion in text file
+}
+
 void FusionCameraDetectionComponent::SetCameraHeightAndPitch() {
   camera_obstacle_pipeline_->SetCameraHeightAndPitch(
       camera_height_map_, name_camera_pitch_angle_diff_map_,
@@ -541,14 +677,16 @@ int FusionCameraDetectionComponent::InternalProc(
   Eigen::Affine3d camera2world_trans;
   if (!camera2world_trans_wrapper_map_[camera_name]->GetSensor2worldTrans(
           msg_timestamp, &camera2world_trans)) {
-    std::string err_str = "failed to get camera to world pose, ts: " +
-                          std::to_string(msg_timestamp) +
-                          " camera_name: " + camera_name;
+    const std::string err_str =
+        absl::StrCat("failed to get camera to world pose, ts: ", msg_timestamp,
+                     " camera_name: ", camera_name);
     AERROR << err_str;
     *error_code = apollo::common::ErrorCode::PERCEPTION_ERROR_TF;
     prefused_message->error_code_ = *error_code;
     return cyber::FAIL;
   }
+  Eigen::Affine3d world2camera = camera2world_trans.inverse();
+
   prefused_message->frame_->sensor2world_pose = camera2world_trans;
 
   // Fill camera frame
@@ -577,7 +715,7 @@ int FusionCameraDetectionComponent::InternalProc(
   if (!camera_obstacle_pipeline_->Perception(camera_perception_options_,
                                              &camera_frame)) {
     AERROR << "camera_obstacle_pipeline_->Perception() failed"
-           << " msg_timestamp: " << std::to_string(msg_timestamp);
+           << " msg_timestamp: " << msg_timestamp;
     *error_code = apollo::common::ErrorCode::PERCEPTION_ERROR_PROCESS;
     prefused_message->error_code_ = *error_code;
     return cyber::FAIL;
@@ -599,16 +737,15 @@ int FusionCameraDetectionComponent::InternalProc(
   // process success, make pb msg
   if (output_final_obstacles_ &&
       MakeProtobufMsg(msg_timestamp, seq_num_, camera_frame.tracked_objects,
-                      *error_code, out_message) != cyber::SUCC) {
-    AERROR << "MakeProtobufMsg failed"
-           << " ts: " << std::to_string(msg_timestamp);
+                      camera_frame.lane_objects, *error_code,
+                      out_message) != cyber::SUCC) {
+    AERROR << "MakeProtobufMsg failed ts: " << msg_timestamp;
     *error_code = apollo::common::ErrorCode::PERCEPTION_ERROR_UNKNOWN;
     prefused_message->error_code_ = *error_code;
     return cyber::FAIL;
   }
   *error_code = apollo::common::ErrorCode::OK;
   prefused_message->error_code_ = *error_code;
-
   prefused_message->frame_->camera_frame_supplement.on_use = true;
   if (FLAGS_obs_enable_visualization) {
     camera::DataProvider::ImageOptions image_options;
@@ -622,10 +759,37 @@ int FusionCameraDetectionComponent::InternalProc(
         prefused_message->frame_->camera_frame_supplement.image_blob.get());
   }
 
+  //  Determine CIPV
+  if (enable_cipv_) {
+    CipvOptions cipv_options;
+    if (motion_buffer_ != nullptr) {
+      if (motion_buffer_->size() == 0) {
+        AWARN << "motion_buffer_ is empty";
+        cipv_options.velocity = 5.0f;
+        cipv_options.yaw_rate = 0.0f;
+      } else {
+        cipv_options.velocity = motion_buffer_->back().velocity;
+        cipv_options.yaw_rate = motion_buffer_->back().yaw_rate;
+      }
+      ADEBUG << "[CIPV] velocity " << cipv_options.velocity
+             << ", yaw rate: " << cipv_options.yaw_rate;
+      cipv_.DetermineCipv(camera_frame.lane_objects, cipv_options, world2camera,
+                          &camera_frame.tracked_objects);
+
+      // Get Drop points
+      if (motion_buffer_->size() > 0) {
+        cipv_.CollectDrops(motion_buffer_, world2camera,
+                           &camera_frame.tracked_objects);
+      } else {
+        AWARN << "motion_buffer is empty";
+      }
+    }
+  }
+
   // Send msg for visualization
   if (enable_visualization_) {
     camera::DataProvider::ImageOptions image_options;
-    image_options.target_color = base::Color::RGB;
+    image_options.target_color = base::Color::BGR;
     std::shared_ptr<base::Blob<uint8_t>> image_blob(new base::Blob<uint8_t>);
     camera_frame.data_provider->GetImageBlob(image_options, image_blob.get());
     std::shared_ptr<CameraPerceptionVizMessage> viz_msg(
@@ -634,8 +798,30 @@ int FusionCameraDetectionComponent::InternalProc(
             camera_frame.tracked_objects, camera_frame.lane_objects,
             *error_code));
     bool send_viz_ret = camera_viz_writer_->Write(viz_msg);
-    AINFO << "send out camera visualization msg, ts: "
-        << std::to_string(msg_timestamp) << " send_viz_ret: " << send_viz_ret;
+    AINFO << "send out camera visualization msg, ts: " << msg_timestamp
+          << " send_viz_ret: " << send_viz_ret;
+
+    cv::Mat output_image(image_height_, image_width_, CV_8UC3,
+                         cv::Scalar(0, 0, 0));
+    base::Image8U out_image(image_height_, image_width_, base::Color::RGB);
+    camera_frame.data_provider->GetImage(image_options, &out_image);
+    memcpy(output_image.data, out_image.cpu_data(),
+           out_image.total() * sizeof(uint8_t));
+    visualize_.ShowResult_all_info_single_camera(output_image, camera_frame,
+                                                 motion_buffer_, world2camera);
+  }
+
+  // send out camera debug message
+  if (output_camera_debug_msg_) {
+    // camera debug msg
+    std::shared_ptr<apollo::perception::camera::CameraDebug> camera_debug_msg(
+        new (std::nothrow) apollo::perception::camera::CameraDebug);
+    if (MakeCameraDebugMsg(msg_timestamp, camera_name, camera_frame,
+                           camera_debug_msg.get()) != cyber::SUCC) {
+      AERROR << "make camera_debug_msg failed";
+      return cyber::FAIL;
+    }
+    camera_debug_writer_->Write(camera_debug_msg);
   }
 
   return cyber::SUCC;
@@ -644,9 +830,10 @@ int FusionCameraDetectionComponent::InternalProc(
 int FusionCameraDetectionComponent::MakeProtobufMsg(
     double msg_timestamp, int seq_num,
     const std::vector<base::ObjectPtr> &objects,
+    const std::vector<base::LaneLine> &lane_objects,
     const apollo::common::ErrorCode error_code,
     apollo::perception::PerceptionObstacles *obstacles) {
-  double publish_time = apollo::cyber::Time::Now().ToSecond();
+  double publish_time = apollo::common::time::Clock::NowInSeconds();
   apollo::common::Header *header = obstacles->mutable_header();
   header->set_timestamp_sec(publish_time);
   header->set_module_name("perception_camera");
@@ -657,6 +844,7 @@ int FusionCameraDetectionComponent::MakeProtobufMsg(
   header->set_camera_timestamp(static_cast<uint64_t>(msg_timestamp * 1e9));
   // header->set_radar_timestamp(0);
 
+  // write out obstacles in world coordinates
   obstacles->set_error_code(error_code);
   for (const auto &obj : objects) {
     apollo::perception::PerceptionObstacle *obstacle =
@@ -666,6 +854,40 @@ int FusionCameraDetectionComponent::MakeProtobufMsg(
       return cyber::FAIL;
     }
   }
+
+  // write out lanes in ego coordinates
+  apollo::perception::LaneMarkers *lane_markers =
+      obstacles->mutable_lane_marker();
+  apollo::perception::LaneMarker *lane_marker_l0 =
+      lane_markers->mutable_left_lane_marker();
+  apollo::perception::LaneMarker *lane_marker_r0 =
+      lane_markers->mutable_right_lane_marker();
+  apollo::perception::LaneMarker *lane_marker_l1 =
+      lane_markers->add_next_left_lane_marker();
+  apollo::perception::LaneMarker *lane_marker_r1 =
+      lane_markers->add_next_right_lane_marker();
+
+  for (const auto &lane : lane_objects) {
+    base::LaneLineCubicCurve curve_coord = lane.curve_car_coord;
+
+    switch (lane.pos_type) {
+      case base::LaneLinePositionType::EGO_LEFT:
+        fill_lane_msg(curve_coord, lane_marker_l0);
+        break;
+      case base::LaneLinePositionType::EGO_RIGHT:
+        fill_lane_msg(curve_coord, lane_marker_r0);
+        break;
+      case base::LaneLinePositionType::ADJACENT_LEFT:
+        fill_lane_msg(curve_coord, lane_marker_l1);
+        break;
+      case base::LaneLinePositionType::ADJACENT_RIGHT:
+        fill_lane_msg(curve_coord, lane_marker_r1);
+        break;
+      default:
+        break;
+    }
+  }
+
   return cyber::SUCC;
 }
 
@@ -745,6 +967,175 @@ int FusionCameraDetectionComponent::ConvertObjectToPb(
     light_status->set_right_turn_switch_on(car_light.right_turn_switch_on);
   }
 
+  return cyber::SUCC;
+}
+
+int FusionCameraDetectionComponent::ConvertObjectToCameraObstacle(
+    const base::ObjectPtr &object_ptr,
+    apollo::perception::camera::CameraObstacle *camera_obstacle) {
+  if (camera_obstacle == nullptr) {
+    AERROR << "camera_obstacle is not available";
+    return false;
+  }
+  apollo::perception::PerceptionObstacle *obstacle =
+      camera_obstacle->mutable_obstacle();
+  ConvertObjectToPb(object_ptr, obstacle);
+
+  camera_obstacle->set_type(
+      static_cast<apollo::perception::camera::CameraObstacle::CameraType>(
+          object_ptr->type));
+  for (const auto &prob : object_ptr->type_probs) {
+    camera_obstacle->add_type_probs(prob);
+  }
+  camera_obstacle->mutable_upper_left()->set_x(
+      object_ptr->camera_supplement.box.xmin);
+  camera_obstacle->mutable_upper_left()->set_y(
+      object_ptr->camera_supplement.box.ymin);
+  camera_obstacle->mutable_lower_right()->set_x(
+      object_ptr->camera_supplement.box.xmax);
+  camera_obstacle->mutable_lower_right()->set_y(
+      object_ptr->camera_supplement.box.ymax);
+
+  std::stringstream type_score_msg;
+  type_score_msg << apollo::perception::camera::CameraObstacle::CameraType_Name(
+                        camera_obstacle->type())
+                 << ": "
+                 << camera_obstacle->type_probs(camera_obstacle->type());
+  camera_obstacle->add_debug_message(type_score_msg.str());
+
+  return cyber::SUCC;
+}
+
+int FusionCameraDetectionComponent::ConvertLaneToCameraLaneline(
+    const base::LaneLine &lane_line,
+    apollo::perception::camera::CameraLaneLine *camera_laneline) {
+  if (camera_laneline == nullptr) {
+    AERROR << "camera_laneline is not available";
+    return false;
+  }
+  // fill the lane line attribute
+  apollo::perception::camera::LaneLineType line_type =
+      static_cast<apollo::perception::camera::LaneLineType>(lane_line.type);
+  camera_laneline->set_type(line_type);
+  apollo::perception::camera::LaneLinePositionType pos_type =
+      static_cast<apollo::perception::camera::LaneLinePositionType>(
+          lane_line.pos_type);
+  camera_laneline->set_pos_type(pos_type);
+  camera_laneline->set_track_id(lane_line.track_id);
+  camera_laneline->set_confidence(lane_line.confidence);
+  apollo::perception::camera::LaneLineUseType use_type =
+      static_cast<apollo::perception::camera::LaneLineUseType>(
+          lane_line.use_type);
+  camera_laneline->set_use_type(use_type);
+  // fill the curve camera coord
+  camera_laneline->mutable_curve_camera_coord()->set_longitude_min(
+      lane_line.curve_camera_coord.x_start);
+  camera_laneline->mutable_curve_camera_coord()->set_longitude_max(
+      lane_line.curve_camera_coord.x_end);
+  camera_laneline->mutable_curve_camera_coord()->set_a(
+      lane_line.curve_camera_coord.a);
+  camera_laneline->mutable_curve_camera_coord()->set_b(
+      lane_line.curve_camera_coord.b);
+  camera_laneline->mutable_curve_camera_coord()->set_c(
+      lane_line.curve_camera_coord.c);
+  camera_laneline->mutable_curve_camera_coord()->set_d(
+      lane_line.curve_camera_coord.d);
+  // fill the curve image coord
+  camera_laneline->mutable_curve_image_coord()->set_longitude_min(
+      lane_line.curve_image_coord.x_start);
+  camera_laneline->mutable_curve_image_coord()->set_longitude_max(
+      lane_line.curve_image_coord.x_end);
+  camera_laneline->mutable_curve_image_coord()->set_a(
+      lane_line.curve_image_coord.a);
+  camera_laneline->mutable_curve_image_coord()->set_b(
+      lane_line.curve_image_coord.b);
+  camera_laneline->mutable_curve_image_coord()->set_c(
+      lane_line.curve_image_coord.c);
+  camera_laneline->mutable_curve_image_coord()->set_d(
+      lane_line.curve_image_coord.d);
+  // fill the curve image point set
+  for (size_t i = 0; i < lane_line.curve_image_point_set.size(); i++) {
+    const base::Point2DF &image_point2d = lane_line.curve_image_point_set[i];
+    apollo::common::Point2D *lane_point_2d =
+        camera_laneline->add_curve_image_point_set();
+    lane_point_2d->set_x(image_point2d.x);
+    lane_point_2d->set_y(image_point2d.y);
+  }
+  // fill the curve camera point set
+  for (size_t i = 0; i < lane_line.curve_camera_point_set.size(); i++) {
+    const base::Point3DF &point3d = lane_line.curve_camera_point_set[i];
+    apollo::common::Point3D *lane_point_3d =
+        camera_laneline->add_curve_camera_point_set();
+    lane_point_3d->set_x(point3d.x);
+    lane_point_3d->set_y(point3d.y);
+    lane_point_3d->set_z(point3d.z);
+  }
+  // fill the line end point set
+  for (size_t i = 0; i < lane_line.image_end_point_set.size(); i++) {
+    const base::EndPoints &end_points = lane_line.image_end_point_set[i];
+    apollo::perception::camera::EndPoints *lane_end_points =
+        camera_laneline->add_image_end_point_set();
+    lane_end_points->mutable_start()->set_x(end_points.start.x);
+    lane_end_points->mutable_start()->set_y(end_points.start.y);
+    lane_end_points->mutable_end()->set_x(end_points.end.x);
+    lane_end_points->mutable_end()->set_y(end_points.end.y);
+  }
+  return cyber::SUCC;
+}
+
+int FusionCameraDetectionComponent::MakeCameraDebugMsg(
+    double msg_timestamp, const std::string &camera_name,
+    const camera::CameraFrame &camera_frame,
+    apollo::perception::camera::CameraDebug *camera_debug_msg) {
+  if (camera_debug_msg == nullptr) {
+    AERROR << "camera_debug_msg is not available";
+    return false;
+  }
+
+  auto itr = std::find(camera_names_.begin(), camera_names_.end(), camera_name);
+  if (itr == camera_names_.end()) {
+    AERROR << "invalid camera_name: " << camera_name;
+    return cyber::FAIL;
+  }
+  int input_camera_channel_names_idx =
+      static_cast<int>(itr - camera_names_.begin());
+  int input_camera_channel_names_size =
+      static_cast<int>(input_camera_channel_names_.size());
+  if (input_camera_channel_names_idx < 0 ||
+      input_camera_channel_names_idx >= input_camera_channel_names_size) {
+    AERROR << "invalid input_camera_channel_names_idx: "
+           << input_camera_channel_names_idx
+           << " input_camera_channel_names_.size(): "
+           << input_camera_channel_names_.size();
+    return cyber::FAIL;
+  }
+  std::string source_channel_name =
+      input_camera_channel_names_[input_camera_channel_names_idx];
+  camera_debug_msg->set_source_topic(source_channel_name);
+
+  // Fill header info.
+  apollo::common::Header *header = camera_debug_msg->mutable_header();
+  header->set_camera_timestamp(static_cast<uint64_t>(msg_timestamp * 1.0e9));
+
+  // Fill the tracked objects
+  const std::vector<base::ObjectPtr> &objects = camera_frame.tracked_objects;
+  for (const auto &obj : objects) {
+    apollo::perception::camera::CameraObstacle *camera_obstacle =
+        camera_debug_msg->add_camera_obstacle();
+    ConvertObjectToCameraObstacle(obj, camera_obstacle);
+  }
+
+  // Fill the laneline objects
+  const std::vector<base::LaneLine> &lane_objects = camera_frame.lane_objects;
+  for (const auto &lane_obj : lane_objects) {
+    apollo::perception::camera::CameraLaneLine *camera_laneline =
+        camera_debug_msg->add_camera_laneline();
+    ConvertLaneToCameraLaneline(lane_obj, camera_laneline);
+  }
+
+  // Fill the calibrator information(pitch angle)
+  float pitch_angle = camera_frame.calibration_service->QueryPitchAngle();
+  camera_debug_msg->mutable_camera_calibrator()->set_pitch_angle(pitch_angle);
   return cyber::SUCC;
 }
 

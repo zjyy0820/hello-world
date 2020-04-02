@@ -20,6 +20,7 @@
 #include <list>
 #include <map>
 
+#include "cyber/common/file.h"
 #include "google/protobuf/repeated_field.h"
 
 #include "modules/common/math/quaternion.h"
@@ -27,9 +28,11 @@
 #include "modules/common/vehicle_state/vehicle_state_provider.h"
 #include "modules/map/hdmap/hdmap_util.h"
 #include "modules/planning/common/ego_info.h"
+#include "modules/planning/common/history.h"
 #include "modules/planning/common/planning_context.h"
 #include "modules/planning/common/planning_gflags.h"
-#include "modules/planning/common/trajectory/trajectory_stitcher.h"
+#include "modules/planning/common/trajectory_stitcher.h"
+#include "modules/planning/common/util/util.h"
 #include "modules/planning/planner/navi/navi_planner.h"
 #include "modules/planning/planner/rtk/rtk_replay_planner.h"
 #include "modules/planning/reference_line/reference_line_provider.h"
@@ -46,26 +49,13 @@ using apollo::common::VehicleStateProvider;
 using apollo::common::time::Clock;
 using apollo::hdmap::HDMapUtil;
 
-namespace {
-
-bool IsVehicleStateValid(const VehicleState& vehicle_state) {
-  if (std::isnan(vehicle_state.x()) || std::isnan(vehicle_state.y()) ||
-      std::isnan(vehicle_state.z()) || std::isnan(vehicle_state.heading()) ||
-      std::isnan(vehicle_state.kappa()) ||
-      std::isnan(vehicle_state.linear_velocity()) ||
-      std::isnan(vehicle_state.linear_acceleration())) {
-    return false;
-  }
-  return true;
-}
-}  // namespace
-
 NaviPlanning::~NaviPlanning() {
   last_publishable_trajectory_.reset(nullptr);
   frame_.reset(nullptr);
   planner_.reset(nullptr);
   FrameHistory::Instance()->Clear();
-  PlanningContext::MutablePlanningStatus()->Clear();
+  History::Instance()->Clear();
+  PlanningContext::Instance()->mutable_planning_status()->Clear();
 }
 
 std::string NaviPlanning::Name() const { return "navi_planning"; }
@@ -81,13 +71,16 @@ Status NaviPlanning::Init(const PlanningConfig& config) {
 
   planner_dispatcher_->Init();
 
-  CHECK(apollo::common::util::GetProtoFromFile(
+  CHECK(apollo::cyber::common::GetProtoFromFile(
       FLAGS_traffic_rule_config_filename, &traffic_rule_configs_))
       << "Failed to load traffic rule config file "
       << FLAGS_traffic_rule_config_filename;
 
+  // clear planning history
+  History::Instance()->Clear();
+
   // clear planning status
-  PlanningContext::MutablePlanningStatus()->Clear();
+  PlanningContext::Instance()->mutable_planning_status()->Clear();
 
   planner_ = planner_dispatcher_->DispatchPlanner();
   if (!planner_) {
@@ -101,12 +94,9 @@ Status NaviPlanning::Init(const PlanningConfig& config) {
 
 Status NaviPlanning::InitFrame(const uint32_t sequence_num,
                                const TrajectoryPoint& planning_start_point,
-                               const double start_time,
-                               const VehicleState& vehicle_state,
-                               ADCTrajectory* output_trajectory) {
+                               const VehicleState& vehicle_state) {
   frame_.reset(new Frame(sequence_num, local_view_, planning_start_point,
-                         start_time, vehicle_state,
-                         reference_line_provider_.get(), output_trajectory));
+                         vehicle_state, reference_line_provider_.get()));
 
   std::list<ReferenceLine> reference_lines;
   std::list<hdmap::RouteSegments> segments;
@@ -134,15 +124,16 @@ void NaviPlanning::RunOnce(const LocalView& local_view,
   // recreate reference line provider in every cycle
   hdmap_ = HDMapUtil::BaseMapPtr(*local_view.relative_map);
   // Prefer "std::make_unique" to direct use of "new".
-  // Reference "https://herbsutter.com/gotw/_102/" for details.
-  reference_line_provider_ = std::make_unique<ReferenceLineProvider>(hdmap_);
+  // Refer to "https://herbsutter.com/gotw/_102/" for details.
+  reference_line_provider_ =
+      std::make_unique<ReferenceLineProvider>(hdmap_, local_view_.relative_map);
 
   // localization
-  ADEBUG << "Get localization:"
+  ADEBUG << "Get localization: "
          << local_view_.localization_estimate->DebugString();
 
   // chassis
-  ADEBUG << "Get chassis:" << local_view_.chassis->DebugString();
+  ADEBUG << "Get chassis: " << local_view_.chassis->DebugString();
 
   Status status = VehicleStateProvider::Instance()->Update(
       *local_view_.localization_estimate, *local_view_.chassis);
@@ -175,8 +166,8 @@ void NaviPlanning::RunOnce(const LocalView& local_view,
   // differs only a small amount (20ms). When the different is too large, the
   // estimation is invalid.
   DCHECK_GE(start_timestamp, vehicle_state.timestamp());
-  if (FLAGS_estimate_current_vehicle_state &&
-      start_timestamp - vehicle_state.timestamp() < 0.020) {
+  if (start_timestamp - vehicle_state.timestamp() <
+      FLAGS_message_latency_threshold) {
     auto future_xy = VehicleStateProvider::Instance()->EstimateFuturePosition(
         start_timestamp - vehicle_state.timestamp());
     vehicle_state.set_x(future_xy.x());
@@ -188,11 +179,13 @@ void NaviPlanning::RunOnce(const LocalView& local_view,
                         ->mutable_main_decision()
                         ->mutable_not_ready();
 
-  if (!status.ok() || !IsVehicleStateValid(vehicle_state)) {
+  if (!status.ok() || !util::IsVehicleStateValid(vehicle_state)) {
     std::string msg("Update VehicleStateProvider failed");
     AERROR << msg;
     not_ready->set_reason(msg);
     status.Save(trajectory_pb->mutable_header()->mutable_status());
+    // TODO(all): integrate reverse gear
+    trajectory_pb->set_gear(canbus::Chassis::GEAR_DRIVE);
     FillPlanningPb(start_timestamp, trajectory_pb);
     return;
   }
@@ -203,16 +196,19 @@ void NaviPlanning::RunOnce(const LocalView& local_view,
   std::string replan_reason;
   stitching_trajectory = TrajectoryStitcher::ComputeStitchingTrajectory(
       vehicle_state, start_timestamp, planning_cycle_time,
+      FLAGS_trajectory_stitching_preserved_length, true,
       last_publishable_trajectory_.get(), &replan_reason);
 
   const uint32_t frame_num = static_cast<uint32_t>(seq_num_++);
-  status = InitFrame(frame_num, stitching_trajectory.back(), start_timestamp,
-                     vehicle_state, trajectory_pb);
+  status = InitFrame(frame_num, stitching_trajectory.back(), vehicle_state);
+
   if (!frame_) {
     std::string msg("Failed to init frame");
     AERROR << msg;
     not_ready->set_reason(msg);
     status.Save(trajectory_pb->mutable_header()->mutable_status());
+    // TODO(all): integrate reverse gear
+    trajectory_pb->set_gear(canbus::Chassis::GEAR_DRIVE);
     FillPlanningPb(start_timestamp, trajectory_pb);
     return;
   }
@@ -236,6 +232,8 @@ void NaviPlanning::RunOnce(const LocalView& local_view,
       estop->set_is_estop(true);
       estop->set_reason(status.error_message());
       status.Save(estop_trajectory.mutable_header()->mutable_status());
+      // TODO(all): integrate reverse gear
+      trajectory_pb->set_gear(canbus::Chassis::GEAR_DRIVE);
       FillPlanningPb(start_timestamp, &estop_trajectory);
     } else {
       trajectory_pb->mutable_decision()
@@ -243,10 +241,12 @@ void NaviPlanning::RunOnce(const LocalView& local_view,
           ->mutable_not_ready()
           ->set_reason(status.ToString());
       status.Save(trajectory_pb->mutable_header()->mutable_status());
+      // TODO(all): integrate reverse gear
+      trajectory_pb->set_gear(canbus::Chassis::GEAR_DRIVE);
       FillPlanningPb(start_timestamp, trajectory_pb);
     }
 
-    frame_->mutable_trajectory()->CopyFrom(*trajectory_pb);
+    frame_->set_current_frame_planned_trajectory(*trajectory_pb);
     auto seq_num = frame_->SequenceNum();
     FrameHistory::Instance()->Add(seq_num, std::move(frame_));
 
@@ -255,7 +255,8 @@ void NaviPlanning::RunOnce(const LocalView& local_view,
 
   // Use planning pad message to make driving decisions
   if (FLAGS_enable_planning_pad_msg) {
-    ProcessPadMsg(driving_action_);
+    const auto& pad_msg_driving_action = frame_->GetPadMsgDrivingAction();
+    ProcessPadMsg(pad_msg_driving_action);
   }
 
   for (auto& ref_line_info : *frame_->mutable_reference_line_info()) {
@@ -301,6 +302,8 @@ void NaviPlanning::RunOnce(const LocalView& local_view,
   }
 
   trajectory_pb->set_is_replan(stitching_trajectory.size() == 1);
+  // TODO(all): integrate reverse gear
+  trajectory_pb->set_gear(canbus::Chassis::GEAR_DRIVE);
   FillPlanningPb(start_timestamp, trajectory_pb);
   ADEBUG << "Planning pb:" << trajectory_pb->header().DebugString();
 
@@ -308,19 +311,11 @@ void NaviPlanning::RunOnce(const LocalView& local_view,
   FrameHistory::Instance()->Add(seq_num, std::move(frame_));
 }
 
-void NaviPlanning::OnPad(const PadMessage& pad) {
-  ADEBUG << "Received Planning Pad Msg:" << pad.DebugString();
-  AERROR_IF(!pad.has_action()) << "pad message check failed!";
-  driving_action_ = pad.action();
-  is_received_pad_msg_ = true;
-}
-
 void NaviPlanning::ProcessPadMsg(DrivingAction drvie_action) {
   if (config_.has_navigation_planning_config()) {
     std::map<std::string, uint32_t> lane_id_to_priority;
     auto& ref_line_info_group = *frame_->mutable_reference_line_info();
-    if (is_received_pad_msg_) {
-      is_received_pad_msg_ = false;
+    if (drvie_action != DrivingAction::NONE) {
       using LaneInfoPair = std::pair<std::string, double>;
       std::string current_lane_id;
       switch (drvie_action) {
@@ -368,8 +363,8 @@ void NaviPlanning::ProcessPadMsg(DrivingAction drvie_action) {
     }
 
     if (!target_lane_id_.empty()) {
-      constexpr uint32_t KTargetRefLinePriority = 0;
-      constexpr uint32_t kOtherRefLinePriority = 10;
+      static constexpr uint32_t KTargetRefLinePriority = 0;
+      static constexpr uint32_t kOtherRefLinePriority = 10;
       for (auto& ref_line_info : ref_line_info_group) {
         auto lane_id = ref_line_info.Lanes().Id();
         ADEBUG << "lane_id : " << lane_id;
@@ -403,7 +398,6 @@ std::string NaviPlanning::GetCurrentLaneId() {
 
 void NaviPlanning::GetLeftNeighborLanesInfo(
     std::vector<std::pair<std::string, double>>* const lane_info_group) {
-  DCHECK_NOTNULL(lane_info_group);
   auto& ref_line_info_group = *frame_->mutable_reference_line_info();
   const auto& vehicle_state = frame_->vehicle_state();
   for (auto& ref_line_info : ref_line_info_group) {
@@ -418,7 +412,7 @@ void NaviPlanning::GetLeftNeighborLanesInfo(
     double y = ref_point.y();
     // in FLU positive on the left
     if (y > 0.0) {
-      lane_info_group->emplace_back(std::make_pair(lane_id, y));
+      lane_info_group->emplace_back(lane_id, y);
     }
   }
   // sort neighbor lanes from near to far
@@ -431,7 +425,6 @@ void NaviPlanning::GetLeftNeighborLanesInfo(
 
 void NaviPlanning::GetRightNeighborLanesInfo(
     std::vector<std::pair<std::string, double>>* const lane_info_group) {
-  DCHECK_NOTNULL(lane_info_group);
   auto& ref_line_info_group = *frame_->mutable_reference_line_info();
   const auto& vehicle_state = frame_->vehicle_state();
   for (auto& ref_line_info : ref_line_info_group) {
@@ -446,7 +439,7 @@ void NaviPlanning::GetRightNeighborLanesInfo(
     double y = ref_point.y();
     // in FLU negative on the right
     if (y < 0.0) {
-      lane_info_group->emplace_back(std::make_pair(lane_id, y));
+      lane_info_group->emplace_back(lane_id, y);
     }
   }
 
@@ -478,14 +471,14 @@ Status NaviPlanning::Plan(
     const double current_time_stamp,
     const std::vector<TrajectoryPoint>& stitching_trajectory,
     ADCTrajectory* const trajectory_pb) {
-  CHECK_NOTNULL(trajectory_pb);
   auto* ptr_debug = trajectory_pb->mutable_debug();
   if (FLAGS_enable_record_debug) {
     ptr_debug->mutable_planning_data()->mutable_init_point()->CopyFrom(
         stitching_trajectory.back());
   }
 
-  auto status = planner_->Plan(stitching_trajectory.back(), frame_.get());
+  auto status =
+      planner_->Plan(stitching_trajectory.back(), frame_.get(), trajectory_pb);
 
   ExportReferenceLineDebug(ptr_debug);
 
@@ -543,16 +536,19 @@ Status NaviPlanning::Plan(
   last_publishable_trajectory_.reset(new PublishableTrajectory(
       current_time_stamp, best_ref_info->trajectory()));
 
-  ADEBUG << "current_time_stamp: " << std::to_string(current_time_stamp);
+  ADEBUG << "current_time_stamp: " << current_time_stamp;
 
-  // Navi Panner doesn't need to stitch the last path planning
+  // Navi Planner doesn't need to stitch the last path planning
   // trajectory.Otherwise, it will cause the Dreamview planning track to display
   // flashing or bouncing
+  // TODO(Yifei): remove this if navi-planner doesn't need stitching
+  /**
   if (FLAGS_enable_stitch_last_trajectory) {
     last_publishable_trajectory_->PrependTrajectoryPoints(
         std::vector<TrajectoryPoint>(stitching_trajectory.begin(),
                                      stitching_trajectory.end() - 1));
   }
+  **/
 
   for (size_t i = 0; i < last_publishable_trajectory_->NumOfPoints(); ++i) {
     if (last_publishable_trajectory_->TrajectoryPointAt(i).relative_time() >
@@ -576,7 +572,7 @@ Status NaviPlanning::Plan(
   frame_.reset(nullptr);
   planner_.reset(nullptr);
   FrameHistory::Instance()->Clear();
- PlanningContext::MutablePlanningStatus()->Clear();
+ PlanningContext::Instance()->mutable_planning_status()->Clear();
 }*/
 
 NaviPlanning::VehicleConfig NaviPlanning::ComputeVehicleConfigFromLocalization(

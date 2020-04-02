@@ -29,8 +29,8 @@ namespace lidar {
 static const float kEpsilon = 1e-6f;
 static const float kEpsilonForSize = 1e-2f;
 static const float kEpsilonForLine = 1e-3f;
-using apollo::perception::base::PointF;
 using apollo::perception::base::PointD;
+using apollo::perception::base::PointF;
 using ObjectPtr = std::shared_ptr<apollo::perception::base::Object>;
 using PointFCloud = apollo::perception::base::PointCloud<PointF>;
 using PolygonDType = apollo::perception::base::PointCloud<PointD>;
@@ -49,11 +49,9 @@ bool ObjectBuilder::Build(const ObjectBuilderOptions& options,
     if (objects->at(i)) {
       objects->at(i)->id = static_cast<int>(i);
       ComputePolygon2D(objects->at(i));
+      ComputePolygonSizeCenter(objects->at(i));
+      ComputeOtherObjectInformation(objects->at(i));
     }
-  }
-  for (size_t i = 0; i < objects->size(); ++i) {
-    ComputePolygonSizeCenter(objects->at(i));
-    ComputeOtherObjectInformation(objects->at(i));
   }
   return true;
 }
@@ -93,23 +91,23 @@ void ObjectBuilder::ComputePolygonSizeCenter(ObjectPtr object) {
   common::CalculateBBoxSizeCenter2DXY(object->lidar_supplement.cloud, dir,
                                       &(object->size), &(object->center));
   if (object->lidar_supplement.is_background) {
-    float length = object->size[0];
-    float width = object->size[1];
-    Eigen::Matrix<float, 3, 1> ortho_dir(-object->direction[1],
-                                         object->direction[0], 0.0);
+    float length = object->size(0);
+    float width = object->size(1);
+    Eigen::Matrix<float, 3, 1> ortho_dir(-object->direction(1),
+                                         object->direction(0), 0.0);
     if (length < width) {
       object->direction = ortho_dir;
-      object->size[0] = width;
-      object->size[1] = length;
+      object->size(0) = width;
+      object->size(1) = length;
     }
   }
   for (size_t i = 0; i < 3; ++i) {
-    if (object->size[i] < kEpsilonForSize) {
-      object->size[i] = kEpsilonForSize;
+    if (object->size(i) < kEpsilonForSize) {
+      object->size(i) = kEpsilonForSize;
     }
   }
-  object->theta = static_cast<float>(atan2(object->direction[1],
-                                           object->direction[0]));
+  object->theta =
+      static_cast<float>(atan2(object->direction(1), object->direction(0)));
 }
 
 void ObjectBuilder::SetDefaultValue(const Eigen::Vector3f& min_pt_in,
@@ -127,9 +125,9 @@ void ObjectBuilder::SetDefaultValue(const Eigen::Vector3f& min_pt_in,
   Eigen::Vector3f center((min_pt[0] + max_pt[0]) / 2,
                          (min_pt[1] + max_pt[1]) / 2,
                          (min_pt[2] + max_pt[2]) / 2);
-  object->center = Eigen::Vector3d(static_cast<double>(center[0]),
-                                   static_cast<double>(center[1]),
-                                   static_cast<double>(center[2]));
+  object->center = Eigen::Vector3d(static_cast<double>(center(0)),
+                                   static_cast<double>(center(1)),
+                                   static_cast<double>(center(2)));
   float length = max_pt[0] - min_pt[0];
   float width = max_pt[1] - min_pt[1];
   float height = max_pt[2] - min_pt[2];

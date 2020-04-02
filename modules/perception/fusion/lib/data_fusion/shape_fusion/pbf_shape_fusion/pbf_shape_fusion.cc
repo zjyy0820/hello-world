@@ -49,7 +49,7 @@ void PbfShapeFusion::UpdateWithMeasurement(const SensorObjectPtr measurement,
     } else {
       // nothing to do
     }
-  } else if (IsCamera(measurement) && (s_use_camera_3d_ == true)) {
+  } else if (IsCamera(measurement) && s_use_camera_3d_) {
     if (latest_lidar == nullptr) {
       UpdateState(measurement);
     } else {
@@ -61,9 +61,7 @@ void PbfShapeFusion::UpdateWithMeasurement(const SensorObjectPtr measurement,
 }
 void PbfShapeFusion::UpdateWithoutMeasurement(const std::string& sensor_id,
                                               double measurement_timestamp,
-                                              double target_timestamp) {
-  return;
-}
+                                              double target_timestamp) {}
 
 std::string PbfShapeFusion::Name() const { return "PbfShapeFusion"; }
 

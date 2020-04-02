@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "gtest/gtest.h"
 #include "modules/canbus/proto/chassis_detail.pb.h"
 #include "modules/drivers/canbus/can_comm/protocol_data.h"
 
@@ -36,6 +37,8 @@ class Adcmotioncontrollimits112
   void UpdateData(uint8_t* data) override;
 
   void Reset() override;
+
+  FRIEND_TEST(Motioncontrollimits1_12_test, General);
 
   // config detail: {'description': 'Set limit for throttle position', 'offset':
   // 0.0, 'precision': 0.5, 'len': 8, 'name': 'ADC_CMD_ThrottleCommandLimit',

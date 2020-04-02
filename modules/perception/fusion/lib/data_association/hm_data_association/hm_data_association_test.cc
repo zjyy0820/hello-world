@@ -55,8 +55,8 @@ TEST(ProjectionCacheFrame, test_projection_cache_query_object_1) {
   EXPECT_FALSE(projection_cache_frame.VerifyKey("lidar", 2.0));
   EXPECT_FALSE(projection_cache_frame.VerifyKey("lidar2", 2.0));
   EXPECT_FALSE(projection_cache_frame.VerifyKey("lidar2", 1.0));
-  EXPECT_TRUE(projection_cache_frame.QueryObject(2) != nullptr);
-  EXPECT_FALSE(projection_cache_frame.QueryObject(1) != nullptr);
+  EXPECT_NE(projection_cache_frame.QueryObject(2), nullptr);
+  EXPECT_EQ(projection_cache_frame.QueryObject(1), nullptr);
   delete cache_object_ptr_1;
   cache_object_ptr_1 = nullptr;
 }
@@ -270,7 +270,8 @@ TEST(ComputeRadarCameraVelocitySimilarity, test_compute_radar_camera_vel_sim) {
   SensorObjectConstPtr radar_const_sensor_ptr(
       new SensorObject(radar_const_object_ptr, radar_frame_ptr));
 
-  EXPECT_LT(ComputeRadarCameraVelocitySimilarity(radar_const_sensor_ptr, camera_const_sensor_ptr), 0.8);
+  EXPECT_LT(ComputeRadarCameraVelocitySimilarity(radar_const_sensor_ptr,
+camera_const_sensor_ptr), 0.8);
 }
 
 TEST(TrackObjectDistance, test) {

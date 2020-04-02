@@ -57,7 +57,7 @@ void LoadPlanes(std::string path, GroundNode* node_ptr) {
   while (file.good()) {
     std::string buf;
     getline(file, buf);
-    if (buf.size() == 0) {
+    if (buf.empty()) {
       continue;
     }
     std::stringstream ss;
@@ -79,7 +79,7 @@ void LoadPoints(const std::string path, std::vector<std::vector<double>>* pts,
     pt.clear();
     std::string buf;
     getline(file, buf);
-    if (buf.size() == 0) {
+    if (buf.empty()) {
       continue;
     }
     std::stringstream ss;
@@ -98,7 +98,7 @@ TEST_F(LidarLibSceneManagerTest, lidar_lib_scene_manager_test) {
   EXPECT_TRUE(SceneManager::Instance().Init());
   EXPECT_TRUE(SceneManager::Instance().Reset());
   EXPECT_TRUE(SceneManager::Instance().Init());
-  EXPECT_TRUE((SceneManager::Instance().GetServiceNum() > 0));
+  EXPECT_GT(SceneManager::Instance().GetServiceNum(), 0);
 }
 
 TEST_F(LidarLibSceneManagerTest, lidar_lib_scene_manager_ground_service_test) {
@@ -214,8 +214,8 @@ void MockData(LidarFrame* frame) {
   point.y = frame->lidar2world_pose.translation()(1);
   point.z = frame->lidar2world_pose.translation()(2);
   frame->hdmap_struct.reset(new base::HdmapStruct);
-  CHECK(map::HDMapInput::Instance()->GetRoiHDMapStruct(
-      point, 120.0, frame->hdmap_struct));
+  CHECK(map::HDMapInput::Instance()->GetRoiHDMapStruct(point, 120.0,
+                                                       frame->hdmap_struct));
 
   // d. trans points
   frame->world_cloud = base::PointDCloudPool::Instance().Get();

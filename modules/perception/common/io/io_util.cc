@@ -15,19 +15,19 @@
  *****************************************************************************/
 #include "modules/perception/common/io/io_util.h"
 
-#include <boost/filesystem.hpp>
-
-#include "cyber/common/log.h"
-#include "modules/common/util/file.h"
-#include "modules/common/util/string_util.h"
-#include "modules/perception/base/camera.h"
+#include "absl/strings/match.h"
+#include "boost/filesystem.hpp"
 #include "yaml-cpp/yaml.h"
+
+#include "cyber/common/file.h"
+#include "cyber/common/log.h"
+#include "modules/perception/base/camera.h"
 
 namespace apollo {
 namespace perception {
 namespace common {
 
-using apollo::common::util::PathExists;
+using cyber::common::PathExists;
 
 bool ReadPoseFile(const std::string &filename, Eigen::Affine3d *pose,
                   int *frame_id, double *time_stamp) {
@@ -38,7 +38,7 @@ bool ReadPoseFile(const std::string &filename, Eigen::Affine3d *pose,
 
   std::ifstream fin(filename.c_str());
   if (!fin.is_open()) {
-    AERROR << "Failed to open file " << filename;
+    AERROR << "Failed to open pose file: " << filename;
     return false;
   }
 
@@ -57,11 +57,7 @@ bool ReadPoseFile(const std::string &filename, Eigen::Affine3d *pose,
 
 bool LoadBrownCameraIntrinsic(const std::string &yaml_file,
                               base::BrownCameraDistortionModel *model) {
-  if (model == nullptr) {
-    return false;
-  }
-
-  if (!PathExists(yaml_file)) {
+  if (!PathExists(yaml_file) || model == nullptr) {
     return false;
   }
 
@@ -85,11 +81,10 @@ bool LoadBrownCameraIntrinsic(const std::string &yaml_file,
     }
 
     model->set_params(static_cast<size_t>(camera_width),
-                      static_cast<size_t>(camera_height),
-                      params);
+                      static_cast<size_t>(camera_height), params);
   } catch (YAML::Exception &e) {
     AERROR << "load camera intrisic file " << yaml_file
-              << " with error, YAML exception: " << e.what();
+           << " with error, YAML exception: " << e.what();
     return false;
   }
 
@@ -99,11 +94,7 @@ bool LoadBrownCameraIntrinsic(const std::string &yaml_file,
 bool LoadOmnidirectionalCameraIntrinsics(
     const std::string &yaml_file,
     base::OmnidirectionalCameraDistortionModel *model) {
-  if (model == nullptr) {
-    return false;
-  }
-
-  if (!PathExists(yaml_file)) {
+  if (!PathExists(yaml_file) || model == nullptr) {
     return false;
   }
 
@@ -161,7 +152,7 @@ bool LoadOmnidirectionalCameraIntrinsics(
     model->set_params(camera_width, camera_height, eigen_params);
   } catch (YAML::Exception &e) {
     AERROR << "load camera intrisic file " << yaml_file
-              << " with error, YAML exception: " << e.what();
+           << " with error, YAML exception: " << e.what();
     return false;
   }
 
@@ -178,7 +169,7 @@ bool GetFileList(const std::string &path, const std::string &suffix,
   boost::filesystem::recursive_directory_iterator itr(path);
   while (itr != boost::filesystem::recursive_directory_iterator()) {
     try {
-      if (apollo::common::util::EndWith(itr->path().string(), suffix)) {
+      if (absl::EndsWith(itr->path().string(), suffix)) {
         files->push_back(itr->path().string());
       }
       ++itr;

@@ -37,11 +37,6 @@ TEST(PredictionUtilTest, relu) {
   EXPECT_DOUBLE_EQ(Relu(value), 0.0);
 }
 
-TEST(PredictionUtilTest, sigmoid) {
-  double value = 2.0;
-  EXPECT_DOUBLE_EQ(Sigmoid(value), 0.88079707797788231);
-}
-
 TEST(PredictionUtilTest, softmax) {
   std::vector<double> value = {0.0, 10.0, 100.0};
   std::vector<double> result = Softmax(value);
@@ -79,14 +74,14 @@ TEST(PredictionUtilTest, solve_cubic_polynomial_and_evaluate) {
 
   auto coefs = ComputePolynomial<3>(start, end, param);
   EXPECT_DOUBLE_EQ(EvaluateCubicPolynomial(coefs, 0.0, 0, param, 1.0),
-                                           start[0]);
+                   start[0]);
   EXPECT_DOUBLE_EQ(EvaluateCubicPolynomial(coefs, 0.0, 1, param, 1.0),
-                                           start[1]);
+                   start[1]);
 
   EXPECT_DOUBLE_EQ(EvaluateCubicPolynomial(coefs, param, 0, param, 1.0),
-                                           end[0]);
+                   end[0]);
   EXPECT_DOUBLE_EQ(EvaluateCubicPolynomial(coefs, param, 1, param, 1.0),
-                                           end[1]);
+                   end[1]);
 }
 
 }  // namespace math_util

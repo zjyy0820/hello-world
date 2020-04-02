@@ -36,8 +36,8 @@ bool LoadPCDFile(const std::string& file_path, base::PointFCloudPtr cloud_out) {
   cloud_out->resize(org_cloud.size());
   int pid = 0;
   for (size_t i = 0; i < org_cloud.size(); ++i) {
-    if (isnan(org_cloud.at(i).x) || isnan(org_cloud.at(i).y) ||
-        isnan(org_cloud.at(i).z)) {
+    if (std::isnan(org_cloud.at(i).x) || std::isnan(org_cloud.at(i).y) ||
+        std::isnan(org_cloud.at(i).z)) {
       continue;
     }
     base::PointF& pt = cloud_out->at(pid++);
@@ -55,8 +55,8 @@ void PrintObjects(const std::vector<base::ObjectPtr>& objects) {
   AINFO << "Total objects num: " << objects.size();
   int obj_id = 0;
   for (auto object : objects) {
-    unsigned cloud_size = static_cast<unsigned>(
-                              object->lidar_supplement.cloud.size());
+    unsigned cloud_size =
+        static_cast<unsigned>(object->lidar_supplement.cloud.size());
     AINFO << "Point num of Segment: " << cloud_size;
     std::cout << "-- Object " << obj_id++ << " : ";
     std::cout << object->ToString() << ", type_probs: " << object->type_probs[0]
@@ -160,9 +160,9 @@ TEST(CNNSegmentationTest, cnn_segmentation_test) {
   std::vector<base::ObjectPtr>& objects = frame_data.segmented_objects;
   EXPECT_LE(4, objects.size());
   EXPECT_GT(objects[0]->lidar_supplement.cloud.size(), 0);
-  EXPECT_TRUE(fabs(objects[3]->confidence) > FLT_EPSILON);
+  EXPECT_GT(fabs(objects[3]->confidence), FLT_EPSILON);
   // test heading
-  EXPECT_TRUE(fabs(objects[3]->theta) > FLT_EPSILON);
+  EXPECT_GT(fabs(objects[3]->theta), FLT_EPSILON);
   // test classification
   EXPECT_EQ(1, objects[1]->lidar_supplement.raw_classification_methods.size());
   EXPECT_EQ(1, objects[1]->lidar_supplement.raw_probs.size());
@@ -176,9 +176,9 @@ TEST(CNNSegmentationTest, cnn_segmentation_test) {
   objects = frame_data.segmented_objects;
   EXPECT_LE(4, objects.size());
   EXPECT_GT(objects[0]->lidar_supplement.cloud.size(), 0);
-  EXPECT_TRUE(fabs(objects[3]->confidence) > FLT_EPSILON);
+  EXPECT_GT(fabs(objects[3]->confidence), FLT_EPSILON);
   // test no heading
-  EXPECT_FALSE(fabs(objects[3]->theta) > FLT_EPSILON);
+  EXPECT_LE(fabs(objects[3]->theta), FLT_EPSILON);
   // test no classification
   EXPECT_EQ(0, objects[1]->lidar_supplement.raw_probs.size());
   EXPECT_EQ(0, objects[1]->lidar_supplement.raw_classification_methods.size());
@@ -189,7 +189,7 @@ TEST(CNNSegmentationTest, cnn_segmentation_test) {
   objects = frame_data.segmented_objects;
   EXPECT_EQ(4, objects.size());
   EXPECT_GT(objects[0]->lidar_supplement.cloud.size(), 0);
-  EXPECT_TRUE(fabs(objects[3]->confidence) > FLT_EPSILON);
+  EXPECT_GT(fabs(objects[3]->confidence), FLT_EPSILON);
   PrintObjects(objects);
 
   EXPECT_TRUE(segmentation->InitClusterAndBackgroundSegmentation());

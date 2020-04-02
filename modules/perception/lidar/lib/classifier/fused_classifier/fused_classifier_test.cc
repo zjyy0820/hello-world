@@ -35,7 +35,8 @@ class FusedClassifierTest : public testing::Test {
     putenv(cyber_path);
     char module_path[80] = "MODULE_PATH=";
     putenv(module_path);
-    FLAGS_work_root = "/apollo/modules/perception/testdata/"
+    FLAGS_work_root =
+        "/apollo/modules/perception/testdata/"
         "lidar/lib/classifier/fused_classifier";
     fused_classifier_ = new FusedClassifier();
     BuildObjects();
@@ -192,10 +193,8 @@ TEST_F(FusedClassifierTest, test_object_build) {
       EXPECT_NE(obj, nullptr);
       EXPECT_EQ(obj->lidar_supplement.raw_probs.size(), 2);
       EXPECT_EQ(obj->lidar_supplement.raw_classification_methods.size(), 2);
-      EXPECT_TRUE(fabs(VecSum(obj->lidar_supplement.raw_probs[0]) - 1.f) <
-                  1e-6);
-      EXPECT_TRUE(fabs(VecSum(obj->lidar_supplement.raw_probs[1]) - 1.f) <
-                  1e-6);
+      EXPECT_LT(fabs(VecSum(obj->lidar_supplement.raw_probs[0]) - 1.f), 1e-6);
+      EXPECT_LT(fabs(VecSum(obj->lidar_supplement.raw_probs[1]) - 1.f), 1e-6);
     }
   }
 }

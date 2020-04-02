@@ -24,8 +24,8 @@
 #include "gtest/gtest_prod.h"
 
 #include "modules/common/monitor_log/monitor_log_buffer.h"
-#include "modules/localization/proto/gps.pb.h"
 #include "modules/drivers/gnss/proto/ins.pb.h"
+#include "modules/localization/proto/gps.pb.h"
 #include "modules/localization/proto/imu.pb.h"
 #include "modules/localization/proto/localization.pb.h"
 #include "modules/localization/proto/rtk_config.pb.h"
@@ -93,6 +93,7 @@ class RTKLocalization {
 
   bool enable_watch_dog_ = true;
   bool service_started_ = false;
+  double service_started_time = 0.0;
 
   int64_t localization_seq_num_ = 0;
   LocalizationEstimate last_localization_result_;
@@ -100,6 +101,7 @@ class RTKLocalization {
 
   int localization_publish_freq_ = 100;
   int report_threshold_err_num_ = 10;
+  int service_delay_threshold = 1;
   apollo::common::monitor::MonitorLogBuffer monitor_logger_;
 
   FRIEND_TEST(RTKLocalizationTest, InterpolateIMU);

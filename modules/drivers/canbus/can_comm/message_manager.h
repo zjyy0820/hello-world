@@ -68,8 +68,8 @@ template <typename SensorType>
 class MessageManager {
  public:
   /*
-  * @brief constructor function
-  */
+   * @brief constructor function
+   */
   MessageManager() {}
   /*
    * @brief destructor function
@@ -87,7 +87,7 @@ class MessageManager {
 
   void ClearSensorData();
 
-  std::condition_variable* GetMutableCVar();
+  std::condition_variable *GetMutableCVar();
 
   /**
    * @brief get mutable protocol data by message id
@@ -192,11 +192,12 @@ void MessageManager<SensorType>::Parse(const uint32_t message_id,
   // check if need to check period
   const auto it = check_ids_.find(message_id);
   if (it != check_ids_.end()) {
-    const int64_t time = apollo::common::time::AsInt64<micros>(Clock::Now());
+    const int64_t time = absl::ToUnixMicros(Clock::Now());
     it->second.real_period = time - it->second.last_time;
     // if period 1.5 large than base period, inc error_count
     const double period_multiplier = 1.5;
-    if (it->second.real_period > (it->second.period * period_multiplier)) {
+    if (static_cast<double>(it->second.real_period) >
+        (static_cast<double>(it->second.period) * period_multiplier)) {
       it->second.error_count += 1;
     } else {
       it->second.error_count = 0;
@@ -212,7 +213,7 @@ void MessageManager<SensorType>::ClearSensorData() {
 }
 
 template <typename SensorType>
-std::condition_variable* MessageManager<SensorType>::GetMutableCVar() {
+std::condition_variable *MessageManager<SensorType>::GetMutableCVar() {
   return &cvar_;
 }
 

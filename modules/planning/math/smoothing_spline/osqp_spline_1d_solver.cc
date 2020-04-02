@@ -29,8 +29,8 @@
 namespace apollo {
 namespace planning {
 
-using Eigen::MatrixXd;
 using apollo::common::math::DenseToCSCMatrix;
+using Eigen::MatrixXd;
 
 OsqpSpline1dSolver::OsqpSpline1dSolver(const std::vector<double>& x_knots,
                                        const uint32_t order)
@@ -123,8 +123,8 @@ bool OsqpSpline1dSolver::Solve() {
   int constraint_num = static_cast<int>(inequality_constraint_boundary.rows() +
                                         equality_constraint_boundary.rows());
 
-  constexpr double kEpsilon = 1e-9;
-  constexpr float kUpperLimit = 1e9;
+  static constexpr double kEpsilon = 1e-9;
+  static constexpr float kUpperLimit = 1e9;
   c_float l[constraint_num];  // NOLINT
   c_float u[constraint_num];  // NOLINT
   for (int i = 0; i < constraint_num; ++i) {

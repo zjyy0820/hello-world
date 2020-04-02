@@ -5,13 +5,17 @@ licenses(["notice"])
 
 cc_library(
     name = "tf2",
+    srcs = [
+        "src/buffer_core.cpp",
+        "src/cache.cpp",
+        "src/static_cache.cpp",
+        "src/time.cpp",
+    ],
     hdrs = glob([
-        "include/**/*.h"
+        "include/**/*.h",
     ]),
     includes = [
         "include",
     ],
-    srcs = [
-        "lib/libtf2.so"
-    ]
+    linkopts = ["-L/usr/local/apollo/boost/lib -lboost_signals -lboost_system -lboost_thread"],
 )

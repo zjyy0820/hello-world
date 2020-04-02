@@ -25,37 +25,64 @@ DEFINE_double(prediction_trajectory_time_length, 8.0,
               "Time length of predicted trajectory (in seconds)");
 DEFINE_double(prediction_trajectory_time_resolution, 0.1,
               "Time resolution of predicted trajectory (in seconds");
-DEFINE_double(min_prediction_trajectory_spatial_length, 20.0,
+DEFINE_double(min_prediction_trajectory_spatial_length, 100.0,
               "Minimal spatial length of predicted trajectory");
 DEFINE_bool(enable_trajectory_validation_check, false,
             "If check the validity of prediction trajectory.");
+DEFINE_bool(enable_tracking_adaptation, false,
+            "If enable prediction tracking adaptation");
 
 DEFINE_double(vehicle_max_linear_acc, 4.0,
               "Upper bound of vehicle linear acceleration");
 DEFINE_double(vehicle_min_linear_acc, -4.0,
               "Lower bound of vehicle linear deceleration");
-DEFINE_double(vehicle_max_speed, 35.0,
-              "Max speed of vehicle");
+DEFINE_double(vehicle_max_speed, 35.0, "Max speed of vehicle");
+
+// Tracking Adaptation
+DEFINE_double(max_tracking_time, 0.5,
+              "Max tracking time for disappear obstacles");
+DEFINE_double(max_tracking_dist, 3.0,
+              "Max tracking distance for disappear obstacles");
 
 // Map
 DEFINE_double(lane_search_radius, 3.0, "Search radius for a candidate lane");
 DEFINE_double(lane_search_radius_in_junction, 15.0,
               "Search radius for a candidate lane");
 DEFINE_double(junction_search_radius, 1.0, "Search radius for a junction");
-DEFINE_double(pedestrian_nearby_lane_search_radius, 3.0,
+DEFINE_double(pedestrian_nearby_lane_search_radius, 5.0,
               "Radius to determine if pedestrian-like obstacle is near lane.");
+DEFINE_int32(road_graph_max_search_horizon, 20,
+             "Maximal search depth for building road graph");
+
+// Semantic Map
+DEFINE_double(base_image_half_range, 100.0, "The half range of base image.");
+DEFINE_bool(img_show_semantic_map, false, "If show the image of semantic map.");
 
 // Scenario
-DEFINE_double(junction_distance_threshold, 10.0, "Distance threshold "
+DEFINE_double(junction_distance_threshold, 10.0,
+              "Distance threshold "
               "to junction to consider as junction scenario");
-DEFINE_bool(enable_prioritize_obstacles, true,
-            "If to enable the functionality to prioritize obstacles");
-DEFINE_bool(enable_junction_feature, true,
-            "If to enable building junction feature for obstacles");
 DEFINE_bool(enable_all_junction, false,
-           "If consider all junction with junction_mlp_model.");
+            "If consider all junction with junction_mlp_model.");
+DEFINE_int32(caution_obs_max_nums, 6,
+             "The max number of caution-level obstacles");
+DEFINE_double(caution_distance_threshold, 60.0,
+              "Distance threshold for caution obstacles");
+DEFINE_double(caution_search_distance_ahead, 50.0,
+              "The distance ahead to search caution-level obstacles");
+DEFINE_double(caution_search_distance_backward, 50.0,
+              "The distance backward to search caution-level obstacles");
+DEFINE_double(caution_search_distance_backward_for_merge, 60.0,
+              "The distance backward to search caution-lebel obstacles "
+              "in the case of merging");
+DEFINE_double(caution_search_distance_backward_for_overlap, 30.0,
+              "The distance backward to search caution-lebel obstacles "
+              "in the case of overlap");
+DEFINE_double(caution_pedestrian_approach_time, 3.0,
+              "The time for a pedestrian to approach adc trajectory");
 
 // Obstacle features
+DEFINE_int32(ego_vehicle_id, -1, "The obstacle ID of the ego vehicle.");
 DEFINE_double(scan_length, 80.0, "The length of the obstacles scan area");
 DEFINE_double(scan_width, 12.0, "The width of the obstacles scan area");
 DEFINE_double(back_dist_ignore_ped, -2.0,
@@ -79,17 +106,24 @@ DEFINE_int32(min_still_obstacle_history_length, 4,
              "Min # historical frames for still obstacles");
 DEFINE_int32(max_still_obstacle_history_length, 10,
              "Min # historical frames for still obstacles");
-DEFINE_double(still_obstacle_speed_threshold, 1.8,
+DEFINE_double(still_obstacle_speed_threshold, 0.99,
               "Speed threshold for still obstacles");
-DEFINE_double(still_pedestrian_speed_threshold, 0.5,
+DEFINE_double(still_pedestrian_speed_threshold, 0.2,
               "Speed threshold for still pedestrians");
-DEFINE_double(still_obstacle_position_std, 1.0,
+DEFINE_double(still_unknown_speed_threshold, 0.5,
+              "Speed threshold for still unknown obstacles");
+DEFINE_double(still_obstacle_position_std, 0.5,
               "Position standard deviation for still obstacles");
 DEFINE_double(still_pedestrian_position_std, 0.5,
-              "Position standard deviation for still obstacles");
+              "Position standard deviation for still pedestrians");
+DEFINE_double(still_unknown_position_std, 0.5,
+              "Position standard deviation for still unknown obstacles");
+DEFINE_double(slow_obstacle_speed_threshold, 2.0,
+              "Speed threshold for slow obstacles");
 DEFINE_double(max_history_time, 7.0, "Obstacles' maximal historical time.");
 DEFINE_double(target_lane_gap, 2.0, "Gap between two lane points.");
-DEFINE_double(dense_lane_gap, 0.2, "Gap between two adjacent lane points"
+DEFINE_double(dense_lane_gap, 0.2,
+              "Gap between two adjacent lane points"
               " for constructing dense lane graph.");
 DEFINE_int32(max_num_current_lane, 2, "Max number to search current lanes");
 DEFINE_int32(max_num_nearby_lane, 2, "Max number to search nearby lanes");
@@ -111,15 +145,56 @@ DEFINE_string(evaluator_vehicle_mlp_file,
 DEFINE_string(evaluator_vehicle_rnn_file,
               "/apollo/modules/prediction/data/rnn_vehicle_model.bin",
               "rnn model file for vehicle evaluator");
-DEFINE_string(evaluator_cruise_vehicle_go_model_file,
-              "/apollo/modules/prediction/data/cruise_go_vehicle_model.bin",
-              "Vehicle cruise go model file");
-DEFINE_string(evaluator_cruise_vehicle_cutin_model_file,
-              "/apollo/modules/prediction/data/cruise_cutin_vehicle_model.bin",
-              "Vehicle cruise cut-in model file");
-DEFINE_string(evaluator_vehicle_junction_mlp_file,
-              "/apollo/modules/prediction/data/junction_mlp_vehicle_model.bin",
+DEFINE_string(torch_vehicle_junction_mlp_file,
+              "/apollo/modules/prediction/data/junction_mlp_vehicle_model.pt",
               "Vehicle junction MLP model file");
+DEFINE_string(torch_vehicle_junction_map_file,
+              "/apollo/modules/prediction/data/junction_map_vehicle_model.pt",
+              "Vehicle junction map model file");
+DEFINE_string(torch_vehicle_semantic_lstm_file,
+              "/apollo/modules/prediction/data/semantic_lstm_vehicle_model.pt",
+              "Vehicle semantic lstm model file, default for gpu");
+DEFINE_string(
+    torch_vehicle_semantic_lstm_cpu_file,
+    "/apollo/modules/prediction/data/semantic_lstm_vehicle_cpu_model.pt",
+    "Vehicle semantic lstm cpu model file");
+DEFINE_string(torch_vehicle_cruise_go_file,
+              "/apollo/modules/prediction/data/cruise_go_vehicle_model.pt",
+              "Vehicle cruise go model file");
+DEFINE_string(torch_vehicle_cruise_cutin_file,
+              "/apollo/modules/prediction/data/cruise_cutin_vehicle_model.pt",
+              "Vehicle cruise cutin model file");
+DEFINE_string(torch_vehicle_lane_scanning_file,
+              "/apollo/modules/prediction/data/lane_scanning_vehicle_model.pt",
+              "Vehicle lane scanning model file");
+DEFINE_string(torch_pedestrian_interaction_position_embedding_file,
+              "/apollo/modules/prediction/data/"
+              "pedestrian_interaction_position_embedding.pt",
+              "pedestrian interaction position embedding");
+DEFINE_string(torch_pedestrian_interaction_social_embedding_file,
+              "/apollo/modules/prediction/data/"
+              "pedestrian_interaction_social_embedding.pt",
+              "pedestrian interaction social embedding");
+DEFINE_string(torch_pedestrian_interaction_single_lstm_file,
+              "/apollo/modules/prediction/data/"
+              "pedestrian_interaction_single_lstm.pt",
+              "pedestrian interaction single lstm");
+DEFINE_string(torch_pedestrian_interaction_prediction_layer_file,
+              "/apollo/modules/prediction/data/"
+              "pedestrian_interaction_prediction_layer.pt",
+              "pedestrian interaction prediction layer");
+DEFINE_string(torch_lane_aggregating_obstacle_encoding_file,
+              "/apollo/modules/prediction/data/"
+              "traced_online_obs_enc.pt",
+              "lane aggregating obstacle encoding layer");
+DEFINE_string(torch_lane_aggregating_lane_encoding_file,
+              "/apollo/modules/prediction/data/"
+              "traced_online_lane_enc.pt",
+              "lane aggregating lane encoding layer");
+DEFINE_string(torch_lane_aggregating_prediction_layer_file,
+              "/apollo/modules/prediction/data/"
+              "traced_online_pred_layer.pt",
+              "lane aggregating prediction layer");
 DEFINE_int32(max_num_obstacles, 300,
              "maximal number of obstacles stored in obstacles container.");
 DEFINE_double(valid_position_diff_threshold, 0.5,
@@ -142,21 +217,26 @@ DEFINE_double(distance_threshold_to_junction_exit, 1.0,
               "Threshold of distance to junction exit");
 DEFINE_double(angle_threshold_to_junction_exit, M_PI * 0.25,
               "Threshold of angle to junction exit");
+DEFINE_uint32(sample_size_for_average_lane_curvature, 10,
+              "The sample size to compute average lane curvature");
 
 // Validation checker
 DEFINE_double(centripetal_acc_coeff, 0.5,
               "Coefficient of centripetal acceleration probability");
 
 // Junction Scenario
+DEFINE_uint32(junction_historical_frame_length, 5,
+              "The number of historical frames of the obstacle"
+              "that the junction model will look at.");
 DEFINE_double(junction_exit_lane_threshold, 0.1,
               "If a lane extends out of the junction by this value,"
-              "consider it as a exit_lane.");
+              "consider it as an exit_lane.");
 DEFINE_double(distance_beyond_junction, 0.5,
               "If the obstacle is in junction more than this threshold,"
               "consider it in junction.");
 DEFINE_double(defualt_junction_range, 10.0,
               "Default value for the range of a junction.");
-DEFINE_double(distance_to_slow_down_at_stop_sign, 40.0,
+DEFINE_double(distance_to_slow_down_at_stop_sign, 80.0,
               "The distance to slow down at stop sign");
 
 // Evaluator
@@ -166,6 +246,7 @@ DEFINE_double(default_s_if_no_obstacle_in_lane_sequence, 1000.0,
               "The default s value if no obstacle in the lane sequence.");
 DEFINE_double(default_l_if_no_obstacle_in_lane_sequence, 10.0,
               "The default l value if no obstacle in the lane sequence.");
+DEFINE_bool(enable_semantic_map, true, "If enable semantic map on prediction");
 
 // Obstacle trajectory
 DEFINE_bool(enable_cruise_regression, false,
@@ -182,7 +263,7 @@ DEFINE_bool(enable_trim_prediction_trajectory, true,
             "protected adc planning trajectory.");
 DEFINE_double(adc_trajectory_search_length, 10.0,
               "How far to search junction along adc planning trajectory");
-DEFINE_double(virtual_lane_radius, 0.5, "Radius to search virtual lanes");
+DEFINE_double(virtual_lane_radius, 2.0, "Radius to search virtual lanes");
 DEFINE_double(default_lateral_approach_speed, 0.5,
               "Default lateral speed approaching to center of lane");
 DEFINE_double(centripedal_acc_threshold, 2.0,
@@ -221,8 +302,19 @@ DEFINE_double(cost_function_sigma, 5.0,
 DEFINE_bool(use_bell_curve_for_cost_function, false,
             "Whether to use bell curve for the cost function or not.");
 
-DEFINE_int32(road_graph_max_search_horizon, 20,
-             "Maximal search depth for building road graph");
+// interaction predictor
+DEFINE_double(collision_cost_time_resolution, 1.0,
+              "The time resolution used to compute the collision cost");
+DEFINE_double(longitudinal_acceleration_cost_weight, 0.2,
+              "The weight of longitudinal acceleration cost");
+DEFINE_double(centripedal_acceleration_cost_weight, 0.1,
+              "The weight of the cost related to centripedal acceleration");
+DEFINE_double(collision_cost_weight, 1.0,
+              "The weight of the cost related to collision");
+DEFINE_double(collision_cost_exp_coefficient, 1.0,
+              "The coefficient in the collision exponential cost function");
+DEFINE_double(likelihood_exp_coefficient, 1.0,
+              "The coefficient in the likelihood exponential function");
 
 DEFINE_double(lane_distance_threshold, 3.0,
               "The threshold for distance to ego/neighbor lane "
@@ -231,3 +323,7 @@ DEFINE_double(lane_distance_threshold, 3.0,
 DEFINE_double(lane_angle_difference_threshold, M_PI * 0.25,
               "The threshold for distance to ego/neighbor lane "
               "in feature extraction");
+
+// Trajectory evaluation
+DEFINE_double(distance_threshold_on_lane, 1.5,
+              "The threshold of distance in on-lane situation");

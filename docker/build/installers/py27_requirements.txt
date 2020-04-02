@@ -7,24 +7,26 @@ supervisor
 
 # Google infras.
 glog
+grpcio-tools == 1.2.0
 protobuf == 3.1
 python-gflags
 
 # Web utils.
 flask
 flask-cors
-gunicorn
 requests >= 2.18
 simplejson
 
+# ROS env.
+PyYAML
+
 # Python tools
-plyvel == 0.9
-pymongo
 pyproj
 shapely
 
 # Data format
-PyYAML
 h5py
-pytz
 utm
+
+# Audio
+pyalsaaudio
