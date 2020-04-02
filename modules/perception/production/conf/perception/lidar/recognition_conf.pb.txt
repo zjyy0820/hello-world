@@ -1,2 +1,0 @@
-main_sensor_name: "velodyne64"
-output_channel_name: "/perception/inner/PrefusedObjects"
