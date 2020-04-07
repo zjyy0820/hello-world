@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 ###############################################################################
 # Copyright 2017 The Apollo Authors. All Rights Reserved.
@@ -20,10 +20,12 @@ This program can dump a rosbag into separate text files that contains the pb mes
 """
 
 import argparse
+from datetime import datetime
 import os
 import shutil
-from cyber_py.record import RecordReader
-from datetime import datetime
+
+from cyber_py3.record import RecordReader
+
 
 g_args = None
 
@@ -31,14 +33,17 @@ g_delta_t = 0.5  # 1 second approximate time match region.
 
 
 def write_to_file(file_path, topic_pb):
-    """write pb message to file"""
-    f = file(file_path, 'w')
-    f.write(str(topic_pb))
-    f.close()
+    """
+    write pb message to file
+    """
+    with open(file_path, 'w') as fp:
+        f.write(str(topic_pb))
 
 
 def dump_bag(in_bag, out_dir):
-    """out_bag = in_bag + routing_bag"""
+    """
+    out_bag = in_bag + routing_bag
+    """
     reader = RecordReader(in_bag)
     seq = 0
     global g_args
@@ -59,7 +64,7 @@ def dump_bag(in_bag, out_dir):
         msg = message
         record_num += 1
         if record_num % 1000 == 0:
-            print "Processing record_num:", record_num
+            print('Processing record_num: %d' % record_num)
         if first_time is None:
             first_time = t
         if channel not in topic_name_map:
@@ -71,11 +76,11 @@ def dump_bag(in_bag, out_dir):
         if ((g_args.time_duration > 0) and
                 (relative_time < 0 or relative_time > g_args.time_duration)):
             continue
-        if channel == "/apollo/planning":
+        if channel == '/apollo/planning':
             seq += 1
             topic_name_map[channel][1] = msg
-            print "Generating seq:", seq
-            for t, name_pb in topic_name_map.iteritems():
+            print('Generating seq: %d' % seq)
+            for t, name_pb in topic_name_map.items():
                 if name_pb[1] is None:
                     continue
                 file_path = os.path.join(out_dir,
@@ -84,7 +89,7 @@ def dump_bag(in_bag, out_dir):
         topic_name_map[channel][1] = msg
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description="A tool to dump the protobuf messages according to the planning message"
         "Usage: python dump_planning.py bag_file save_directory")

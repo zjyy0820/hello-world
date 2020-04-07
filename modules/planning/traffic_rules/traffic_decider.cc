@@ -25,18 +25,18 @@
 #include "modules/common/configs/vehicle_config_helper.h"
 #include "modules/planning/common/planning_gflags.h"
 #include "modules/planning/traffic_rules/backside_vehicle.h"
-#include "modules/planning/traffic_rules/change_lane.h"
 #include "modules/planning/traffic_rules/crosswalk.h"
 #include "modules/planning/traffic_rules/destination.h"
 #include "modules/planning/traffic_rules/keep_clear.h"
-#include "modules/planning/traffic_rules/pull_over.h"
 #include "modules/planning/traffic_rules/reference_line_end.h"
 #include "modules/planning/traffic_rules/rerouting.h"
-#include "modules/planning/traffic_rules/signal_light.h"
+#include "modules/planning/traffic_rules/stop_sign.h"
+#include "modules/planning/traffic_rules/traffic_light.h"
+#include "modules/planning/traffic_rules/yield_sign.h"
 
 namespace apollo {
 namespace planning {
-using common::Status;
+using apollo::common::Status;
 
 apollo::common::util::Factory<TrafficRuleConfig::RuleId, TrafficRule,
                               TrafficRule *(*)(const TrafficRuleConfig &config)>
@@ -46,10 +46,6 @@ void TrafficDecider::RegisterRules() {
   s_rule_factory.Register(TrafficRuleConfig::BACKSIDE_VEHICLE,
                           [](const TrafficRuleConfig &config) -> TrafficRule * {
                             return new BacksideVehicle(config);
-                          });
-  s_rule_factory.Register(TrafficRuleConfig::CHANGE_LANE,
-                          [](const TrafficRuleConfig &config) -> TrafficRule * {
-                            return new ChangeLane(config);
                           });
   s_rule_factory.Register(TrafficRuleConfig::CROSSWALK,
                           [](const TrafficRuleConfig &config) -> TrafficRule * {
@@ -64,10 +60,6 @@ void TrafficDecider::RegisterRules() {
                           [](const TrafficRuleConfig &config) -> TrafficRule * {
                             return new KeepClear(config);
                           });
-  s_rule_factory.Register(TrafficRuleConfig::PULL_OVER,
-                          [](const TrafficRuleConfig &config) -> TrafficRule * {
-                            return new PullOver(config);
-                          });
   s_rule_factory.Register(TrafficRuleConfig::REFERENCE_LINE_END,
                           [](const TrafficRuleConfig &config) -> TrafficRule * {
                             return new ReferenceLineEnd(config);
@@ -76,9 +68,17 @@ void TrafficDecider::RegisterRules() {
                           [](const TrafficRuleConfig &config) -> TrafficRule * {
                             return new Rerouting(config);
                           });
-  s_rule_factory.Register(TrafficRuleConfig::SIGNAL_LIGHT,
+  s_rule_factory.Register(TrafficRuleConfig::STOP_SIGN,
                           [](const TrafficRuleConfig &config) -> TrafficRule * {
-                            return new SignalLight(config);
+                            return new StopSign(config);
+                          });
+  s_rule_factory.Register(TrafficRuleConfig::YIELD_SIGN,
+                          [](const TrafficRuleConfig &config) -> TrafficRule * {
+                            return new YieldSign(config);
+                          });
+  s_rule_factory.Register(TrafficRuleConfig::TRAFFIC_LIGHT,
+                          [](const TrafficRuleConfig &config) -> TrafficRule * {
+                            return new TrafficLight(config);
                           });
 }
 
@@ -127,7 +127,7 @@ void TrafficDecider::BuildPlanningTarget(
         vehicle_config.vehicle_param().front_edge_to_center();
     stop_point.set_s(min_s - front_edge_to_center +
                      FLAGS_virtual_stop_wall_length / 2.0);
-    reference_line_info->SetStopPoint(stop_point);
+    reference_line_info->SetLatticeStopPoint(stop_point);
   }
 }
 

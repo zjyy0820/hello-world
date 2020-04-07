@@ -158,11 +158,10 @@ bool MaxPool1d::Load(const LayerParameter& layer_pb) {
   }
   MaxPool1dParameter maxpool1d_pb = layer_pb.maxpool1d();
   return Load(maxpool1d_pb);
-  return true;
 }
 
 bool MaxPool1d::Load(const MaxPool1dParameter& maxpool1d_pb) {
-  CHECK(maxpool1d_pb.has_kernel_size());
+  ACHECK(maxpool1d_pb.has_kernel_size());
   CHECK_GT(maxpool1d_pb.has_kernel_size(), 0);
   kernel_size_ = maxpool1d_pb.kernel_size();
   if (maxpool1d_pb.has_stride() && maxpool1d_pb.stride() > 0) {
@@ -202,11 +201,10 @@ bool AvgPool1d::Load(const LayerParameter& layer_pb) {
   }
   AvgPool1dParameter avgpool1d_pb = layer_pb.avgpool1d();
   return Load(avgpool1d_pb);
-  return true;
 }
 
 bool AvgPool1d::Load(const AvgPool1dParameter& avgpool1d_pb) {
-  CHECK(avgpool1d_pb.has_kernel_size());
+  ACHECK(avgpool1d_pb.has_kernel_size());
   CHECK_GT(avgpool1d_pb.has_kernel_size(), 0);
   kernel_size_ = avgpool1d_pb.kernel_size();
   if (avgpool1d_pb.has_stride() && avgpool1d_pb.stride() > 0) {
@@ -405,22 +403,22 @@ bool LSTM::Load(const LayerParameter& layer_pb) {
   }
   if (!lstm_pb.has_recurrent_weights_input() ||
       !LoadTensor(lstm_pb.recurrent_weights_input(), &r_wi_)) {
-    AERROR << "Fail to Load reccurent input weights!";
+    AERROR << "Fail to Load recurrent input weights!";
     return false;
   }
   if (!lstm_pb.has_recurrent_weights_forget() ||
       !LoadTensor(lstm_pb.recurrent_weights_forget(), &r_wf_)) {
-    AERROR << "Fail to Load reccurent forget weights!";
+    AERROR << "Fail to Load recurrent forget weights!";
     return false;
   }
   if (!lstm_pb.has_recurrent_weights_cell() ||
       !LoadTensor(lstm_pb.recurrent_weights_cell(), &r_wc_)) {
-    AERROR << "Fail to Load reccurent cell weights!";
+    AERROR << "Fail to Load recurrent cell weights!";
     return false;
   }
   if (!lstm_pb.has_recurrent_weights_output() ||
       !LoadTensor(lstm_pb.recurrent_weights_output(), &r_wo_)) {
-    AERROR << "Fail to Load reccurent output weights!";
+    AERROR << "Fail to Load recurrent output weights!";
     return false;
   }
   ResetState();

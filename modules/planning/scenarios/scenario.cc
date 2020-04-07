@@ -20,6 +20,11 @@
 
 #include "modules/planning/scenarios/scenario.h"
 
+#include "cyber/common/file.h"
+#include "modules/planning/common/planning_context.h"
+
+#include "modules/planning/common/frame.h"
+
 namespace apollo {
 namespace planning {
 namespace scenario {
@@ -31,28 +36,39 @@ Scenario::Scenario(const ScenarioConfig& config, const ScenarioContext* context)
 
 bool Scenario::LoadConfig(const std::string& config_file,
                           ScenarioConfig* config) {
-  return apollo::common::util::GetProtoFromFile(config_file, config);
+  return apollo::cyber::common::GetProtoFromFile(config_file, config);
 }
 
 void Scenario::Init() {
-  CHECK(!config_.stage_type().empty());
+  ACHECK(!config_.stage_type().empty());
+
+  // set scenario_type in PlanningContext
+  auto* scenario = PlanningContext::Instance()
+                       ->mutable_planning_status()
+                       ->mutable_scenario();
+  scenario->Clear();
+  scenario->set_scenario_type(scenario_type());
+
   for (const auto& stage_config : config_.stage_config()) {
     stage_config_map_[stage_config.stage_type()] = &stage_config;
   }
   for (int i = 0; i < config_.stage_type_size(); ++i) {
     auto stage_type = config_.stage_type(i);
-    auto iter = stage_config_map_.find(stage_type);
-    CHECK(iter != stage_config_map_.end())
+    ACHECK(common::util::ContainsKey(stage_config_map_, stage_type))
         << "stage type : " << ScenarioConfig::StageType_Name(stage_type)
         << " has no config";
   }
   ADEBUG << "init stage "
-        << ScenarioConfig::StageType_Name(config_.stage_type(0));
+         << ScenarioConfig::StageType_Name(config_.stage_type(0));
   current_stage_ = CreateStage(*stage_config_map_[config_.stage_type(0)]);
 }
 
 Scenario::ScenarioStatus Scenario::Process(
     const common::TrajectoryPoint& planning_init_point, Frame* frame) {
+  if (current_stage_ == nullptr) {
+    AWARN << "Current stage is a null pointer.";
+    return STATUS_UNKNOWN;
+  }
   if (current_stage_->stage_type() == ScenarioConfig::NO_STAGE) {
     scenario_status_ = STATUS_DONE;
     return scenario_status_;
@@ -83,6 +99,10 @@ Scenario::ScenarioStatus Scenario::Process(
           return scenario_status_;
         }
         current_stage_ = CreateStage(*stage_config_map_[next_stage]);
+        if (current_stage_ == nullptr) {
+          AWARN << "Current stage is a null pointer.";
+          return STATUS_UNKNOWN;
+        }
       }
       if (current_stage_ != nullptr &&
           current_stage_->stage_type() != ScenarioConfig::NO_STAGE) {

@@ -37,6 +37,7 @@ import sys
 
 import psutil
 
+
 MAP_COLLECTION_DATA_TOPICS = [
     '/apollo/monitor/system_status',
     '/apollo/sensor/gnss/best_pose',
@@ -49,10 +50,16 @@ MAP_COLLECTION_DATA_TOPICS = [
     '/tf_static',
     '/apollo/sensor/camera/front_12mm/image/compressed',
     '/apollo/sensor/camera/front_6mm/image/compressed',
-    '/apollo/sensor/lidar16/front/center/PointCloud2',
+    '/apollo/sensor/lidar16/front/up/Scan',
+    '/apollo/sensor/lidar16/front/up/PointCloud2',
+    '/apollo/sensor/lidar16/front/up/compensator/PointCloud2',
     '/apollo/sensor/lidar128/PointCloud2',
     '/apollo/sensor/lidar128/compensator/PointCloud2',
+    '/apollo/sensor/velodyne64/PointCloud2',
+    '/apollo/sensor/velodyne64/compensator/PointCloud2',
+    '/apollo/sensor/velodyne64/VelodyneScan',
 ]
+
 
 def shell_cmd(cmd, alert_on_failure=True):
     """Execute shell command and return (ret-code, stdout, stderr)."""
@@ -87,7 +94,7 @@ class ArgManager(object):
     def args(self):
         """Get parsed args."""
         if self._args is None:
-           self._args = self.parser.parse_args()
+            self._args = self.parser.parse_args()
         return self._args
 
 
@@ -176,6 +183,7 @@ def main():
         recorder.stop()
     else:
         recorder.start()
+
 
 if __name__ == '__main__':
     main()

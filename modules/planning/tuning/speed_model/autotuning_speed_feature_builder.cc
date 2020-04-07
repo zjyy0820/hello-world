@@ -16,7 +16,6 @@
 
 #include "modules/planning/tuning/speed_model/autotuning_speed_feature_builder.h"
 
-#include <cmath>
 #include <string>
 
 #include "cyber/common/log.h"
@@ -32,7 +31,7 @@ Status AutotuningSpeedFeatureBuilder::BuildFeature(
     const autotuning::TrajectoryRawFeature& raw_feature,
     autotuning::TrajectoryFeature* const input_feature) const {
   if (input_feature == nullptr) {
-    const std::string msg = "input trajectroy feature is empty";
+    const std::string msg = "input trajectory feature is empty";
     AERROR << msg;
     return Status(ErrorCode::PLANNING_ERROR, msg);
   }

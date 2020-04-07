@@ -7,10 +7,10 @@ cc_library(
     srcs = ["topology_manager.cc"],
     hdrs = ["topology_manager.h"],
     deps = [
-        "channel_manager",
-        "node_manager",
-        "participant_listener",
-        "service_manager",
+        ":channel_manager",
+        ":node_manager",
+        ":participant_listener",
+        ":service_manager",
         "//cyber/transport:participant",
     ],
 )
@@ -21,7 +21,7 @@ cc_test(
     srcs = ["topology_manager_test.cc"],
     deps = [
         "//cyber",
-        "@gtest//:main",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -60,7 +60,7 @@ cc_test(
     srcs = ["container/graph_test.cc"],
     deps = [
         "//cyber",
-        "@gtest//:main",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -69,8 +69,18 @@ cc_library(
     srcs = ["container/multi_value_warehouse.cc"],
     hdrs = ["container/multi_value_warehouse.h"],
     deps = [
-        "warehouse_base",
+        ":warehouse_base",
         "//cyber/base:atomic_rw_lock",
+    ],
+)
+
+cc_test(
+    name = "multi_value_warehouse_test",
+    size = "small",
+    srcs = ["container/multi_value_warehouse_test.cc"],
+    deps = [
+        ":multi_value_warehouse",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -79,8 +89,18 @@ cc_library(
     srcs = ["container/single_value_warehouse.cc"],
     hdrs = ["container/single_value_warehouse.h"],
     deps = [
-        "warehouse_base",
+        ":warehouse_base",
         "//cyber/base:atomic_rw_lock",
+    ],
+)
+
+cc_test(
+    name = "single_value_warehouse_test",
+    size = "small",
+    srcs = ["container/single_value_warehouse_test.cc"],
+    deps = [
+        ":single_value_warehouse",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -108,7 +128,7 @@ cc_test(
     srcs = ["role/role_test.cc"],
     deps = [
         "//cyber",
-        "@gtest//:main",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -117,7 +137,7 @@ cc_library(
     srcs = ["specific_manager/manager.cc"],
     hdrs = ["specific_manager/manager.h"],
     deps = [
-        "subscriber_listener",
+        ":subscriber_listener",
         "//cyber:state",
         "//cyber/base:signal",
         "//cyber/message:message_traits",
@@ -137,10 +157,10 @@ cc_library(
     srcs = ["specific_manager/channel_manager.cc"],
     hdrs = ["specific_manager/channel_manager.h"],
     deps = [
-        "graph",
-        "manager",
-        "multi_value_warehouse",
-        "single_value_warehouse",
+        ":graph",
+        ":manager",
+        ":multi_value_warehouse",
+        ":single_value_warehouse",
     ],
 )
 
@@ -151,7 +171,7 @@ cc_test(
     deps = [
         "//cyber",
         "//cyber/proto:unit_test_cc_proto",
-        "@gtest//:main",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -160,9 +180,9 @@ cc_library(
     srcs = ["specific_manager/node_manager.cc"],
     hdrs = ["specific_manager/node_manager.h"],
     deps = [
-        "manager",
-        "multi_value_warehouse",
-        "single_value_warehouse",
+        ":manager",
+        ":multi_value_warehouse",
+        ":single_value_warehouse",
     ],
 )
 
@@ -172,7 +192,7 @@ cc_test(
     srcs = ["specific_manager/node_manager_test.cc"],
     deps = [
         "//cyber",
-        "@gtest//:main",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -181,9 +201,9 @@ cc_library(
     srcs = ["specific_manager/service_manager.cc"],
     hdrs = ["specific_manager/service_manager.h"],
     deps = [
-        "manager",
-        "multi_value_warehouse",
-        "single_value_warehouse",
+        ":manager",
+        ":multi_value_warehouse",
+        ":single_value_warehouse",
     ],
 )
 
@@ -193,7 +213,7 @@ cc_test(
     srcs = ["specific_manager/service_manager_test.cc"],
     deps = [
         "//cyber",
-        "@gtest//:main",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 ###############################################################################
 # Copyright 2017 The Apollo Authors. All Rights Reserved.
@@ -16,41 +16,44 @@
 # limitations under the License.
 ###############################################################################
 
-import secure_upgrade_export as sec_api
 """OTA verify client"""
 
-import requests
 import os
+import requests
 import sys
-from ConfigParser import ConfigParser
+
+from configparser import ConfigParser
+import secure_upgrade_export as sec_api
+
 from modules.data.proto.static_info_pb2 import VehicleInfo
 import common.proto_utils as proto_utils
+
+
 sys.path.append('/home/caros/secure_upgrade/python')
 
 root_config_path = "/home/caros/secure_upgrade/config/secure_config.json"
-returnCode = sec_api.init_secure_upgrade(root_config_path)
-if returnCode == True:
-    print 'Security environment init successfully!'
+ret = sec_api.init_secure_upgrade(root_config_path)
+if ret is True:
+    print('Security environment init successfully!')
 else:
-    print 'Security environment init fail!'
+    print('Security environment init failed!')
     sys.exit(1)
 
 
 def verify():
-    # generate orig update package
+    # Generate orig update package
     token_file_name = os.environ['HOME'] + '/.cache/apollo_update/auth_token'
     with open(token_file_name, 'r') as token_file:
         auth_token = token_file.read()
     sec_package = os.environ['HOME'] + '/.cache/sec_apollo_release.tar.gz'
     orig_package = os.environ['HOME'] + '/.cache/apollo_release.tar.gz'
-    returnCode = sec_api.sec_upgrade_verify_package(auth_token,
-                                                    sec_package,
-                                                    orig_package)
-    if returnCode == True:
-        print 'verify package  successfully!'
+    ret = sec_api.sec_upgrade_verify_package(auth_token, sec_package,
+                                             orig_package)
+    if ret is True:
+        print('Verify package successfully!')
         sys.exit(0)
     else:
-        print 'verify package failed!!!'
+        print('Verify package failed!!!')
         sys.exit(1)
 
 

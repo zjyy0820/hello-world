@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 ###############################################################################
 # Copyright 2018 The Apollo Authors. All Rights Reserved.
@@ -16,24 +16,27 @@
 # limitations under the License.
 ###############################################################################
 """
-Sample PNC topics. For each /path/to/a.bag, will generate
-/path/to/pnc_sample/a.bag.
+Sample PNC topics. For each /path/to/a.record, will generate
+/path/to/pnc_sample/a.record.
 
 Usage:
-    ./sample_pnc_topics.py <bag_path>
-        <bag_path>    Support * and ?.
+    ./sample_pnc_topics.py <record_path>
+        <record_path>    Support * and ?.
 Example:
-    ./sample_pnc_topics.py '/mnt/nfs/public_test/2018-04-??/*/mkz8/*/*.bag'
+    ./sample_pnc_topics.py '/mnt/nfs/public_test/2018-04-??/*/mkz8/*/*.record'
 """
 
+import argparse
 import glob
 import os
 import sys
+
 import glog
-import argparse
-from cyber_py import cyber
-from cyber_py.record import RecordReader
-from cyber_py.record import RecordWriter
+
+from cyber_py3 import cyber
+from cyber_py3.record import RecordReader
+from cyber_py3.record import RecordWriter
+
 
 class SamplePNC(object):
     """Sample bags to contain PNC related topics only."""
@@ -78,15 +81,15 @@ class SamplePNC(object):
         freader = RecordReader(input_record)
         fwriter = RecordWriter()
         if not fwriter.open(output_record):
-            print "writer open failed!"
+            print('writer open failed!')
             return
-        print "+++ begin to process..."
+        print('----- Begin to process record -----')
         for channelname, msg, datatype, timestamp in freader.read_messages():
             if channelname in SamplePNC.TOPICS:
                 desc = freader.get_protodesc(channelname)
                 fwriter.write_channel(channelname, datatype, desc)
                 fwriter.write_message(channelname, msg, timestamp)
-        print "+++ Finished  processing..."
+        print('----- Finish processing record -----')
 
 
 if __name__ == '__main__':

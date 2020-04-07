@@ -6,12 +6,16 @@ cc_library(
     name = "container_manager",
     srcs = ["container_manager.cc"],
     hdrs = ["container_manager.h"],
+    copts = [
+        "-DMODULE_NAME=\\\"prediction\\\"",
+    ],
     deps = [
         "//modules/common/adapters/proto:adapter_config_proto",
         "//modules/prediction/container/adc_trajectory:adc_trajectory_container",
         "//modules/prediction/container/obstacles:obstacles_container",
         "//modules/prediction/container/pose:pose_container",
-        "@gtest//:main",
+        "//modules/prediction/container/storytelling:storytelling_container",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -31,8 +35,6 @@ cc_test(
 cc_library(
     name = "container",
     hdrs = ["container.h"],
-    deps = [
-    ],
 )
 
 cpplint()

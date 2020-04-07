@@ -14,12 +14,12 @@
  * limitations under the License.
  *****************************************************************************/
 
-#include <QCheckBox>
-#include <QColorDialog>
-#include <QComboBox>
-#include <QMessageBox>
-#include <QPushButton>
-#include <QSpinBox>
+#include <QtWidgets/QCheckBox>
+#include <QtWidgets/QColorDialog>
+#include <QtWidgets/QComboBox>
+#include <QtWidgets/QMessageBox>
+#include <QtWidgets/QPushButton>
+#include <QtWidgets/QSpinBox>
 
 #include "modules/tools/visualizer/fixedaspectratiowidget.h"
 #include "modules/tools/visualizer/grid.h"
@@ -172,7 +172,7 @@ MainWindow::MainWindow(QWidget* parent)
 
       grid_(nullptr),
       enable_grid_checkBox_(nullptr),
-      grid_root_Item_(nullptr),
+      grid_root_item_(nullptr),
 
       pointcloud_top_item_(nullptr),
       pointcloud_comboBox_(new QComboBox),
@@ -249,7 +249,6 @@ MainWindow::~MainWindow() {
   }
 
   pointcloud_reader_mutex_.unlock();
-
 
   if (pointcloud_channel_Reader_) {
     delete pointcloud_channel_Reader_;
@@ -381,7 +380,7 @@ void MainWindow::ActionAddGrid(void) {
     }
   }
 
-  if (grid_root_Item_ == nullptr) {
+  if (grid_root_item_ == nullptr) {
     QTreeWidgetItem* colorChild = nullptr;
     QTreeWidgetItem* cellCountChild = nullptr;
     QSpinBox* spinbox = nullptr;
@@ -400,16 +399,16 @@ void MainWindow::ActionAddGrid(void) {
       goto _ret2;
     }
 
-    grid_root_Item_ = new QTreeWidgetItem(ui_->treeWidget);
-    if (grid_root_Item_ == nullptr) {
+    grid_root_item_ = new QTreeWidgetItem(ui_->treeWidget);
+    if (grid_root_item_ == nullptr) {
       goto _ret3;
     }
 
-    colorChild = new QTreeWidgetItem(grid_root_Item_);
+    colorChild = new QTreeWidgetItem(grid_root_item_);
     if (colorChild == nullptr) {
       goto _ret4;
     }
-    grid_root_Item_->addChild(colorChild);
+    grid_root_item_->addChild(colorChild);
     colorChild->setText(0, "Color");
     colorChild->setText(1, tr("%1;%2;%3")
                                .arg(grid_->red())
@@ -426,11 +425,11 @@ void MainWindow::ActionAddGrid(void) {
     spinbox->setValue(grid_->CellCount());
     spinbox->setStyleSheet(globalTreeItemStyle);
 
-    cellCountChild = new QTreeWidgetItem(grid_root_Item_);
+    cellCountChild = new QTreeWidgetItem(grid_root_item_);
     if (cellCountChild == nullptr) {
       goto _ret6;
     }
-    grid_root_Item_->addChild(cellCountChild);
+    grid_root_item_->addChild(cellCountChild);
     cellCountChild->setText(0, "CellCount");
 
     grid_->set_shader_program(grid_shader_);
@@ -440,12 +439,12 @@ void MainWindow::ActionAddGrid(void) {
 
     enable_grid_checkBox_->setText("Enable");
     enable_grid_checkBox_->setChecked(true);
-    grid_root_Item_->setText(0, "Grid");
-    grid_root_Item_->setText(1, "");
+    grid_root_item_->setText(0, "Grid");
+    grid_root_item_->setText(1, "");
 
-    ui_->treeWidget->addTopLevelItem(grid_root_Item_);
+    ui_->treeWidget->addTopLevelItem(grid_root_item_);
 
-    ui_->treeWidget->setItemWidget(grid_root_Item_, 1, enable_grid_checkBox_);
+    ui_->treeWidget->setItemWidget(grid_root_item_, 1, enable_grid_checkBox_);
     ui_->treeWidget->setItemWidget(cellCountChild, 1, spinbox);
 
     connect(enable_grid_checkBox_, SIGNAL(clicked(bool)), this,
@@ -463,7 +462,7 @@ void MainWindow::ActionAddGrid(void) {
   _ret5:
     delete colorChild;
   _ret4:
-    delete grid_root_Item_;
+    delete grid_root_item_;
   _ret3:
     delete enable_grid_checkBox_;
   _ret2:
@@ -484,7 +483,8 @@ void MainWindow::ChangeGridCellCountBySize(int v) {
 }
 
 void MainWindow::EditGridColor(QTreeWidgetItem* item, int column) {
-  if (column && item == grid_root_Item_->child(0)) {
+  if (column && item != nullptr && grid_root_item_ != nullptr &&
+      item == grid_root_item_->child(0)) {
     QStringList rgb = item->text(1).split(';');
     QColor color(rgb.at(0).toInt(), rgb.at(1).toInt(), rgb.at(2).toInt());
 
@@ -581,7 +581,7 @@ void MainWindow::DoOpenRadarChannel(bool b, RadarData* radarProxy) {
   if (b) {
     if (radarProxy->channel_name_combobox_.currentText().isEmpty()) {
       QMessageBox::warning(
-          this, tr("Settup Channel Name"),
+          this, tr("Setup Channel Name"),
           tr("Channel Name cannot be empty!!!\nPlease select one!"),
           QMessageBox::Ok);
       radarProxy->action_item_button_.setChecked(false);
@@ -614,7 +614,7 @@ void MainWindow::DoOpenRadarChannel(bool b, RadarData* radarProxy) {
               radarProxy->channel_name_combobox_.currentText().toStdString(),
               nodeName)) {
         QMessageBox::warning(
-            this, tr("Settup Channel Callback"),
+            this, tr("Setup Channel Callback"),
             tr("Channel Callback cannot be installed!!!\nPlease check it!"),
             QMessageBox::Ok);
         delete radarProxy->channel_reader_;
@@ -848,7 +848,7 @@ void MainWindow::UpdateActions(void) {
   ui_->actionDelImage->setEnabled(false);
   if (item) {
     if (!item->parent() && item != pointcloud_top_item_ &&
-        item != all_channel_root_ && item != grid_root_Item_) {
+        item != all_channel_root_ && item != grid_root_item_) {
       ui_->actionDelImage->setEnabled(true);
     }
   }
@@ -873,7 +873,7 @@ void MainWindow::PlayRenderableObject(bool b) {
   if (b) {
     if (pointcloud_comboBox_->currentText().isEmpty()) {
       QMessageBox::warning(
-          this, tr("Settup Channel Name"),
+          this, tr("Setup Channel Name"),
           tr("Channel Name cannot be empty!!!\nPlease Select it!"),
           QMessageBox::Ok);
       pointcloud_button_->setChecked(false);
@@ -903,7 +903,7 @@ void MainWindow::PlayRenderableObject(bool b) {
               pointCallback, pointcloud_comboBox_->currentText().toStdString(),
               nodeName)) {
         QMessageBox::warning(
-            this, tr("Settup Channel Callback"),
+            this, tr("Setup Channel Callback"),
             tr("Channel Callback cannot be installed!!!\nPlease check it!"),
             QMessageBox::Ok);
         delete pointcloud_channel_Reader_;
@@ -992,7 +992,7 @@ void MainWindow::DoPlayVideoImage(bool b, VideoImgProxy* theVideoImg) {
   if (b) {
     if (theVideoImg->channel_name_combobox_.currentText().isEmpty()) {
       QMessageBox::warning(
-          this, tr("Settup Channel Name"),
+          this, tr("Setup Channel Name"),
           tr("Channel Name cannot be empty!!!\nPlease select one!"),
           QMessageBox::Ok);
       theVideoImg->action_item_button_.setChecked(false);
@@ -1045,7 +1045,7 @@ void MainWindow::DoPlayVideoImage(bool b, VideoImgProxy* theVideoImg) {
       }
       if (!ret) {
         QMessageBox::warning(
-            this, tr("Settup Channel Callback"),
+            this, tr("Setup Channel Callback"),
             tr("Channel Callback cannot be installed!!!\nPlease check it!"),
             QMessageBox::Ok);
 
@@ -1129,11 +1129,11 @@ void MainWindow::TopologyChanged(
           changeMsg.change_type() &&
       apollo::cyber::proto::RoleType::ROLE_WRITER == changeMsg.role_type() &&
       apollo::cyber::proto::OperateType::OPT_JOIN == changeMsg.operate_type()) {
-    FindNewWriter(changeMsg.role_attr());
+    AddNewWriter(changeMsg.role_attr());
   }
 }
 
-void MainWindow::FindNewWriter(
+void MainWindow::AddNewWriter(
     const apollo::cyber::proto::RoleAttributes& role) {
   const std::string& channelName = role.channel_name();
   if (_channelName2TypeMap.find(channelName) != _channelName2TypeMap.end()) {
@@ -1144,8 +1144,7 @@ void MainWindow::FindNewWriter(
 
   QTreeWidgetItem* child = new QTreeWidgetItem();
   if (child == nullptr) {
-    QMessageBox::warning(this, tr("Error"),
-                         tr("No Enough for New Channel!!!\nPlease Select it!"),
+    QMessageBox::warning(this, tr("Error"), tr("No Enough for New Channel!!!"),
                          QMessageBox::Ok);
     return;
   }
@@ -1167,7 +1166,8 @@ void MainWindow::FindNewWriter(
   }
   ui_->treeWidget->setRootIsDecorated(true);
 
-  if (str.contains("camera", Qt::CaseInsensitive)) {
+  QString msgType(msgTypeName.c_str());
+  if (msgType.contains("camera", Qt::CaseInsensitive)) {
     for (VideoImgProxy* item : video_image_viewer_list_) {
       item->channel_name_combobox_.addItem(str);
     }
@@ -1177,11 +1177,11 @@ void MainWindow::FindNewWriter(
     }
   }
 
-  if (str.contains("pointcloud", Qt::CaseInsensitive)) {
+  if (msgType.contains("pointcloud", Qt::CaseInsensitive)) {
     pointcloud_comboBox_->addItem(str);
   }
 
-  if (str.contains("radar", Qt::CaseInsensitive)) {
+  if (msgType.contains("radar", Qt::CaseInsensitive)) {
     for (RadarData* item : radarData_list_) {
       item->channel_name_combobox_.addItem(str);
     }
@@ -1195,8 +1195,9 @@ void MainWindow::FindNewWriter(
 void MainWindow::PlayPause(void) {
   QObject* obj = QObject::sender();
   bool b = true;
-  if (obj == ui_->actionPause) b = false;
-
+  if (obj == ui_->actionPause) {
+    b = false;
+  }
   if (pointcloud_top_item_) {
     pointcloud_button_->setChecked(b);
     PlayRenderableObject(b);

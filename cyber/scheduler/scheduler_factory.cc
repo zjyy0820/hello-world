@@ -21,6 +21,7 @@
 
 #include <atomic>
 #include <string>
+#include <unordered_map>
 
 #include "cyber/common/environment.h"
 #include "cyber/common/file.h"
@@ -43,7 +44,7 @@ using apollo::cyber::common::WorkRoot;
 namespace {
 std::atomic<Scheduler*> instance = {nullptr};
 std::mutex mutex;
-}
+}  // namespace
 
 Scheduler* Instance() {
   Scheduler* obj = instance.load(std::memory_order_acquire);
@@ -59,7 +60,7 @@ Scheduler* Instance() {
       if (PathExists(cfg_file) && GetProtoFromFile(cfg_file, &cfg)) {
         policy = cfg.scheduler_conf().policy();
       } else {
-        AWARN << "Pls make sure schedconf exist and which format is correct.\n";
+        AWARN << "No sched conf found, use default conf.";
       }
       if (!policy.compare("classic")) {
         obj = new SchedulerClassic();

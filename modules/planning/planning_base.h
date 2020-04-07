@@ -34,6 +34,7 @@
 #include "modules/common/status/status.h"
 #include "modules/common/vehicle_state/vehicle_state_provider.h"
 #include "modules/map/hdmap/hdmap.h"
+#include "modules/planning/common/frame.h"
 #include "modules/planning/common/local_view.h"
 #include "modules/planning/common/trajectory/publishable_trajectory.h"
 #include "modules/planning/planner/planner.h"
@@ -53,6 +54,7 @@ namespace planning {
 class PlanningBase {
  public:
   PlanningBase() = default;
+
   virtual ~PlanningBase();
 
   virtual apollo::common::Status Init(const PlanningConfig& config);
@@ -73,20 +75,16 @@ class PlanningBase {
  protected:
   virtual void FillPlanningPb(const double timestamp,
                               ADCTrajectory* const trajectory_pb);
-  void SetFallbackTrajectory(ADCTrajectory* const trajectory_pb);
-
-  virtual void ExportChart(const planning_internal::Debug& debug_info,
-                           planning_internal::Debug* debug_chart);
 
   LocalView local_view_;
   const hdmap::HDMap* hdmap_ = nullptr;
-  const std::shared_ptr<ADCTrajectory> last_planning_;
 
   double start_time_ = 0.0;
   size_t seq_num_ = 0;
 
   PlanningConfig config_;
   TrafficRuleConfigs traffic_rule_configs_;
+  std::unique_ptr<Frame> frame_;
   std::unique_ptr<Planner> planner_;
   std::unique_ptr<PublishableTrajectory> last_publishable_trajectory_;
   std::unique_ptr<PlannerDispatcher> planner_dispatcher_;

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 ###############################################################################
 # Copyright 2017 The Apollo Authors. All Rights Reserved.
@@ -20,8 +20,9 @@
 Broadcaster static transform
 """
 
+from subprocess import call
 import sys
-import os
+
 import yaml
 
 
@@ -30,28 +31,31 @@ def main():
 
     Reading transform info from a yaml file and publish to tf2
     """
-    if len(sys.argv) == 1:
-        print "error: no extrinsics yaml file given"
-        print "usage: python extrinsics_broadcaster.py extrinsic_example.yaml"
+    if len(sys.argv) < 2:
+        print('Usage: %s extrinsic_example.yaml' % sys.argv[0])
         return
 
-    file_path = open(sys.argv[1])
-    transform_stamped = yaml.safe_load(file_path)
-    command = 'rosrun tf2_ros static_transform_publisher '\
-        '%f %f %f %f %f %f %f %s %s' % (transform_stamped['transform']['translation']['x'],
-                                        transform_stamped['transform']['translation']['y'],
-                                        transform_stamped['transform']['translation']['z'],
-                                        transform_stamped['transform']['rotation']['x'],
-                                        transform_stamped['transform']['rotation']['y'],
-                                        transform_stamped['transform']['rotation']['z'],
-                                        transform_stamped['transform']['rotation']['w'],
-                                        transform_stamped['header']['frame_id'],
-                                        transform_stamped['child_frame_id'])
+    with open(sys.argv[1]) as fp:
+        transform_stamped = yaml.safe_load(file_path)
+        command = 'rosrun tf2_ros static_transform_publisher ' \
+                  '%f %f %f %f %f %f %f %s %s' % \
+                  (transform_stamped['transform']['translation']['x'],
+                   transform_stamped['transform']['translation']['y'],
+                   transform_stamped['transform']['translation']['z'],
+                   transform_stamped['transform']['rotation']['x'],
+                   transform_stamped['transform']['rotation']['y'],
+                   transform_stamped['transform']['rotation']['z'],
+                   transform_stamped['transform']['rotation']['w'],
+                   transform_stamped['header']['frame_id'],
+                   transform_stamped['child_frame_id'])
 
-    print command
-    ret = os.system(command)
-    print ret
+    print(command)
+
+    try:
+        return call(command, shell=True)
+    except OSError as e:
+        print(e)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

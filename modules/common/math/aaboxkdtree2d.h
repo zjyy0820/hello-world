@@ -70,7 +70,7 @@ class AABoxKDTree2dNode {
   AABoxKDTree2dNode(const std::vector<ObjectPtr> &objects,
                     const AABoxKDTreeParams &params, int depth)
       : depth_(depth) {
-    CHECK(!objects.empty());
+    ACHECK(!objects.empty());
 
     ComputeBoundary(objects);
     ComputePartition();
@@ -335,8 +335,8 @@ class AABoxKDTree2dNode {
     }
     mid_x_ = (min_x_ + max_x_) / 2.0;
     mid_y_ = (min_y_ + max_y_) / 2.0;
-    CHECK(!std::isinf(max_x_) && !std::isinf(max_y_) && !std::isinf(min_x_) &&
-          !std::isinf(min_y_))
+    ACHECK(!std::isinf(max_x_) && !std::isinf(max_y_) && !std::isinf(min_x_) &&
+           !std::isinf(min_y_))
         << "the provided object box size is infinity";
   }
 
@@ -417,7 +417,7 @@ class AABoxKDTree2d {
   using ObjectPtr = const ObjectType *;
 
   /**
-   * @brief Contructor which takes a vector of objects and parameters.
+   * @brief Constructor which takes a vector of objects and parameters.
    * @param params Parameters to build the KD-tree.
    */
   AABoxKDTree2d(const std::vector<ObjectType> &objects,

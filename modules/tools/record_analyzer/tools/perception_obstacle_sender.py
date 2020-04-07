@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 ###############################################################################
 # Copyright 2018 The Apollo Authors. All Rights Reserved.
@@ -19,16 +19,17 @@
 import time
 import argparse
 import google.protobuf.text_format as text_format
-from cyber_py import cyber
+from cyber_py3 import cyber
+from cyber_py3 import cyber_time
 from modules.perception.proto import perception_obstacle_pb2
 
 
 def update(perception_obstacles):
     """update perception obstacles timestamp"""
-    now = time.time()
+    now = cyber_time.Time.now().to_sec()
     perception_obstacles.header.timestamp_sec = now
     perception_obstacles.header.lidar_timestamp = \
-        (long(now) - long(0.5)) * long(1e9)
+        (int(now) - int(0.5)) * int(1e9)
 
     for perception_obstacle in perception_obstacles.perception_obstacle:
         perception_obstacle.timestamp = now - 0.5
@@ -59,10 +60,10 @@ if __name__ == "__main__":
         text_format.Merge(f.read(), perception_obstacles)
 
     while not cyber.is_shutdown():
-        now = time.time()
+        now = cyber_time.Time.now().to_sec()
         perception_obstacles = update(perception_obstacles)
         perception_pub.write(perception_obstacles)
-        sleep_time = 0.1 - (time.time() - now)
+        sleep_time = 0.1 - (cyber_time.Time.now().to_sec() - now)
         if sleep_time > 0:
             time.sleep(sleep_time)
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 ###############################################################################
 # Copyright 2017 The Apollo Authors. All Rights Reserved.
@@ -26,10 +26,10 @@ import os
 import sys
 import time
 
-from cyber_py import cyber
+from cyber_py3 import cyber
 from gflags import FLAGS
 
-from logger import Logger
+from common.logger import Logger
 from modules.canbus.proto import chassis_pb2
 from modules.localization.proto import localization_pb2
 
@@ -40,7 +40,7 @@ class RtkRecord(object):
     """
 
     def write(self, data):
-        """wrap file write function to flush data to disk"""
+        """Wrap file write function to flush data to disk"""
         self.file_handler.write(data)
         self.file_handler.flush()
 
@@ -52,10 +52,10 @@ class RtkRecord(object):
 
         try:
             self.file_handler = open(record_file, 'w')
-        except:
-            self.logger.error("open file %s failed" % (record_file))
+        except IOError:
+            self.logger.error("Open file %s failed" % (record_file))
             self.file_handler.close()
-            sys.exit()
+            sys.exit(1)
 
         self.write("x,y,z,speed,acceleration,curvature,"
                    "curvature_change_rate,time,theta,gear,s,throttle,brake,steering\n")
@@ -76,7 +76,7 @@ class RtkRecord(object):
         """
         New message received
         """
-        if self.terminating == True:
+        if self.terminating is True:
             self.logger.info("terminating when receive chassis msg")
             return
 
@@ -93,7 +93,7 @@ class RtkRecord(object):
         """
         New message received
         """
-        if self.terminating == True:
+        if self.terminating is True:
             self.logger.info("terminating when receive localization msg")
             return
 
@@ -135,13 +135,13 @@ class RtkRecord(object):
         cargear = self.chassis.gear_location
 
         if abs(carspeed) >= speed_epsilon:
-            if self.startmoving == False:
+            if self.startmoving is False:
                 self.logger.info(
                     "carspeed !=0 and startmoving is False, Start Recording")
             self.startmoving = True
 
         if self.startmoving:
-            self.cars = self.cars + carspeed * 0.01
+            self.cars += carspeed * 0.01
             self.write(
                 "%s, %s, %s, %s, %s, %s, %s, %.4f, %s, %s, %s, %s, %s, %s\n" %
                 (carx, cary, carz, carspeed, caracceleration, self.carcurvature,
@@ -162,7 +162,7 @@ class RtkRecord(object):
         """
         self.terminating = True
         self.logger.info("Shutting Down...")
-        self.logger.info("file is written into %s" % self.record_file)
+        self.logger.info("File is written into %s" % self.record_file)
         self.file_handler.close()
 
 

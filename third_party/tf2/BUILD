@@ -5,13 +5,15 @@ licenses(["notice"])
 
 cc_library(
     name = "tf2",
-    hdrs = glob([
-        "include/**/*.h"
-    ]),
-    includes = [
-        "include",
-    ],
     srcs = [
-        "lib/libtf2.so"
-    ]
+        "src/buffer_core.cpp",
+        "src/cache.cpp",
+        "src/static_cache.cpp",
+        "src/time.cpp",
+    ],
+    hdrs = glob(["include/**/*.h"]),
+    includes = ["include"],
+    deps = [
+        "//third_party:boost",
+    ],
 )

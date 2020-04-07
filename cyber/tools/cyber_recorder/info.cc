@@ -16,9 +16,16 @@
 
 #include "cyber/tools/cyber_recorder/info.h"
 
+#include "cyber/record/record_message.h"
+
 namespace apollo {
 namespace cyber {
 namespace record {
+
+using apollo::cyber::proto::ChannelCache;
+using apollo::cyber::record::kGB;
+using apollo::cyber::record::kKB;
+using apollo::cyber::record::kMB;
 
 Info::Info() {}
 
@@ -30,17 +37,17 @@ bool Info::Display(const std::string& file) {
     AERROR << "open record file error. file: " << file;
     return false;
   }
-  Header hdr = file_reader.GetHeader();
+  proto::Header hdr = file_reader.GetHeader();
 
   std::cout << setiosflags(std::ios::left);
   std::cout << setiosflags(std::ios::fixed);
-  unsigned int w = 16;
 
+  int w = 16;
   // file name
-  std::cout << std::setw(w) << "record_file:" << file << std::endl;
+  std::cout << std::setw(w) << "record_file: " << file << std::endl;
 
   // version
-  std::cout << std::setw(w) << "version:" << hdr.major_version() << "."
+  std::cout << std::setw(w) << "version: " << hdr.major_version() << "."
             << hdr.minor_version() << std::endl;
 
   // time and duration
@@ -49,21 +56,19 @@ bool Info::Display(const std::string& file) {
   auto duration_s = end_time_s - begin_time_s;
   auto begin_time_str = UnixSecondsToString(static_cast<int>(begin_time_s));
   auto end_time_str = UnixSecondsToString(static_cast<int>(end_time_s));
-  std::cout << std::setw(w) << "duration:" << duration_s << " Seconds"
+  std::cout << std::setw(w) << "duration: " << duration_s << " Seconds"
             << std::endl;
-  std::cout << std::setw(w) << "begin_time:" << begin_time_str << std::endl;
-  std::cout << std::setw(w) << "end_time:" << end_time_str << std::endl;
+  std::cout << std::setw(w) << "begin_time: " << begin_time_str << std::endl;
+  std::cout << std::setw(w) << "end_time: " << end_time_str << std::endl;
 
   // size
-  std::cout << std::setw(w) << "size:" << hdr.size() << " Bytes";
-  if (hdr.size() >= (1024 * 1024 * 1024)) {
-    std::cout << " (" << static_cast<double>(hdr.size()) / (1024 * 1024 * 1024)
-              << " GB)";
-  } else if (hdr.size() >= (1024 * 1024)) {
-    std::cout << " (" << static_cast<double>(hdr.size()) / (1024 * 1024)
-              << " MB)";
-  } else if (hdr.size() >= 1024) {
-    std::cout << " (" << static_cast<double>(hdr.size()) / 1024 << " KB)";
+  std::cout << std::setw(w) << "size: " << hdr.size() << " Bytes";
+  if (hdr.size() >= kGB) {
+    std::cout << " (" << static_cast<float>(hdr.size()) / kGB << " GB)";
+  } else if (hdr.size() >= kMB) {
+    std::cout << " (" << static_cast<float>(hdr.size()) / kMB << " MB)";
+  } else if (hdr.size() >= kKB) {
+    std::cout << " (" << static_cast<float>(hdr.size()) / kKB << " KB)";
   }
   std::cout << std::endl;
 
@@ -77,11 +82,11 @@ bool Info::Display(const std::string& file) {
   std::cout << std::endl;
 
   // message_number
-  std::cout << std::setw(w) << "message_number:" << hdr.message_number()
+  std::cout << std::setw(w) << "message_number: " << hdr.message_number()
             << std::endl;
 
   // channel_number
-  std::cout << std::setw(w) << "channel_number:" << hdr.channel_number()
+  std::cout << std::setw(w) << "channel_number: " << hdr.channel_number()
             << std::endl;
 
   // read index section
@@ -89,22 +94,19 @@ bool Info::Display(const std::string& file) {
     AERROR << "read index section of the file fail. file: " << file;
     return false;
   }
-  Index idx = file_reader.GetIndex();
 
   // channel info
-  for (int i = 0; i < idx.indexes_size(); i++) {
+  std::cout << std::setw(w) << "channel_info: " << std::endl;
+  proto::Index idx = file_reader.GetIndex();
+  for (int i = 0; i < idx.indexes_size(); ++i) {
     ChannelCache* cache = idx.mutable_indexes(i)->mutable_channel_cache();
-    if (idx.mutable_indexes(i)->type() == SectionType::SECTION_CHANNEL) {
-      if (i == 0) {
-        std::cout << std::setw(w) << "channel_info:";
-      } else {
-        std::cout << std::setw(w) << "";
-      }
+    if (idx.mutable_indexes(i)->type() == proto::SectionType::SECTION_CHANNEL) {
+      std::cout << std::setw(w) << "";
       std::cout << resetiosflags(std::ios::right);
       std::cout << std::setw(50) << cache->name();
       std::cout << setiosflags(std::ios::right);
       std::cout << std::setw(8) << cache->message_number();
-      std::cout << std::setw(0) << " messages : ";
+      std::cout << std::setw(0) << " messages: ";
       std::cout << cache->message_type();
       std::cout << std::endl;
     }

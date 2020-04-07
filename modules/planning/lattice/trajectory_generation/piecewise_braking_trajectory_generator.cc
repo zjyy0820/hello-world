@@ -89,9 +89,9 @@ std::shared_ptr<Curve1d> PiecewiseBrakingTrajectoryGenerator::Generate(
       return ptr_trajectory;
     } else {
       double s_rampup_rampdown = s_dist - comfort_stop_dist;
-      double v_max = std::sqrt(v_curr * v_curr +
-                               2.0 * a_comfort * d_comfort * s_rampup_rampdown /
-                                   (a_comfort + d_comfort));
+      double v_max = std::sqrt(v_curr * v_curr + 2.0 * a_comfort * d_comfort *
+                                                     s_rampup_rampdown /
+                                                     (a_comfort + d_comfort));
 
       double t_acc = (v_max - v_curr) / a_comfort;
       double t_dec = v_max / d_comfort;
@@ -111,7 +111,7 @@ std::shared_ptr<Curve1d> PiecewiseBrakingTrajectoryGenerator::Generate(
 
 double PiecewiseBrakingTrajectoryGenerator::ComputeStopDistance(
     const double v, const double dec) {
-  CHECK(dec > 0.0);
+  ACHECK(dec > 0.0);
   return v * v / dec * 0.5;
 }
 

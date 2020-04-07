@@ -20,19 +20,23 @@
 i=0;
 j=0;
 for str in $@
-do    
+do
     # The strings starting with "--" are control arguments and need to be filtered.
-    if [[ ${str} =~ ^--.* ]]; then    
+    if [[ ${str} =~ ^--.* ]]; then
         CTRL_ARGS[i++]=${str}
         continue
     fi
     DIR=$(cd "$(dirname ${str} )" && pwd)
     FILE_NAME=$(basename ${str})
-    PATH_NAME[j++]="${DIR}/${FILE_NAME}"    
+    PATH_NAME[j++]="${DIR}/${FILE_NAME}"
 done
 
 #echo "${CTRL_ARGS[@]}"
 #echo "${PATH_NAME[@]}"
-cd /apollo
-./bazel-bin/modules/map/relative_map/tools/navigator "${CTRL_ARGS[@]}" "${PATH_NAME[@]}" 
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "${DIR}/.."
+source "${DIR}/apollo_base.sh"
+${APOLLO_BIN_PREFIX}/modules/map/relative_map/tools/navigator --navigator_config_filename=/apollo/modules/map/relative_map/conf/navigator_config.pb.txt  "${CTRL_ARGS[@]}" "${PATH_NAME[@]}"
+
 

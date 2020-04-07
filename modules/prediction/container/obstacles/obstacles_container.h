@@ -21,12 +21,15 @@
 
 #pragma once
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "modules/common/util/lru_cache.h"
 #include "modules/prediction/container/container.h"
 #include "modules/prediction/container/obstacles/obstacle.h"
+#include "modules/prediction/proto/prediction_obstacle.pb.h"
+#include "modules/prediction/submodules/submodule_output.h"
 
 namespace apollo {
 namespace prediction {
@@ -37,6 +40,11 @@ class ObstaclesContainer : public Container {
    * @brief Constructor
    */
   ObstaclesContainer();
+
+  /**
+   * @brief Constructor from container output
+   */
+  explicit ObstaclesContainer(const SubmoduleOutput& submodule_output);
 
   /**
    * @brief Destructor
@@ -82,28 +90,67 @@ class ObstaclesContainer : public Container {
   Obstacle* GetObstacle(const int id);
 
   /**
-   * @brief Get predictable obstacle IDs in the current frame
-   * @return Predictable obstacle IDs in the current frame
-   */
-  const std::vector<int>& GetCurrentFramePredictableObstacleIds() const;
-
-  /**
    * @brief Clear obstacle container
    */
   void Clear();
 
- private:
+  void CleanUp();
+
+  size_t NumOfObstacles() { return ptr_obstacles_.size(); }
+
+  const apollo::perception::PerceptionObstacle& GetPerceptionObstacle(
+      const int id);
+
   /**
-   * @brief Check if an obstacle is predictable
-   * @param An obstacle
-   * @return True if the obstacle is predictable; otherwise false;
+   * @brief Get movable obstacle IDs in the current frame
+   * @return Movable obstacle IDs in the current frame
    */
-  bool IsPredictable(const perception::PerceptionObstacle& perception_obstacle);
+  const std::vector<int>& curr_frame_movable_obstacle_ids();
+
+  /**
+   * @brief Get unmovable obstacle IDs in the current frame
+   * @return unmovable obstacle IDs in the current frame
+   */
+  const std::vector<int>& curr_frame_unmovable_obstacle_ids();
+
+  /**
+   * @brief Get non-ignore obstacle IDs in the current frame
+   * @return Non-ignore obstacle IDs in the current frame
+   */
+  const std::vector<int>& curr_frame_considered_obstacle_ids();
+
+  /*
+   * @brief Set non-ignore obstacle IDs in the current frame
+   */
+  void SetConsideredObstacleIds();
+
+  /**
+   * @brief Get current frame obstacle IDs in the current frame
+   * @return Current frame obstacle IDs in the current frame
+   */
+  std::vector<int> curr_frame_obstacle_ids();
+
+  double timestamp() const;
+
+  SubmoduleOutput GetSubmoduleOutput(const size_t history_size,
+                                     const absl::Time& frame_start_time);
+
+ private:
+  Obstacle* GetObstacleWithLRUUpdate(const int obstacle_id);
+
+  /**
+   * @brief Check if an obstacle is movable
+   * @param An obstacle
+   * @return True if the obstacle is movable; otherwise false;
+   */
+  bool IsMovable(const perception::PerceptionObstacle& perception_obstacle);
 
  private:
   double timestamp_ = -1.0;
-  common::util::LRUCache<int, Obstacle> obstacles_;
-  std::vector<int> curr_frame_predictable_obstacle_ids_;
+  common::util::LRUCache<int, std::unique_ptr<Obstacle>> ptr_obstacles_;
+  std::vector<int> curr_frame_movable_obstacle_ids_;
+  std::vector<int> curr_frame_unmovable_obstacle_ids_;
+  std::vector<int> curr_frame_considered_obstacle_ids_;
 };
 
 }  // namespace prediction

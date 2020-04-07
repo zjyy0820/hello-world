@@ -1,5 +1,4 @@
-import secure_upgrade_export as sec_api
-"""OTA query client"""
+#!/usr/bin/env python3
 
 ###############################################################################
 # Copyright 2017 The Apollo Authors. All Rights Reserved.
@@ -17,20 +16,24 @@ import secure_upgrade_export as sec_api
 # limitations under the License.
 ###############################################################################
 
+import os
 import requests
 import sys
-import os
+
+from configparser import ConfigParser
+import secure_upgrade_export as sec_api
 import urllib3
-from ConfigParser import ConfigParser
+
 from modules.data.proto.static_info_pb2 import VehicleInfo
 import common.proto_utils as proto_utils
 
+
 sys.path.append('/home/caros/secure_upgrade/python')
 
-root_config_path = "/home/caros/secure_upgrade/config/secure_config.json"
-returnCode = sec_api.init_secure_upgrade(root_config_path)
-if returnCode == False:
-    print 'Security environment init fail!'
+root_config_path = '/home/caros/secure_upgrade/config/secure_config.json'
+ret = sec_api.init_secure_upgrade(root_config_path)
+if ret is False:
+    print('Failed to initialize security environment!')
     sys.exit(1)
 
 
@@ -41,10 +44,10 @@ def query():
     try:
         proto_utils.get_pb_from_text_file(VEHICLE_INFO_FILE, vehicle_info)
     except IOError:
-        print "vehicle_info.pb.txt cannot be open file."
+        print('vehicle_info.pb.txt cannot be open file.')
         sys.exit(1)
 
-    # setup server url
+    # Setup server url
     config = ConfigParser()
     CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'config.ini')
     config.read(CONFIG_FILE)
@@ -52,17 +55,17 @@ def query():
     port = config.get('Host', 'port')
     url = 'https://' + ip + ':' + port + '/query'
 
-    # generat device token
-    returnCode = sec_api.sec_upgrade_get_device_token()
-    if returnCode[0] == False:
-        print 'get device token failed!'
+    # Generate device token
+    ret = sec_api.sec_upgrade_get_device_token()
+    if ret[0] is False:
+        print('Failed to get device token.')
         sys.exit(1)
-    dev_token = returnCode[1]
+    dev_token = ret[1]
 
     # setup car info
     brand = VehicleInfo.Brand.Name(vehicle_info.brand)
     model = VehicleInfo.Model.Name(vehicle_info.model)
-    vin = vehicle_info.license.vin
+    vin = vehicle_info.vehicle_config.vehicle_id.vin
     META_FILE = '/apollo/meta.ini'
     config.read(META_FILE)
     car_info = {
@@ -78,7 +81,7 @@ def query():
     if r.status_code == 200:
         auth_token = r.json().get("auth_token")
         if auth_token == "":
-            print "Cannot get authorize token!"
+            print('Cannot get authorize token!')
             sys.exit(1)
         else:
             token_file_name = os.environ['HOME'] + \
@@ -89,16 +92,18 @@ def query():
             with open(token_file_name, 'w') as token_file:
                 token_file.write(auth_token)
         tag = r.json().get("tag")
-        print tag
+        print(tag)
         sys.exit(0)
     elif r.status_code == 204:
-        print "Release is up to date."
+        print('Release is up to date.')
+        sys.exit(0)
     elif r.status_code == 400:
-        print "Invalid car type."
+        print('Invalid car type.')
     else:
-        print "Cannot connect to server."
+        print('Cannot connect to server.')
+
     sys.exit(1)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     query()

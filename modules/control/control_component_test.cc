@@ -16,12 +16,14 @@
 
 #include "modules/control/control_component.h"
 
+#include <thread>
+
+#include "cyber/common/file.h"
 #include "cyber/common/log.h"
 #include "cyber/cyber.h"
-
 #include "gtest/gtest.h"
+
 #include "modules/common/adapters/adapter_gflags.h"
-#include "modules/common/util/file.h"
 #include "modules/control/common/control_gflags.h"
 #include "modules/control/proto/control_conf.pb.h"
 
@@ -31,6 +33,8 @@ namespace control {
 using apollo::canbus::Chassis;
 using apollo::common::monitor::MonitorMessage;
 using apollo::common::time::Clock;
+using apollo::cyber::Reader;
+using apollo::cyber::Writer;
 using apollo::localization::LocalizationEstimate;
 using apollo::planning::ADCTrajectory;
 
@@ -50,6 +54,12 @@ class ControlComponentTest : public ::testing::Test {
     FLAGS_is_control_test_mode = true;
 
     SetupCyber();
+  }
+
+  virtual void TearDown() {
+    if (control_component_) {
+      control_component_->Shutdown();
+    }
   }
 
  protected:
@@ -117,7 +127,7 @@ void ControlComponentTest::SetupCyber() {
 bool ControlComponentTest::FeedTestData() {
   // Pad message
   if (!FLAGS_test_pad_file.empty()) {
-    if (!common::util::GetProtoFromFile(
+    if (!cyber::common::GetProtoFromFile(
             FLAGS_test_data_dir + FLAGS_test_pad_file, &pad_message_)) {
       AERROR << "Failed to load PadMesssage from file " << FLAGS_test_data_dir
              << FLAGS_test_pad_file;
@@ -127,7 +137,7 @@ bool ControlComponentTest::FeedTestData() {
 
   // Localization
   if (!FLAGS_test_localization_file.empty()) {
-    if (!common::util::GetProtoFromFile(
+    if (!cyber::common::GetProtoFromFile(
             FLAGS_test_data_dir + FLAGS_test_localization_file,
             &localization_)) {
       AERROR << "Failed to load localization file " << FLAGS_test_data_dir
@@ -138,7 +148,7 @@ bool ControlComponentTest::FeedTestData() {
 
   // Planning
   if (!FLAGS_test_planning_file.empty()) {
-    if (!common::util::GetProtoFromFile(
+    if (!cyber::common::GetProtoFromFile(
             FLAGS_test_data_dir + FLAGS_test_planning_file, &trajectory_)) {
       AERROR << "Failed to load planning file " << FLAGS_test_data_dir
              << FLAGS_test_planning_file;
@@ -148,7 +158,7 @@ bool ControlComponentTest::FeedTestData() {
 
   // Chassis
   if (!FLAGS_test_chassis_file.empty()) {
-    if (!common::util::GetProtoFromFile(
+    if (!cyber::common::GetProtoFromFile(
             FLAGS_test_data_dir + FLAGS_test_chassis_file, &chassis_)) {
       AERROR << "Failed to load chassis file " << FLAGS_test_data_dir
              << FLAGS_test_chassis_file;
@@ -158,7 +168,7 @@ bool ControlComponentTest::FeedTestData() {
 
   // Monitor
   if (!FLAGS_test_monitor_file.empty()) {
-    if (!apollo::common::util::GetProtoFromFile(
+    if (!cyber::common::GetProtoFromFile(
             FLAGS_test_data_dir + FLAGS_test_monitor_file, &monitor_message_)) {
       AERROR << "Failed to load monitor file " << FLAGS_test_data_dir
              << FLAGS_test_monitor_file;
@@ -170,12 +180,12 @@ bool ControlComponentTest::FeedTestData() {
 }
 
 bool ControlComponentTest::RunControl(const std::string& test_case_name) {
-  CHECK(FeedTestData()) << "Failed to feed test data";
+  ACHECK(FeedTestData()) << "Failed to feed test data";
 
   control_component_.reset(new ControlComponent());
   control_component_->Initialize(component_config_);
 
-  usleep(1000);  // sleep 1ms
+  std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
   // feed topics
   planning_writer_->Write(trajectory_);
@@ -184,12 +194,12 @@ bool ControlComponentTest::RunControl(const std::string& test_case_name) {
   chassis_writer_->Write(chassis_);
   pad_writer_->Write(pad_message_);
 
-  usleep(200000);  // sleep 200ms
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
   TrimControlCommand(&control_command_);
 
   const std::string golden_result_file =
-      apollo::common::util::StrCat("result_", test_case_name, ".pb.txt");
+      absl::StrCat("result_", test_case_name, ".pb.txt");
   std::string tmp_golden_path = "/tmp/" + golden_result_file;
   std::string full_golden_path = FLAGS_test_data_dir + golden_result_file;
   control_command_.Clear();
@@ -198,14 +208,14 @@ bool ControlComponentTest::RunControl(const std::string& test_case_name) {
     AINFO << "The golden file is " << tmp_golden_path << " Remember to:\n"
           << "mv " << tmp_golden_path << " " << FLAGS_test_data_dir << "\n"
           << "git add " << FLAGS_test_data_dir << "/" << golden_result_file;
-    common::util::SetProtoToASCIIFile(control_command_, golden_result_file);
+    cyber::common::SetProtoToASCIIFile(control_command_, golden_result_file);
   } else {
     ControlCommand golden_result;
     bool load_success =
-        common::util::GetProtoFromASCIIFile(full_golden_path, &golden_result);
+        cyber::common::GetProtoFromASCIIFile(full_golden_path, &golden_result);
     if (!load_success) {
       AERROR << "Failed to load golden file: " << full_golden_path;
-      common::util::SetProtoToASCIIFile(control_command_, tmp_golden_path);
+      cyber::common::SetProtoToASCIIFile(control_command_, tmp_golden_path);
       AINFO << "Current result is written to " << tmp_golden_path;
       return false;
     }
@@ -213,7 +223,8 @@ bool ControlComponentTest::RunControl(const std::string& test_case_name) {
         common::util::IsProtoEqual(golden_result, control_command_);
     if (!same_result) {
       std::string tmp_test_result_file = tmp_golden_path + ".tmp";
-      common::util::SetProtoToASCIIFile(control_command_, tmp_test_result_file);
+      cyber::common::SetProtoToASCIIFile(control_command_,
+                                         tmp_test_result_file);
       AERROR << "found diff " << tmp_test_result_file << " "
              << full_golden_path;
     }

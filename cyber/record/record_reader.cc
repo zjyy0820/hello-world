@@ -22,28 +22,31 @@ namespace apollo {
 namespace cyber {
 namespace record {
 
-using proto::SectionType;
+using apollo::cyber::proto::Channel;
+using apollo::cyber::proto::ChunkBody;
+using apollo::cyber::proto::ChunkHeader;
+using apollo::cyber::proto::SectionType;
 
 RecordReader::~RecordReader() {}
 
 RecordReader::RecordReader(const std::string& file) {
   file_reader_.reset(new RecordFileReader());
   if (!file_reader_->Open(file)) {
-    AERROR << "Open record file failed, file: " << file;
+    AERROR << "Failed to open record file: " << file;
     return;
   }
+  chunk_.reset(new ChunkBody());
   is_valid_ = true;
   header_ = file_reader_->GetHeader();
   if (file_reader_->ReadIndex()) {
     index_ = file_reader_->GetIndex();
-    const int kIndexSize = index_.indexes_size();
-    for (int i = 0; i < kIndexSize; ++i) {
+    for (int i = 0; i < index_.indexes_size(); ++i) {
       auto single_idx = index_.mutable_indexes(i);
       if (single_idx->type() != SectionType::SECTION_CHANNEL) {
         continue;
       }
       if (!single_idx->has_channel_cache()) {
-        AERROR << "single channel index does not have channel_cache.";
+        AERROR << "Single channel index does not have channel_cache.";
         continue;
       }
       auto channel_cache = single_idx->mutable_channel_cache();
@@ -58,7 +61,7 @@ void RecordReader::Reset() {
   file_reader_->Reset();
   reach_end_ = false;
   message_index_ = 0;
-  chunk_ = ChunkBody();
+  chunk_.reset(new ChunkBody());
 }
 
 std::set<std::string> RecordReader::GetChannelList() const {
@@ -74,8 +77,13 @@ bool RecordReader::ReadMessage(RecordMessage* message, uint64_t begin_time,
   if (!is_valid_) {
     return false;
   }
-  while (message_index_ < chunk_.messages_size()) {
-    const auto& next_message = chunk_.messages(message_index_);
+
+  if (begin_time > header_.end_time() || end_time < header_.begin_time()) {
+    return false;
+  }
+
+  while (message_index_ < chunk_->messages_size()) {
+    const auto& next_message = chunk_->messages(message_index_);
     uint64_t time = next_message.time();
     if (time > end_time) {
       return false;
@@ -91,10 +99,13 @@ bool RecordReader::ReadMessage(RecordMessage* message, uint64_t begin_time,
     return true;
   }
 
+  ADEBUG << "Read next chunk.";
   if (ReadNextChunk(begin_time, end_time)) {
+    ADEBUG << "Read chunk successfully.";
     message_index_ = 0;
     return ReadMessage(message, begin_time, end_time);
   }
+  ADEBUG << "No chunk to read.";
   return false;
 }
 
@@ -103,7 +114,7 @@ bool RecordReader::ReadNextChunk(uint64_t begin_time, uint64_t end_time) {
   while (!reach_end_) {
     Section section;
     if (!file_reader_->ReadSection(&section)) {
-      AERROR << "Read section failed, file: " << file_reader_->GetPath();
+      AERROR << "Failed to read section, file: " << file_reader_->GetPath();
       return false;
     }
     switch (section.type) {
@@ -142,7 +153,9 @@ bool RecordReader::ReadNextChunk(uint64_t begin_time, uint64_t end_time) {
           skip_next_chunk_body = false;
           break;
         }
-        if (!file_reader_->ReadSection<ChunkBody>(section.size, &chunk_)) {
+
+        chunk_.reset(new ChunkBody());
+        if (!file_reader_->ReadSection<ChunkBody>(section.size, chunk_.get())) {
           AERROR << "Failed to read chunk body section.";
           return false;
         }

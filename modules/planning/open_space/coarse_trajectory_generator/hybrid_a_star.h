@@ -18,25 +18,17 @@
  * @file
  */
 
-/*
- * Inspired by
- *
- * Dolgov, Dmitri, et al. "Path Planning for Autonomous Vehicles in Unknown
- * Semi-Structured Environments." The International Journal of Robotics
- * Research, vol. 29, no. 5, 2010, pp. 485-501., doi:10.1177/0278364909359210.
- *
- * Xiaojing, et al. "Optimization-Based Collision Avoidance" (arXiv:1711.03449)
- * and its implementation (https://github.com/XiaojingGeorgeZhang/H-OBCA).
- */
-
 #pragma once
 
+#include <algorithm>
 #include <memory>
 #include <queue>
+#include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
+#include "modules/planning/open_space/coarse_trajectory_generator/grid_search.h"
 #include "modules/planning/open_space/coarse_trajectory_generator/node3d.h"
 #include "modules/planning/open_space/coarse_trajectory_generator/reeds_shepp_path.h"
 
@@ -53,8 +45,6 @@
 namespace apollo {
 namespace planning {
 
-using apollo::common::Status;
-
 struct HybridAStartResult {
   std::vector<double> x;
   std::vector<double> y;
@@ -62,6 +52,7 @@ struct HybridAStartResult {
   std::vector<double> v;
   std::vector<double> a;
   std::vector<double> steer;
+  std::vector<double> accumulated_s;
 };
 
 class HybridAStar {
@@ -73,40 +64,30 @@ class HybridAStar {
             const std::vector<std::vector<common::math::Vec2d>>&
                 obstacles_vertices_vec,
             HybridAStartResult* result);
+  bool TrajectoryPartition(const HybridAStartResult& result,
+                           std::vector<HybridAStartResult>* partitioned_result);
 
  private:
-  bool AnalyticExpansion(std::shared_ptr<Node3d> current_node,
-                         const std::vector<std::vector<common::math::Vec2d>>&
-                             obstacles_vertices_vec);
-  bool ReedSheppHeuristic(std::shared_ptr<Node3d> current_node,
-                          std::shared_ptr<ReedSheppPath> reeds_shepp_to_end);
+  bool AnalyticExpansion(std::shared_ptr<Node3d> current_node);
   // check collision and validity
-  bool ValidityCheck(std::shared_ptr<Node3d> node,
-                     const std::vector<std::vector<common::math::Vec2d>>&
-                         obstacles_vertices_vec);
+  bool ValidityCheck(std::shared_ptr<Node3d> node);
   // check Reeds Shepp path collision and validity
-  bool RSPCheck(const std::shared_ptr<ReedSheppPath> reeds_shepp_to_end,
-                const std::vector<std::vector<common::math::Vec2d>>&
-                    obstacles_vertices_vec);
+  bool RSPCheck(const std::shared_ptr<ReedSheppPath> reeds_shepp_to_end);
   // load the whole RSP as nodes and add to the close set
   std::shared_ptr<Node3d> LoadRSPinCS(
       const std::shared_ptr<ReedSheppPath> reeds_shepp_to_end,
       std::shared_ptr<Node3d> current_node);
   std::shared_ptr<Node3d> Next_node_generator(
       std::shared_ptr<Node3d> current_node, size_t next_node_index);
-  void CalculateNodeCost(
-      std::shared_ptr<Node3d> current_node, std::shared_ptr<Node3d> next_node,
-      const std::shared_ptr<ReedSheppPath> reeds_shepp_to_end);
+  void CalculateNodeCost(std::shared_ptr<Node3d> current_node,
+                         std::shared_ptr<Node3d> next_node);
   double TrajCost(std::shared_ptr<Node3d> current_node,
                   std::shared_ptr<Node3d> next_node);
-  double HeuristicCost();
-  double HoloObstacleHeuristic();
-  double NonHoloNoObstacleHeuristic(
-      const std::shared_ptr<ReedSheppPath> reeds_shepp_to_end);
-  double CalculateRSPCost(
-      const std::shared_ptr<ReedSheppPath> reeds_shepp_to_end);
+  double HoloObstacleHeuristic(std::shared_ptr<Node3d> next_node);
   bool GetResult(HybridAStartResult* result);
+  bool GetTemporalProfile(HybridAStartResult* result);
   bool GenerateSpeedAcceleration(HybridAStartResult* result);
+  bool GenerateSCurveSpeedAcceleration(HybridAStartResult* result);
 
  private:
   PlannerOpenSpaceConfig planner_open_space_config_;
@@ -131,20 +112,22 @@ class HybridAStar {
   std::shared_ptr<Node3d> start_node_;
   std::shared_ptr<Node3d> end_node_;
   std::shared_ptr<Node3d> final_node_;
+  std::vector<std::vector<common::math::LineSegment2d>>
+      obstacles_linesegments_vec_;
+
   struct cmp {
-    bool operator()(const std::pair<size_t, double>& left,
-                    const std::pair<size_t, double>& right) const {
+    bool operator()(const std::pair<std::string, double>& left,
+                    const std::pair<std::string, double>& right) const {
       return left.second >= right.second;
     }
   };
-  std::priority_queue<std::pair<size_t, double>,
-                      std::vector<std::pair<size_t, double>>, cmp>
+  std::priority_queue<std::pair<std::string, double>,
+                      std::vector<std::pair<std::string, double>>, cmp>
       open_pq_;
-  std::unordered_map<size_t, std::shared_ptr<Node3d>> open_set_;
-  std::unordered_map<size_t, std::shared_ptr<Node3d>> close_set_;
-  std::unordered_map<size_t, std::shared_ptr<ReedSheppPath>>
-      ReedSheppPath_cache_;
+  std::unordered_map<std::string, std::shared_ptr<Node3d>> open_set_;
+  std::unordered_map<std::string, std::shared_ptr<Node3d>> close_set_;
   std::unique_ptr<ReedShepp> reed_shepp_generator_;
+  std::unique_ptr<GridSearch> grid_a_star_heuristic_generator_;
 };
 
 }  // namespace planning

@@ -36,7 +36,7 @@ MF::MeanFilter(const uint8 window_size) : window_size_(window_size) {
 }
 
 double MF::GetMin() const {
-  if (min_candidates_.size() == 0) {
+  if (min_candidates_.empty()) {
     return std::numeric_limits<double>::infinity();
   } else {
     return min_candidates_.front().second;
@@ -44,7 +44,7 @@ double MF::GetMin() const {
 }
 
 double MF::GetMax() const {
-  if (max_candidates_.size() == 0) {
+  if (max_candidates_.empty()) {
     return -std::numeric_limits<double>::infinity();
   } else {
     return max_candidates_.front().second;
@@ -52,7 +52,7 @@ double MF::GetMax() const {
 }
 
 double MF::Update(const double measurement) {
-  CHECK(initialized_);
+  ACHECK(initialized_);
   CHECK_LE(values_.size(), window_size_);
   CHECK_LE(min_candidates_.size(), window_size_);
   CHECK_LE(max_candidates_.size(), window_size_);

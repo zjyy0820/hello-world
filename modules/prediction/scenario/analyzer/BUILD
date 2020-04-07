@@ -6,6 +6,9 @@ cc_library(
     name = "scenario_analyzer",
     srcs = ["scenario_analyzer.cc"],
     hdrs = ["scenario_analyzer.h"],
+    copts = [
+        "-DMODULE_NAME=\\\"prediction\\\"",
+    ],
     deps = [
         "//modules/prediction/scenario/scenario_features:cruise_scenario_features",
         "//modules/prediction/scenario/scenario_features:junction_scenario_features",
@@ -23,7 +26,7 @@ cc_test(
     deps = [
         ":scenario_analyzer",
         "//modules/prediction/common:kml_map_based_test",
-        "@gtest//:main",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 

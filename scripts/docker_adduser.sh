@@ -24,7 +24,7 @@ usermod -aG sudo "$DOCKER_USER"
 echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 cp -r /etc/skel/. /home/${DOCKER_USER}
 echo '
-export PATH=${PATH}:/apollo/scripts:/usr/local/miniconda2/bin
+export PATH=${PATH}:/apollo/scripts:/usr/local/miniconda/bin
 
 if [ -e "/apollo/scripts/apollo_base.sh" ]; then
   source /apollo/scripts/apollo_base.sh
@@ -52,6 +52,9 @@ fi
 if [ -e /dev/novatel2 ]; then
   chmod a+rw /dev/novatel2
 fi
+if [ -e /dev/ttyACM0 ]; then
+  chmod a+rw /dev/ttyACM0
+fi
 
 # setup camera device
 if [ -e /dev/camera/obstacle ]; then
@@ -59,13 +62,4 @@ if [ -e /dev/camera/obstacle ]; then
 fi
 if [ -e /dev/camera/trafficlights ]; then
   chmod a+rw /dev/camera/trafficlights
-fi
-
-
-if [ "$RELEASE_DOCKER" != "1" ];then
-  # setup ros package
-  # this is a temporary solution to avoid ros package downloading.
-  ROS="/home/tmp/ros"
-  chmod a+w "${ROS}/share/velodyne/launch/start_velodyne.launch"
-  chmod a+w -R "${ROS}/share/velodyne_pointcloud/params"
 fi

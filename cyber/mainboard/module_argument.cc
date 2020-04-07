@@ -25,14 +25,10 @@ namespace apollo {
 namespace cyber {
 namespace mainboard {
 
-ModuleArgument::ModuleArgument() {}
-
-ModuleArgument::~ModuleArgument() {}
-
 void ModuleArgument::DisplayUsage() {
   AINFO << "Usage: \n    " << binary_name_ << " [OPTION]...\n"
         << "Description: \n"
-        << "    -h, --help : help infomation \n"
+        << "    -h, --help : help information \n"
         << "    -d, --dag_conf=CONFIG_FILE : module dag config file\n"
         << "    -p, --process_group=process_group: the process "
            "namespace for running this module, default in manager process\n"
@@ -84,6 +80,11 @@ void ModuleArgument::GetOptions(const int argc, char* const argv[]) {
   }
   AINFO << "command: " << cmd;
 
+  if (1 == argc) {
+    DisplayUsage();
+    exit(0);
+  }
+
   do {
     int opt =
         getopt_long(argc, argv, short_opts.c_str(), long_opts, &long_index);
@@ -114,6 +115,18 @@ void ModuleArgument::GetOptions(const int argc, char* const argv[]) {
         break;
     }
   } while (true);
+
+  if (optind < argc) {
+    AINFO << "Found non-option ARGV-element \"" << argv[optind++] << "\"";
+    DisplayUsage();
+    exit(1);
+  }
+
+  if (dag_conf_list_.empty()) {
+    AINFO << "-d parameter must be specified";
+    DisplayUsage();
+    exit(1);
+  }
 }
 
 }  // namespace mainboard

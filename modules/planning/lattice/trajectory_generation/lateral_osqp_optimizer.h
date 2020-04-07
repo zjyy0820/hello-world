@@ -25,7 +25,7 @@
 
 #include "osqp/include/osqp.h"
 
-#include "modules/planning/lattice/trajectory1d/piecewise_jerk_trajectory1d.h"
+#include "modules/planning/common/trajectory1d/piecewise_jerk_trajectory1d.h"
 #include "modules/planning/lattice/trajectory_generation/lateral_qp_optimizer.h"
 
 namespace apollo {
@@ -46,8 +46,6 @@ class LateralOSQPOptimizer : public LateralQPOptimizer {
                        std::vector<c_float>* P_data,
                        std::vector<c_int>* P_indices,
                        std::vector<c_int>* P_indptr);
-
-  double delta_s_ = 0.0;
 };
 
 }  // namespace planning

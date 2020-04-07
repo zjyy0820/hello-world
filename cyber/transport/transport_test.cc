@@ -16,10 +16,11 @@
 
 #include "cyber/transport/transport.h"
 
-#include <gtest/gtest.h>
 #include <memory>
 #include <typeinfo>
+#include "gtest/gtest.h"
 
+#include "cyber/init.h"
 #include "cyber/proto/unit_test.pb.h"
 #include "cyber/transport/common/identity.h"
 
@@ -80,6 +81,7 @@ TEST(TransportTest, create_receiver) {
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
+  apollo::cyber::Init(argv[0]);
   apollo::cyber::transport::Transport::Instance();
   auto res = RUN_ALL_TESTS();
   apollo::cyber::transport::Transport::Instance()->Shutdown();

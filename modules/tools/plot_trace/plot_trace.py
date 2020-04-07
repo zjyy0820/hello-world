@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 ###############################################################################
 # Copyright 2017 The Apollo Authors. All Rights Reserved.
@@ -24,6 +24,7 @@ import numpy as np
 
 from modules.canbus.proto import chassis_pb2
 from modules.localization.proto import localization_pb2
+
 
 GPS_X = list()
 GPS_Y = list()
@@ -92,10 +93,9 @@ if __name__ == '__main__':
 
     fig, ax = plt.subplots()
 
-    handle = file(args.trace, 'r')
-    trace_data = np.genfromtxt(handle, delimiter=',', names=True)
-    ax.plot(trace_data['x'], trace_data['y'], 'b-', alpha=0.5, linewidth=1)
-    handle.close()
+    with open(args.trace, 'r') as fp:
+        trace_data = np.genfromtxt(handle, delimiter=',', names=True)
+        ax.plot(trace_data['x'], trace_data['y'], 'b-', alpha=0.5, linewidth=1)
 
     cyber.init()
     node = cyber.Node("plot_trace")

@@ -3,6 +3,16 @@
 ## Introduction
 This module contains system level software such as code to check hardware status
 and monitor system health.
+In Apollo 5.5, the monitor module now performs the following checks among others:
+1. Status of running modules 
+2. Monitoring data integrity 
+3. Monitoring data frequency 
+4. Monitoring system health (e.g. CPU, memory, disk usage, etc) 
+5. Generating end-to-end latency stats report
+
+```
+Note: You can configure the modules that you would like to monitor for the first 3 capabilities mentioned above.
+```
 
 ## Hardware Monitors
 Hardware related monitoring, e.g. CAN card / GPS status health check. Check
@@ -24,15 +34,3 @@ apollo::monitor::TopicConf proto.
 ### Summary Monitor
 It summarizes all other specific monitor's results to a simple conclusion such
 as OK, WARN, ERROR or FATAL.
-
-## Reporters
-
-### Static Information Reporter
-It publishes the static information (apollo::data::StaticInfo) in very low
-frequency, so you can get things like vehicle metadata or user information from
-"rostopic echo" or a recorded rosbag.
-
-### Vehicle State Reporter
-It reports critical vehicle state (apollo::common::VehicleState) to a remote
-endpoint, so you can monitor your running vehicles from the server. Note that
-it's an advanced feature and disabled by default.

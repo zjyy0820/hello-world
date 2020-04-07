@@ -71,19 +71,20 @@ Obstacle::Obstacle(const std::string& id,
                                perception_obstacle_.theta(),
                                perception_obstacle_.length(),
                                perception_obstacle_.width()) {
+  is_caution_level_obstacle_ = (obstacle_priority == ObstaclePriority::CAUTION);
   std::vector<common::math::Vec2d> polygon_points;
   if (FLAGS_use_navigation_mode ||
       perception_obstacle.polygon_point_size() <= 2) {
     perception_bounding_box_.GetAllCorners(&polygon_points);
   } else {
-    CHECK(perception_obstacle.polygon_point_size() > 2)
+    ACHECK(perception_obstacle.polygon_point_size() > 2)
         << "object " << id << "has less than 3 polygon points";
     for (const auto& point : perception_obstacle.polygon_point()) {
       polygon_points.emplace_back(point.x(), point.y());
     }
   }
-  CHECK(common::math::Polygon2d::ComputeConvexHull(polygon_points,
-                                                   &perception_polygon_))
+  ACHECK(common::math::Polygon2d::ComputeConvexHull(polygon_points,
+                                                    &perception_polygon_))
       << "object[" << id << "] polygon is not a valid convex hull.\n"
       << perception_obstacle.DebugString();
 
@@ -228,7 +229,7 @@ std::list<std::unique_ptr<Obstacle>> Obstacle::CreateObstacles(
       }
 
       const std::string obstacle_id =
-          apollo::common::util::StrCat(perception_id, "_", trajectory_index);
+          absl::StrCat(perception_id, "_", trajectory_index);
       obstacles.emplace_back(
           new Obstacle(obstacle_id, prediction_obstacle.perception_obstacle(),
                        trajectory, prediction_obstacle.priority().priority(),
@@ -293,7 +294,7 @@ double Obstacle::MinRadiusStopDistance(
   if (min_radius_stop_distance_ > 0) {
     return min_radius_stop_distance_;
   }
-  constexpr double stop_distance_buffer = 0.5;
+  static constexpr double stop_distance_buffer = 0.5;
   const double min_turn_radius = VehicleConfigHelper::MinSafeTurnRadius();
   double lateral_diff =
       vehicle_param.width() / 2.0 + std::max(std::fabs(sl_boundary_.start_l()),
@@ -330,7 +331,7 @@ void Obstacle::BuildReferenceLineStBoundary(const ReferenceLine& reference_line,
                              STPoint(end_s - adc_start_s, 0.0));
     point_pairs.emplace_back(STPoint(start_s - adc_start_s, FLAGS_st_max_t),
                              STPoint(end_s - adc_start_s, FLAGS_st_max_t));
-    reference_line_st_boundary_ = StBoundary(point_pairs);
+    reference_line_st_boundary_ = STBoundary(point_pairs);
   } else {
     if (BuildTrajectoryStBoundary(reference_line, adc_start_s,
                                   &reference_line_st_boundary_)) {
@@ -347,7 +348,7 @@ void Obstacle::BuildReferenceLineStBoundary(const ReferenceLine& reference_line,
 
 bool Obstacle::BuildTrajectoryStBoundary(const ReferenceLine& reference_line,
                                          const double adc_start_s,
-                                         StBoundary* const st_boundary) {
+                                         STBoundary* const st_boundary) {
   if (!IsValidObstacle(perception_obstacle_)) {
     AERROR << "Fail to build trajectory st boundary because object is not "
               "valid. PerceptionObstacle: "
@@ -381,16 +382,17 @@ bool Obstacle::BuildTrajectoryStBoundary(const ReferenceLine& reference_line,
     const auto& first_point = first_traj_point.path_point();
     const auto& second_point = second_traj_point.path_point();
 
-    double total_length =
+    double object_moving_box_length =
         object_length + common::util::DistanceXY(first_point, second_point);
 
     common::math::Vec2d center((first_point.x() + second_point.x()) / 2.0,
                                (first_point.y() + second_point.y()) / 2.0);
-    common::math::Box2d object_moving_box(center, first_point.theta(),
-                                          total_length, object_width);
+    common::math::Box2d object_moving_box(
+        center, first_point.theta(), object_moving_box_length, object_width);
     SLBoundary object_boundary;
     // NOTICE: this method will have errors when the reference line is not
     // straight. Need double loop to cover all corner cases.
+    // roughly skip points that are too close to last_sl_boundary box
     const double distance_xy =
         common::util::DistanceXY(trajectory_points[last_index].path_point(),
                                  trajectory_points[i].path_point());
@@ -417,23 +419,25 @@ bool Obstacle::BuildTrajectoryStBoundary(const ReferenceLine& reference_line,
     last_index = i;
 
     // skip if object is entirely on one side of reference line.
-    constexpr double kSkipLDistanceFactor = 0.4;
+    static constexpr double kSkipLDistanceFactor = 0.4;
     const double skip_l_distance =
         (object_boundary.end_s() - object_boundary.start_s()) *
             kSkipLDistanceFactor +
         adc_width / 2.0;
 
-    if (std::fmin(object_boundary.start_l(), object_boundary.end_l()) >
-            skip_l_distance ||
-        std::fmax(object_boundary.start_l(), object_boundary.end_l()) <
-            -skip_l_distance) {
+    if (!IsCautionLevelObstacle() &&
+        (std::fmin(object_boundary.start_l(), object_boundary.end_l()) >
+             skip_l_distance ||
+         std::fmax(object_boundary.start_l(), object_boundary.end_l()) <
+             -skip_l_distance)) {
       continue;
     }
 
-    if (object_boundary.end_s() < 0) {  // skip if behind reference line
+    if (!IsCautionLevelObstacle() && object_boundary.end_s() < 0) {
+      // skip if behind reference line
       continue;
     }
-    constexpr double kSparseMappingS = 20.0;
+    static constexpr double kSparseMappingS = 20.0;
     const double st_boundary_delta_s =
         (std::fabs(object_boundary.start_s() - adc_start_s) > kSparseMappingS)
             ? kStBoundarySparseDeltaS
@@ -454,13 +458,15 @@ bool Obstacle::BuildTrajectoryStBoundary(const ReferenceLine& reference_line,
       if (!has_low) {
         auto low_ref = reference_line.GetReferencePoint(low_s);
         has_low = object_moving_box.HasOverlap(
-            {low_ref, low_ref.heading(), adc_length, adc_width});
+            {low_ref, low_ref.heading(), adc_length,
+             adc_width + FLAGS_nonstatic_obstacle_nudge_l_buffer});
         low_s += st_boundary_delta_s;
       }
       if (!has_high) {
         auto high_ref = reference_line.GetReferencePoint(high_s);
         has_high = object_moving_box.HasOverlap(
-            {high_ref, high_ref.heading(), adc_length, adc_width});
+            {high_ref, high_ref.heading(), adc_length,
+             adc_width + FLAGS_nonstatic_obstacle_nudge_l_buffer});
         high_s -= st_boundary_delta_s;
       }
     }
@@ -499,7 +505,7 @@ bool Obstacle::BuildTrajectoryStBoundary(const ReferenceLine& reference_line,
                             });
     polygon_points.erase(last, polygon_points.end());
     if (polygon_points.size() > 2) {
-      *st_boundary = StBoundary(polygon_points);
+      *st_boundary = STBoundary(polygon_points);
     }
   } else {
     return false;
@@ -507,11 +513,13 @@ bool Obstacle::BuildTrajectoryStBoundary(const ReferenceLine& reference_line,
   return true;
 }
 
-const StBoundary& Obstacle::reference_line_st_boundary() const {
+const STBoundary& Obstacle::reference_line_st_boundary() const {
   return reference_line_st_boundary_;
 }
 
-const StBoundary& Obstacle::st_boundary() const { return st_boundary_; }
+const STBoundary& Obstacle::path_st_boundary() const {
+  return path_st_boundary_;
+}
 
 const std::vector<std::string>& Obstacle::decider_tags() const {
   return decider_tags_;
@@ -663,7 +671,7 @@ void Obstacle::AddLateralDecision(const std::string& decider_tag,
   decider_tags_.push_back(decider_tag);
 }
 
-const std::string Obstacle::DebugString() const {
+std::string Obstacle::DebugString() const {
   std::stringstream ss;
   ss << "Obstacle id: " << id_;
   for (size_t i = 0; i < decisions_.size(); ++i) {
@@ -676,7 +684,7 @@ const std::string Obstacle::DebugString() const {
   }
   if (longitudinal_decision_.object_tag_case() !=
       ObjectDecisionType::OBJECT_TAG_NOT_SET) {
-    ss << "longitutional decision: "
+    ss << "longitudinal decision: "
        << longitudinal_decision_.ShortDebugString();
   }
   return ss.str();
@@ -686,27 +694,28 @@ const SLBoundary& Obstacle::PerceptionSLBoundary() const {
   return sl_boundary_;
 }
 
-void Obstacle::SetStBoundary(const StBoundary& boundary) {
-  st_boundary_ = boundary;
+void Obstacle::set_path_st_boundary(const STBoundary& boundary) {
+  path_st_boundary_ = boundary;
+  path_st_boundary_initialized_ = true;
 }
 
-void Obstacle::SetStBoundaryType(const StBoundary::BoundaryType type) {
-  st_boundary_.SetBoundaryType(type);
+void Obstacle::SetStBoundaryType(const STBoundary::BoundaryType type) {
+  path_st_boundary_.SetBoundaryType(type);
 }
 
-void Obstacle::EraseStBoundary() { st_boundary_ = StBoundary(); }
+void Obstacle::EraseStBoundary() { path_st_boundary_ = STBoundary(); }
 
-void Obstacle::SetReferenceLineStBoundary(const StBoundary& boundary) {
+void Obstacle::SetReferenceLineStBoundary(const STBoundary& boundary) {
   reference_line_st_boundary_ = boundary;
 }
 
 void Obstacle::SetReferenceLineStBoundaryType(
-    const StBoundary::BoundaryType type) {
+    const STBoundary::BoundaryType type) {
   reference_line_st_boundary_.SetBoundaryType(type);
 }
 
 void Obstacle::EraseReferenceLineStBoundary() {
-  reference_line_st_boundary_ = StBoundary();
+  reference_line_st_boundary_ = STBoundary();
 }
 
 bool Obstacle::IsValidObstacle(
@@ -740,12 +749,16 @@ void Obstacle::CheckLaneBlocking(const ReferenceLine& reference_line) {
 
   if (reference_line.IsOnLane(sl_boundary_) &&
       driving_width <
-          vehicle_param.width() + FLAGS_static_decision_nudge_l_buffer) {
+          vehicle_param.width() + FLAGS_static_obstacle_nudge_l_buffer) {
     is_lane_blocking_ = true;
     return;
   }
 
   is_lane_blocking_ = false;
+}
+
+void Obstacle::SetLaneChangeBlocking(const bool is_distance_clear) {
+  is_lane_change_blocking_ = is_distance_clear;
 }
 
 }  // namespace planning

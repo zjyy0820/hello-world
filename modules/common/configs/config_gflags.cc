@@ -38,6 +38,11 @@ DEFINE_string(vehicle_config_path,
               "/apollo/modules/common/data/vehicle_param.pb.txt",
               "the file path of vehicle config file");
 
+DEFINE_string(
+    vehicle_model_config_filename,
+    "/apollo/modules/common/vehicle_model/conf/vehicle_model_config.pb.txt",
+    "the file path of vehicle model config file");
+
 DEFINE_bool(use_cyber_time, false,
             "Whether Clock::Now() gets time from system_clock::now() or from "
             "Cyber.");
@@ -53,6 +58,8 @@ DEFINE_string(
     "modules/dreamview/conf/navigation_mode_default_end_way_point.txt",
     "end_way_point file used if navigation mode is set.");
 
+DEFINE_double(half_vehicle_width, 1.05, "half vehicle width");
+
 DEFINE_double(look_forward_time_sec, 8.0,
               "look forward time times adc speed to calculate this distance "
               "when creating reference line from routing");
@@ -61,3 +68,10 @@ DEFINE_bool(use_sim_time, false, "Use bag time in mock time mode.");
 
 DEFINE_bool(reverse_heading_vehicle_state, false,
             "test flag for reverse driving.");
+
+DEFINE_bool(state_transform_to_com_reverse, false,
+            "Enable vehicle states coordinate transformation from center of "
+            "rear-axis to center of mass, during reverse driving");
+DEFINE_bool(state_transform_to_com_drive, true,
+            "Enable vehicle states coordinate transformation from center of "
+            "rear-axis to center of mass, during forward driving");

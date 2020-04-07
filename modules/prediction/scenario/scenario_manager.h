@@ -14,13 +14,7 @@
  * limitations under the License.
  *****************************************************************************/
 
-/**
- * @file
- */
-
 #pragma once
-
-#include <memory>
 
 #include "modules/prediction/container/obstacles/obstacles_container.h"
 #include "modules/prediction/scenario/analyzer/scenario_analyzer.h"
@@ -41,16 +35,6 @@ class ScenarioManager {
    * @brief Get scenario analysis result
    */
   const Scenario& scenario() const;
-
- private:
-  void PrioritizeObstacles(
-      const EnvironmentFeatures& environment_features,
-      const std::shared_ptr<ScenarioFeatures> scenario_features);
-
-  void PrioritizeObstaclesForCruiseScenario(
-      const EnvironmentFeatures& environment_features,
-      const std::shared_ptr<CruiseScenarioFeatures> scenario_features,
-      ObstaclesContainer* ptr_obstacle_contrainer);
 
  private:
   Scenario current_scenario_;

@@ -16,7 +16,7 @@
 
 #include "modules/prediction/evaluator/cyclist/cyclist_keep_lane_evaluator.h"
 
-#include "modules/common/util/file.h"
+#include "cyber/common/file.h"
 #include "modules/prediction/common/kml_map_based_test.h"
 #include "modules/prediction/container/obstacles/obstacles_container.h"
 
@@ -26,9 +26,9 @@ namespace prediction {
 class CyclistKeepLaneEvaluatorTest : public KMLMapBasedTest {
  public:
   void SetUp() override {
-    std::string file =
+    const std::string file =
         "modules/prediction/testdata/single_perception_cyclist_onlane.pb.txt";
-    CHECK(apollo::common::util::GetProtoFromFile(file, &perception_obstacles_));
+    ACHECK(cyber::common::GetProtoFromFile(file, &perception_obstacles_));
   }
 
  protected:
@@ -45,8 +45,8 @@ TEST_F(CyclistKeepLaneEvaluatorTest, OnLaneCase) {
   ObstaclesContainer container;
   container.Insert(perception_obstacles_);
   Obstacle* obstacle_ptr = container.GetObstacle(1);
-  EXPECT_TRUE(obstacle_ptr != nullptr);
-  cyclist_keep_lane_evaluator.Evaluate(obstacle_ptr);
+  EXPECT_NE(obstacle_ptr, nullptr);
+  cyclist_keep_lane_evaluator.Evaluate(obstacle_ptr, &container);
   const Feature& feature = obstacle_ptr->latest_feature();
   const LaneGraph& lane_graph = feature.lane().lane_graph();
   for (const auto& lane_sequence : lane_graph.lane_sequence()) {

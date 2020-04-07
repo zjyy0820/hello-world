@@ -26,116 +26,99 @@
 #include "modules/planning/common/ego_info.h"
 #include "modules/planning/common/frame.h"
 #include "modules/planning/common/planning_gflags.h"
+#include "modules/planning/math/piecewise_jerk/piecewise_jerk_speed_problem.h"
 
 namespace apollo {
 namespace planning {
 
-using common::SpeedPoint;
-using common::SLPoint;
-using common::TrajectoryPoint;
-using common::math::Vec2d;
+using apollo::common::SpeedPoint;
 
-std::vector<SpeedPoint> SpeedProfileGenerator::GenerateInitSpeedProfile(
-    const TrajectoryPoint& planning_init_point,
-    const ReferenceLineInfo* reference_line_info) {
-  std::vector<SpeedPoint> speed_profile;
-  const auto* last_frame = FrameHistory::Instance()->Latest();
-  if (!last_frame) {
-    AWARN << "last frame is empty";
-    return speed_profile;
-  }
-  const ReferenceLineInfo* last_reference_line_info =
-      last_frame->DriveReferenceLineInfo();
-  if (!last_reference_line_info) {
-    ADEBUG << "last reference line info is empty";
-    return speed_profile;
-  }
-  if (!reference_line_info->IsStartFrom(*last_reference_line_info)) {
-    ADEBUG << "Current reference line is not started previous drived line";
-    return speed_profile;
-  }
-  const auto& last_speed_data = last_reference_line_info->speed_data();
-
-  if (!last_speed_data.empty()) {
-    const auto& last_init_point = last_frame->PlanningStartPoint().path_point();
-    Vec2d last_xy_point(last_init_point.x(), last_init_point.y());
-    SLPoint last_sl_point;
-    if (!last_reference_line_info->reference_line().XYToSL(last_xy_point,
-                                                           &last_sl_point)) {
-      AERROR << "Fail to transfer xy to sl when init speed profile";
-    }
-
-    Vec2d xy_point(planning_init_point.path_point().x(),
-                   planning_init_point.path_point().y());
-    SLPoint sl_point;
-    if (!last_reference_line_info->reference_line().XYToSL(xy_point,
-                                                           &sl_point)) {
-      AERROR << "Fail to transfer xy to sl when init speed profile";
-    }
-
-    double s_diff = sl_point.s() - last_sl_point.s();
-    double start_time = 0.0;
-    double start_s = 0.0;
-    bool is_updated_start = false;
-    for (const auto& speed_point : last_speed_data) {
-      if (speed_point.s() < s_diff) {
-        continue;
-      }
-      if (!is_updated_start) {
-        start_time = speed_point.t();
-        start_s = speed_point.s();
-        is_updated_start = true;
-      }
-      SpeedPoint refined_speed_point;
-      refined_speed_point.set_s(speed_point.s() - start_s);
-      refined_speed_point.set_t(speed_point.t() - start_time);
-      refined_speed_point.set_v(speed_point.v());
-      refined_speed_point.set_a(speed_point.a());
-      refined_speed_point.set_da(speed_point.da());
-      speed_profile.push_back(std::move(refined_speed_point));
-    }
-  }
-  return speed_profile;
-}
-
-// a dummy simple hot start
-// TODO(All): refine the hotstart speed profile
-std::vector<SpeedPoint> SpeedProfileGenerator::GenerateSpeedHotStart(
-    const TrajectoryPoint& planning_init_point) {
-  std::vector<SpeedPoint> hot_start_speed_profile;
-  double s = 0.0;
-  double t = 0.0;
-  double v = common::math::Clamp(planning_init_point.v(), 5.0,
-                                 FLAGS_planning_upper_speed_limit);
-  while (t < FLAGS_trajectory_time_length) {
-    SpeedPoint speed_point;
-    speed_point.set_s(s);
-    speed_point.set_t(t);
-    speed_point.set_v(v);
-
-    hot_start_speed_profile.push_back(std::move(speed_point));
-
-    t += FLAGS_trajectory_time_min_interval;
-    s += v * FLAGS_trajectory_time_min_interval;
-  }
-  return hot_start_speed_profile;
-}
-
-SpeedData SpeedProfileGenerator::GenerateFallbackSpeedProfile() {
+SpeedData SpeedProfileGenerator::GenerateFallbackSpeed(
+    const double stop_distance) {
+  AERROR << "Fallback using piecewise jerk speed!";
   const double init_v = EgoInfo::Instance()->start_point().v();
   const double init_a = EgoInfo::Instance()->start_point().a();
-  if (init_v > FLAGS_polynomial_speed_fallback_velocity) {
-    auto speed_data = GenerateStopProfileFromPolynomial(init_v, init_a);
-    if (!speed_data.empty()) {
-      return speed_data;
-    }
+  AWARN << "init_v = " << init_v << ", init_a = " << init_a;
+  const auto& veh_param =
+      common::VehicleConfigHelper::GetConfig().vehicle_param();
+
+  // if already stopped
+  if (init_v <= 0.0 && init_a <= 0.0) {
+    AWARN << "Already stopped! Nothing to do in GenerateFallbackSpeed()";
+    SpeedData speed_data;
+    speed_data.AppendSpeedPoint(0.0, 0.0, 0.0, 0.0, 0.0);
+    FillEnoughSpeedPoints(&speed_data);
+    return speed_data;
   }
-  return GenerateStopProfile(init_v, init_a);
+
+  std::array<double, 3> init_s = {0.0, init_v, init_a};
+
+  // TODO(all): dt is too small;
+  double delta_t = FLAGS_fallback_time_unit;
+  double total_time = FLAGS_fallback_total_time;
+  const size_t num_of_knots = static_cast<size_t>(total_time / delta_t) + 1;
+
+  PiecewiseJerkSpeedProblem piecewise_jerk_problem(num_of_knots, delta_t,
+                                                   init_s);
+
+  std::vector<double> end_state_ref(num_of_knots, stop_distance);
+  piecewise_jerk_problem.set_x_ref(1.0, end_state_ref);
+
+  piecewise_jerk_problem.set_scale_factor({1.0, 10.0, 100.0});
+
+  piecewise_jerk_problem.set_x_bounds(0.0, std::fmax(stop_distance, 100.0));
+  piecewise_jerk_problem.set_dx_bounds(
+      0.0, std::fmax(FLAGS_planning_upper_speed_limit, init_v));
+  piecewise_jerk_problem.set_ddx_bounds(veh_param.max_deceleration(),
+                                        veh_param.max_acceleration());
+  piecewise_jerk_problem.set_dddx_bound(FLAGS_longitudinal_jerk_lower_bound,
+                                        FLAGS_longitudinal_jerk_upper_bound);
+
+  // Solve the problem
+  if (!piecewise_jerk_problem.Optimize()) {
+    AERROR << "Piecewise jerk fallback speed optimizer failed!";
+    return GenerateStopProfile(init_v, init_a);
+  }
+
+  // Extract output
+  const std::vector<double>& s = piecewise_jerk_problem.opt_x();
+  const std::vector<double>& ds = piecewise_jerk_problem.opt_dx();
+  const std::vector<double>& dds = piecewise_jerk_problem.opt_ddx();
+
+  for (size_t i = 0; i < num_of_knots; ++i) {
+    ADEBUG << "For[" << delta_t * static_cast<double>(i) << "], s = " << s[i]
+           << ", v = " << ds[i] << ", a = " << dds[i];
+  }
+
+  SpeedData speed_data;
+  speed_data.AppendSpeedPoint(s[0], 0.0, ds[0], dds[0], 0.0);
+  for (size_t i = 1; i < num_of_knots; ++i) {
+    // Avoid the very last points when already stopped
+    if (s[i] - s[i - 1] <= 0.0 || ds[i] <= 0.0) {
+      break;
+    }
+    speed_data.AppendSpeedPoint(s[i], delta_t * static_cast<double>(i), ds[i],
+                                dds[i], (dds[i] - dds[i - 1]) / delta_t);
+  }
+  FillEnoughSpeedPoints(&speed_data);
+  return speed_data;
+}
+
+void SpeedProfileGenerator::FillEnoughSpeedPoints(SpeedData* const speed_data) {
+  const SpeedPoint& last_point = speed_data->back();
+  if (last_point.t() >= FLAGS_fallback_total_time) {
+    return;
+  }
+  for (double t = last_point.t() + FLAGS_fallback_time_unit;
+       t < FLAGS_fallback_total_time; t += FLAGS_fallback_time_unit) {
+    speed_data->AppendSpeedPoint(last_point.s(), t, 0.0, 0.0, 0.0);
+  }
 }
 
 SpeedData SpeedProfileGenerator::GenerateStopProfile(const double init_speed,
                                                      const double init_acc) {
-  AERROR << "Using fallback stopping profile: Slowing down the car!";
+  AERROR << "Slowing down the car within a constant deceleration with fallback "
+            "stopping profile.";
   SpeedData speed_data;
 
   const double max_t = FLAGS_fallback_total_time;
@@ -145,7 +128,8 @@ SpeedData SpeedProfileGenerator::GenerateStopProfile(const double init_speed,
   double pre_v = init_speed;
   double acc = FLAGS_slowdown_profile_deceleration;
 
-  for (double t = 0.0; t < max_t; t += unit_t) {
+  speed_data.AppendSpeedPoint(0.0, 0.0, init_speed, init_acc, 0.0);
+  for (double t = unit_t; t < max_t; t += unit_t) {
     double s = 0.0;
     double v = 0.0;
     s = std::fmax(pre_s,
@@ -155,56 +139,15 @@ SpeedData SpeedProfileGenerator::GenerateStopProfile(const double init_speed,
     pre_s = s;
     pre_v = v;
   }
+  FillEnoughSpeedPoints(&speed_data);
   return speed_data;
-}
-
-SpeedData SpeedProfileGenerator::GenerateStopProfileFromPolynomial(
-    const double init_speed, const double init_acc) {
-  AERROR << "Slowing down the car with polynomial.";
-  constexpr double kMaxT = 4.0;
-  for (double t = 2.0; t <= kMaxT; t += 0.5) {
-    for (double s = 0.0;
-         s < std::min(50.0, EgoInfo::Instance()->front_clear_distance() - 0.3);
-         s += 1.0) {
-      QuinticPolynomialCurve1d curve(0.0, init_speed, init_acc, s, 0.0, 0.0, t);
-      if (!IsValidProfile(curve)) {
-        continue;
-      }
-      constexpr double kUnitT = 0.02;
-      SpeedData speed_data;
-      for (double curve_t = 0.0; curve_t <= t; curve_t += kUnitT) {
-        const double curve_s = curve.Evaluate(0, curve_t);
-        const double curve_v = curve.Evaluate(1, curve_t);
-        const double curve_a = curve.Evaluate(2, curve_t);
-        const double curve_da = curve.Evaluate(3, curve_t);
-        speed_data.AppendSpeedPoint(curve_s, curve_t, curve_v, curve_a,
-                                    curve_da);
-      }
-      return speed_data;
-    }
-  }
-  return SpeedData();
-}
-
-bool SpeedProfileGenerator::IsValidProfile(
-    const QuinticPolynomialCurve1d& curve) {
-  for (double evaluate_t = 0.1; evaluate_t <= curve.ParamLength();
-       evaluate_t += 0.2) {
-    const double v = curve.Evaluate(1, evaluate_t);
-    const double a = curve.Evaluate(2, evaluate_t);
-    constexpr double kEpsilon = 1e-3;
-    if (v < -kEpsilon || a < -5.0) {
-      return false;
-    }
-  }
-  return true;
 }
 
 SpeedData SpeedProfileGenerator::GenerateFixedDistanceCreepProfile(
     const double distance, const double max_speed) {
-  constexpr double kConstDeceleration = -0.8;  // (~3sec to fully stop)
-  constexpr double kProceedingSpeed = 2.23;    // (5mph proceeding speed)
-  const double proceeding_speed = std::min(max_speed, kProceedingSpeed);
+  static constexpr double kConstDeceleration = -0.8;  // (~3sec to fully stop)
+  static constexpr double kProceedingSpeed = 2.23;    // (5mph proceeding speed)
+  const double proceeding_speed = std::fmin(max_speed, kProceedingSpeed);
   const double distance_to_start_deceleration =
       proceeding_speed * proceeding_speed / kConstDeceleration / 2;
   bool is_const_deceleration_mode = distance < distance_to_start_deceleration;
@@ -214,7 +157,7 @@ SpeedData SpeedProfileGenerator::GenerateFixedDistanceCreepProfile(
   double s = 0.0;
   double v = proceeding_speed;
 
-  constexpr double kDeltaT = 0.1;
+  static constexpr double kDeltaT = 0.1;
 
   SpeedData speed_data;
   while (s < distance && v > 0) {
@@ -233,20 +176,6 @@ SpeedData SpeedProfileGenerator::GenerateFixedDistanceCreepProfile(
     }
   }
 
-  return speed_data;
-}
-
-SpeedData SpeedProfileGenerator::GenerateFixedSpeedCreepProfile(
-    const double distance, const double max_speed) {
-  constexpr double kProceedingSpeed = 2.23;  // (5mph proceeding speed)
-  const double proceeding_speed = std::min(max_speed, kProceedingSpeed);
-
-  constexpr double kDeltaS = 0.1;
-  SpeedData speed_data;
-  for (double s = 0.0; s < distance; s += kDeltaS) {
-    speed_data.AppendSpeedPoint(s, s / proceeding_speed, proceeding_speed, 0.0,
-                                0.0);
-  }
   return speed_data;
 }
 

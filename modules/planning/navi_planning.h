@@ -21,12 +21,11 @@
 #include <utility>
 #include <vector>
 
-#include "modules/planning/proto/pad_msg.pb.h"
-
-#include "modules/planning/common/frame.h"
+#include "modules/common/util/future.h"
 #include "modules/planning/planner/navi_planner_dispatcher.h"
 #include "modules/planning/planner/planner_dispatcher.h"
 #include "modules/planning/planning_base.h"
+#include "modules/planning/proto/pad_msg.pb.h"
 
 /**
  * @namespace apollo::planning
@@ -66,7 +65,6 @@ class NaviPlanning : public PlanningBase {
   void RunOnce(const LocalView& local_view,
                ADCTrajectory* const trajectory_pb) override;
 
-
   apollo::common::Status Plan(
       const double current_time_stamp,
       const std::vector<common::TrajectoryPoint>& stitching_trajectory,
@@ -75,16 +73,9 @@ class NaviPlanning : public PlanningBase {
  private:
   common::Status InitFrame(const uint32_t sequence_num,
                            const common::TrajectoryPoint& planning_start_point,
-                           const double start_time,
-                           const common::VehicleState& vehicle_state,
-                           ADCTrajectory* output_trajectory);
+                           const common::VehicleState& vehicle_state);
 
   bool CheckPlanningConfig(const PlanningConfig& config);
-
-  /**
-   * @brief receiving planning pad message
-   */
-  void OnPad(const PadMessage& pad);
 
   /**
    * @brief make driving decisions by received planning pad msg
@@ -99,7 +90,7 @@ class NaviPlanning : public PlanningBase {
   /**
    * @brief get the left neighbors lane info of the lane which the vehicle is
    *located
-   * @lane_info_group output left neighors info which sorted from near to
+   * @lane_info_group output left neighbors info which sorted from near to
    *far
    */
   void GetLeftNeighborLanesInfo(
@@ -108,7 +99,7 @@ class NaviPlanning : public PlanningBase {
   /**
    * @brief get the right neighbors lane of the lane which the vehicle is
    * located
-   * @lane_info_group output right neighors info which sorted from near to
+   * @lane_info_group output right neighbors info which sorted from near to
    *far
    */
   void GetRightNeighborLanesInfo(
@@ -129,14 +120,8 @@ class NaviPlanning : public PlanningBase {
       const localization::LocalizationEstimate& localization) const;
 
   std::string target_lane_id_;
-  DrivingAction driving_action_;
-  bool is_received_pad_msg_ = false;
-
-  std::unique_ptr<Frame> frame_;
 
   std::unique_ptr<ReferenceLineProvider> reference_line_provider_;
-
-  std::unique_ptr<PlannerDispatcher> planner_dispatcher_;
 };
 
 }  // namespace planning

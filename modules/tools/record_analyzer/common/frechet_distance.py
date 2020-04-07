@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 ###############################################################################
 # Copyright 2018 The Apollo Authors. All Rights Reserved.
@@ -15,7 +15,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ###############################################################################
+
 import math
+
 import numpy as np
 
 
@@ -46,15 +48,20 @@ def _c(ca, i, j, P, Q):
 def frechet_distance(P, Q):
     ca = np.ones((len(P), len(Q)))
     ca = np.multiply(ca, -1)
-    return _c(ca, len(P)-1, len(Q)-1, P, Q)
+    dist = None
+    try:
+        dist = _c(ca, len(P)-1, len(Q)-1, P, Q)
+    except:
+        print("calculate frechet_distance exception.")
+    return dist
 
 
 if __name__ == "__main__":
     """test"""
     P = [[1, 1], [2, 1], [2, 2]]
     Q = [[2, 2], [0, 1], [2, 4]]
-    print frechet_distance(P, Q)  # 2
+    print(frechet_distance(P, Q))  # 2
 
     P = [[1, 1], [2, 1], [2, 2]]
     Q = [[1, 1], [2, 1], [2, 2]]
-    print frechet_distance(P, Q)  # 0
+    print(frechet_distance(P, Q))  # 0

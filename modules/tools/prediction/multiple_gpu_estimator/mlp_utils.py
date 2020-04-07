@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 ###############################################################################
 # Modification Copyright 2018 The Apollo Authors. All Rights Reserved.
 #
@@ -32,16 +34,15 @@
 import collections
 import six
 
-import tensorflow as tf
-
-from tensorflow.python.platform import tf_logging as logging
+from tensorflow.contrib.learn.python.learn import run_config
 from tensorflow.core.framework import node_def_pb2
 from tensorflow.python.framework import device as pydev
+from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training import basic_session_run_hooks
+from tensorflow.python.training import device_setter
 from tensorflow.python.training import session_run_hook
 from tensorflow.python.training import training_util
-from tensorflow.python.training import device_setter
-from tensorflow.contrib.learn.python.learn import run_config
+import tensorflow as tf
 
 
 class RunConfig(tf.contrib.learn.RunConfig):
@@ -69,13 +70,13 @@ class RunConfig(tf.contrib.learn.RunConfig):
             state.pop('_' + k, None)
 
         ordered_state = collections.OrderedDict(
-            sorted(state.items(), key=lambda t: t[0]))
+            sorted(list(state.items()), key=lambda t: t[0]))
         # For class instance without __repr__, some special cares are required.
         # Otherwise, the object address will be used.
         if '_cluster_spec' in ordered_state:
             ordered_state['_cluster_spec'] = collections.OrderedDict(
                 sorted(
-                    ordered_state['_cluster_spec'].as_dict().items(),
+                    list(ordered_state['_cluster_spec'].as_dict().items()),
                     key=lambda t: t[0]))
         return ', '.join(
             '%s=%r' % (k, v) for (k, v) in six.iteritems(ordered_state))
@@ -149,7 +150,7 @@ def local_device_setter(num_devices=1,
                         worker_device='/cpu:0',
                         ps_ops=None,
                         ps_strategy=None):
-    if ps_ops == None:
+    if ps_ops is None:
         ps_ops = ['Variable', 'VariableV2', 'VarHandleOp']
 
     if ps_strategy is None:
@@ -164,13 +165,11 @@ def local_device_setter(num_devices=1,
         if node_def.op in ps_ops:
             ps_device_spec = pydev.DeviceSpec.from_string('/{}:{}'.format(
                 ps_device_type, ps_strategy(op)))
-
             ps_device_spec.merge_from(current_device)
             return ps_device_spec.to_string()
-        else:
-            worker_device_spec = pydev.DeviceSpec.from_string(worker_device
-                                                              or "")
-            worker_device_spec.merge_from(current_device)
-            return worker_device_spec.to_string()
+
+        worker_device_spec = pydev.DeviceSpec.from_string(worker_device or "")
+        worker_device_spec.merge_from(current_device)
+        return worker_device_spec.to_string()
 
     return _local_device_chooser

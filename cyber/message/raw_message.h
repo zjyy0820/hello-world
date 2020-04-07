@@ -17,8 +17,8 @@
 #ifndef CYBER_MESSAGE_RAW_MESSAGE_H_
 #define CYBER_MESSAGE_RAW_MESSAGE_H_
 
-#include <string.h>
 #include <cassert>
+#include <cstring>
 #include <memory>
 #include <string>
 
@@ -49,17 +49,24 @@ struct RawMessage {
 
   ~RawMessage() {}
 
+  class Descriptor {
+   public:
+    std::string full_name() const { return "apollo.cyber.message.RawMessage"; }
+    std::string name() const { return "apollo.cyber.message.RawMessage"; }
+  };
+
+  static const Descriptor *descriptor() {
+    static Descriptor desc;
+    return &desc;
+  }
+
   static void GetDescriptorString(const std::string &type,
                                   std::string *desc_str) {
     ProtobufFactory::Instance()->GetDescriptorString(type, desc_str);
   }
 
   bool SerializeToArray(void *data, int size) const {
-    if (data == nullptr) {
-      return false;
-    }
-
-    if (size < ByteSize()) {
+    if (data == nullptr || size < ByteSize()) {
       return false;
     }
 

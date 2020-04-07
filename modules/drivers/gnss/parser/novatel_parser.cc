@@ -228,7 +228,7 @@ Parser::MessageType NovatelParser::GetMessage(MessagePtr* message_ptr) {
   }
 
   while (data_ < data_end_) {
-    if (buffer_.size() == 0) {  // Looking for SYNC0
+    if (buffer_.empty()) {  // Looking for SYNC0
       if (*data_ == novatel::SYNC_0) {
         buffer_.push_back(*data_);
       }
@@ -361,6 +361,7 @@ Parser::MessageType NovatelParser::PrepareMessage(MessagePtr* message_ptr) {
 
     case novatel::CORRIMUDATA:
     case novatel::CORRIMUDATAS:
+    case novatel::IMURATECORRIMUS:
       if (message_length != sizeof(novatel::CorrImuData)) {
         AERROR << "Incorrect message_length";
         break;

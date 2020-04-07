@@ -18,7 +18,7 @@
 
 #include <string>
 
-#include "modules/common/util/string_util.h"
+#include "absl/strings/str_cat.h"
 #include "modules/monitor/common/monitor_manager.h"
 
 DEFINE_string(functional_safety_monitor_name, "FunctionalSafetyMonitor",
@@ -34,8 +34,8 @@ namespace {
 bool IsSafe(const std::string& name, const ComponentStatus& status) {
   if (status.status() == ComponentStatus::ERROR ||
       status.status() == ComponentStatus::FATAL) {
-    MonitorManager::Instance()->LogBuffer().ERROR(apollo::common::util::StrCat(
-        name, " triggers safe mode: ", status.message()));
+    MonitorManager::Instance()->LogBuffer().ERROR(
+        absl::StrCat(name, " triggers safe mode: ", status.message()));
     return false;
   }
   return true;
@@ -44,8 +44,7 @@ bool IsSafe(const std::string& name, const ComponentStatus& status) {
 }  // namespace
 
 FunctionalSafetyMonitor::FunctionalSafetyMonitor()
-    : RecurrentRunner(FLAGS_functional_safety_monitor_name, 0) {
-}
+    : RecurrentRunner(FLAGS_functional_safety_monitor_name, 0) {}
 
 void FunctionalSafetyMonitor::RunOnce(const double current_time) {
   auto* system_status = MonitorManager::Instance()->GetStatus();
@@ -70,7 +69,8 @@ void FunctionalSafetyMonitor::RunOnce(const double current_time) {
 
   // Trigger EStop if no action was taken in time.
   if (system_status->safety_mode_trigger_time() +
-      FLAGS_safety_mode_seconds_before_estop < current_time) {
+          FLAGS_safety_mode_seconds_before_estop <
+      current_time) {
     system_status->set_require_emergency_stop(true);
   }
 }

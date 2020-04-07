@@ -20,11 +20,11 @@
 
 #include "modules/planning/reference_line/spiral_reference_line_smoother.h"
 
+#include <coin/IpIpoptApplication.hpp>
+#include <coin/IpSolveStatistics.hpp>
+
 #include <algorithm>
 #include <utility>
-
-#include "IpIpoptApplication.hpp"
-#include "IpSolveStatistics.hpp"
 
 #include "modules/common/time/time.h"
 #include "modules/planning/common/planning_gflags.h"
@@ -157,7 +157,7 @@ bool SpiralReferenceLineSmoother::Smooth(
     const double dkappa = p.dkappa();
 
     common::SLPoint ref_sl_point;
-    if (!raw_reference_line.XYToSL({p.x(), p.y()}, &ref_sl_point)) {
+    if (!raw_reference_line.XYToSL(p, &ref_sl_point)) {
       return false;
     }
     if (ref_sl_point.s() < 0 ||
@@ -346,8 +346,8 @@ std::vector<common::PathPoint> SpiralReferenceLineSmoother::Interpolate(
   size_t num_of_points =
       static_cast<size_t>(std::ceil(delta_s / resolution) + 1);
   for (size_t i = 1; i <= num_of_points; ++i) {
-    const double inter_s = delta_s / static_cast<double>(num_of_points)
-        * static_cast<double>(i);
+    const double inter_s =
+        delta_s / static_cast<double>(num_of_points) * static_cast<double>(i);
     const double dx = spiral_curve.ComputeCartesianDeviationX<10>(inter_s);
     const double dy = spiral_curve.ComputeCartesianDeviationY<10>(inter_s);
 

@@ -77,7 +77,7 @@ common::Status AutotuningRawFeatureGenerator::EvaluateSpeedPoint(
   speed_feature->set_j(speed_point.da());
 
   // get speed limit at certain s();
-  if (speed_limit_.MinValidS() > s) {
+  if (speed_limit_.speed_limit_points().front().first > s) {
     speed_feature->set_speed_limit(kDefaultSpeedLimit);
   } else {
     double cur_speed_limit = speed_limit_.GetSpeedLimitByS(s);
@@ -88,16 +88,15 @@ common::Status AutotuningRawFeatureGenerator::EvaluateSpeedPoint(
 
   autotuning::SpeedPointRawFeature_ObjectDecisionFeature* decision_obj =
       nullptr;
-  double distance = kMaxAwareDistance;
   for (const auto& stop_obs : stop_boundaries_[index]) {
     double lower_s = stop_obs[0];
     double speed = stop_obs[2];
+    double distance = 0.0;
     // stop line is in the front
     if (lower_s < s) {
       distance = lower_s - s;
       decision_obj = speed_feature->add_stop();
     } else {
-      distance = 0.0;
       decision_obj = speed_feature->add_collision();
     }
     decision_obj->set_relative_s(distance);
@@ -108,6 +107,7 @@ common::Status AutotuningRawFeatureGenerator::EvaluateSpeedPoint(
     double lower_s = obs[0];
     double upper_s = obs[1];
     double speed = obs[2];
+    double distance = 0.0;
     if (upper_s < s) {
       decision_obj = speed_feature->add_overtake();
       distance = s - upper_s;
@@ -116,7 +116,6 @@ common::Status AutotuningRawFeatureGenerator::EvaluateSpeedPoint(
       distance = lower_s - s;
     } else {
       decision_obj = speed_feature->add_collision();
-      distance = 0.0;
     }
     decision_obj->set_relative_s(distance);
     decision_obj->set_relative_v(speed - speed_point.v());
@@ -150,21 +149,21 @@ void AutotuningRawFeatureGenerator::GenerateSTBoundaries(
   for (auto* obstacle : path_decision.obstacles().Items()) {
     auto id = obstacle->Id();
     const double speed = obstacle->speed();
-    if (!obstacle->st_boundary().IsEmpty()) {
+    if (!obstacle->path_st_boundary().IsEmpty()) {
       // fill discretized boundary info
-      ConvertToDiscretizedBoundaries(obstacle->st_boundary(), speed);
+      ConvertToDiscretizedBoundaries(obstacle->path_st_boundary(), speed);
     }
   }
 }
 
 void AutotuningRawFeatureGenerator::ConvertToDiscretizedBoundaries(
-    const StBoundary& boundary, const double speed) {
+    const STBoundary& boundary, const double speed) {
   for (size_t i = 0; i < eval_time_.size(); ++i) {
     double upper = 0.0;
     double lower = 0.0;
     bool suc = boundary.GetBoundarySRange(eval_time_[i], &upper, &lower);
     if (suc) {
-      if (boundary.boundary_type() == StBoundary::BoundaryType::STOP) {
+      if (boundary.boundary_type() == STBoundary::BoundaryType::STOP) {
         stop_boundaries_[i].push_back({{lower, upper, speed}});
       } else {
         obs_boundaries_[i].push_back({{lower, upper, speed}});

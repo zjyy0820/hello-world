@@ -30,6 +30,13 @@
 namespace apollo {
 namespace cyber {
 
+/**
+ * @class Writer<MessageT>
+ * @brief The Channel Writer has only one function: publish message through the
+ * channel pointed in its RoleAttributes
+ *
+ * @tparam MessageT Message Type of the Writer handles
+ */
 template <typename MessageT>
 class Writer : public WriterBase {
  public:
@@ -37,16 +44,59 @@ class Writer : public WriterBase {
   using ChangeConnection =
       typename service_discovery::Manager::ChangeConnection;
 
+  /**
+   * @brief Construct a new Writer object
+   *
+   * @param role_attr we use RoleAttributes to identify a Writer
+   */
   explicit Writer(const proto::RoleAttributes& role_attr);
   virtual ~Writer();
 
+  /**
+   * @brief Init the Writer
+   *
+   * @return true if init successfully
+   * @return false if init failed
+   */
   bool Init() override;
+
+  /**
+   * @brief Shutdown the Writer
+   */
   void Shutdown() override;
 
+  /**
+   * @brief Write a MessageT instance
+   *
+   * @param msg the message we want to write
+   * @return true if write successfully
+   * @return false if write failed
+   */
   virtual bool Write(const MessageT& msg);
+
+  /**
+   * @brief Write a shared ptr of MessageT
+   *
+   * @param msg_ptr the message shared ptr we want to write
+   * @return true if write successfully
+   * @return false if write failed
+   */
   virtual bool Write(const std::shared_ptr<MessageT>& msg_ptr);
 
+  /**
+   * @brief Is there any Reader that subscribes our Channel?
+   * You can publish message when this return true
+   *
+   * @return true if the channel has reader
+   * @return false if the channel has no reader
+   */
   bool HasReader() override;
+
+  /**
+   * @brief Get all Readers that subscriber our writing channel
+   *
+   * @param readers vector result of RoleAttributes
+   */
   void GetReaders(std::vector<proto::RoleAttributes>* readers) override;
 
  private:
@@ -62,8 +112,7 @@ class Writer : public WriterBase {
 
 template <typename MessageT>
 Writer<MessageT>::Writer(const proto::RoleAttributes& role_attr)
-    : WriterBase(role_attr), transmitter_(nullptr),
-      channel_manager_(nullptr) {}
+    : WriterBase(role_attr), transmitter_(nullptr), channel_manager_(nullptr) {}
 
 template <typename MessageT>
 Writer<MessageT>::~Writer() {
@@ -74,15 +123,20 @@ template <typename MessageT>
 bool Writer<MessageT>::Init() {
   {
     std::lock_guard<std::mutex> g(lock_);
-    if (init_) { return true; }
-    transmitter_ = transport::Transport::Instance()->
-      CreateTransmitter<MessageT>(role_attr_);
-    if (transmitter_ == nullptr) { return false; }
+    if (init_) {
+      return true;
+    }
+    transmitter_ =
+        transport::Transport::Instance()->CreateTransmitter<MessageT>(
+            role_attr_);
+    if (transmitter_ == nullptr) {
+      return false;
+    }
     init_ = true;
   }
   this->role_attr_.set_id(transmitter_->id().HashValue());
-  channel_manager_ = service_discovery::TopologyManager::Instance()->
-    channel_manager();
+  channel_manager_ =
+      service_discovery::TopologyManager::Instance()->channel_manager();
   JoinTheTopology();
   return true;
 }
@@ -91,7 +145,9 @@ template <typename MessageT>
 void Writer<MessageT>::Shutdown() {
   {
     std::lock_guard<std::mutex> g(lock_);
-    if (!init_) { return; }
+    if (!init_) {
+      return;
+    }
     init_ = false;
   }
   LeaveTheTopology();

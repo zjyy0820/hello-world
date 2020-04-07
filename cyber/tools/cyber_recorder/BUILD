@@ -5,18 +5,16 @@ package(default_visibility = ["//visibility:public"])
 cc_binary(
     name = "cyber_recorder",
     srcs = ["main.cc"],
-    linkopts = [
-        "-pthread",
-    ],
     deps = [
-        "info",
-        "player",
-        "recorder",
-        "recoverer",
-        "spliter",
+        ":info",
+        ":player",
+        ":recorder",
+        ":recoverer",
+        ":spliter",
         "//cyber:init",
         "//cyber/common:file",
         "//cyber/common:time_conversion",
+        "//third_party:pthread",
     ],
 )
 
@@ -28,6 +26,7 @@ cc_library(
         "//cyber/common:time_conversion",
         "//cyber/proto:record_cc_proto",
         "//cyber/record:record_file_reader",
+        "//cyber/record:record_message",
     ],
 )
 

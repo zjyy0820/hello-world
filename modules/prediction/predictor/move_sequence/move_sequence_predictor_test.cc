@@ -16,6 +16,7 @@
 
 #include "modules/prediction/predictor/move_sequence/move_sequence_predictor.h"
 
+#include "cyber/common/file.h"
 #include "modules/prediction/common/kml_map_based_test.h"
 #include "modules/prediction/container/obstacles/obstacles_container.h"
 #include "modules/prediction/evaluator/vehicle/mlp_evaluator.h"
@@ -26,9 +27,9 @@ namespace prediction {
 class MoveSequencePredictorTest : public KMLMapBasedTest {
  public:
   virtual void SetUp() {
-    std::string file =
+    const std::string file =
         "modules/prediction/testdata/single_perception_vehicle_onlane.pb.txt";
-    apollo::common::util::GetProtoFromFile(file, &perception_obstacles_);
+    cyber::common::GetProtoFromFile(file, &perception_obstacles_);
   }
 
  protected:
@@ -43,14 +44,15 @@ TEST_F(MoveSequencePredictorTest, OnLaneCase) {
   EXPECT_EQ(perception_obstacle.id(), 1);
   MLPEvaluator mlp_evaluator;
   ObstaclesContainer container;
+  ADCTrajectoryContainer adc_trajectory_container;
   container.Insert(perception_obstacles_);
   container.BuildLaneGraph();
   Obstacle* obstacle_ptr = container.GetObstacle(1);
-  EXPECT_TRUE(obstacle_ptr != nullptr);
-  mlp_evaluator.Evaluate(obstacle_ptr);
+  EXPECT_NE(obstacle_ptr, nullptr);
+  mlp_evaluator.Evaluate(obstacle_ptr, &container);
   MoveSequencePredictor predictor;
-  predictor.Predict(obstacle_ptr);
-  EXPECT_EQ(predictor.NumOfTrajectories(), 1);
+  predictor.Predict(&adc_trajectory_container, obstacle_ptr, &container);
+  EXPECT_EQ(predictor.NumOfTrajectories(*obstacle_ptr), 1);
 }
 
 TEST_F(MoveSequencePredictorTest, Polynomial) {
@@ -64,8 +66,8 @@ TEST_F(MoveSequencePredictorTest, Polynomial) {
   container.Insert(perception_obstacles_);
   container.BuildLaneGraph();
   Obstacle* obstacle_ptr = container.GetObstacle(1);
-  EXPECT_TRUE(obstacle_ptr != nullptr);
-  mlp_evaluator.Evaluate(obstacle_ptr);
+  EXPECT_NE(obstacle_ptr, nullptr);
+  mlp_evaluator.Evaluate(obstacle_ptr, &container);
   MoveSequencePredictor predictor;
   const Feature& feature = obstacle_ptr->latest_feature();
   const LaneGraph& lane_graph = feature.lane().lane_graph();
@@ -75,9 +77,9 @@ TEST_F(MoveSequencePredictorTest, Polynomial) {
     bool ret_lon = predictor.GetLongitudinalPolynomial(
         *obstacle_ptr, lane_sequence, lon_end_state, &lon_coefficients);
     EXPECT_TRUE(ret_lon);
-    std::array<double, 6> lat_coefficients;
-    bool ret_lat = predictor.GetLateralPolynomial(
-        *obstacle_ptr, lane_sequence, 3.0, &lat_coefficients);
+    std::array<double, 4> lat_coefficients;
+    bool ret_lat = predictor.GetLateralPolynomial(*obstacle_ptr, lane_sequence,
+                                                  3.0, &lat_coefficients);
     EXPECT_TRUE(ret_lat);
   }
 }
@@ -92,8 +94,8 @@ TEST_F(MoveSequencePredictorTest, Utils) {
   ObstaclesContainer container;
   container.Insert(perception_obstacles_);
   Obstacle* obstacle_ptr = container.GetObstacle(1);
-  EXPECT_TRUE(obstacle_ptr != nullptr);
-  mlp_evaluator.Evaluate(obstacle_ptr);
+  EXPECT_NE(obstacle_ptr, nullptr);
+  mlp_evaluator.Evaluate(obstacle_ptr, &container);
   MoveSequencePredictor predictor;
   const Feature& feature = obstacle_ptr->latest_feature();
   const LaneGraph& lane_graph = feature.lane().lane_graph();

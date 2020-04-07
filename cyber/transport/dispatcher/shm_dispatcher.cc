@@ -51,7 +51,7 @@ void ShmDispatcher::AddSegment(const RoleAttributes& self_attr) {
   if (segments_.count(channel_id) > 0) {
     return;
   }
-  auto segment = std::make_shared<Segment>(channel_id, READ_ONLY);
+  auto segment = SegmentFactory::CreateSegment(channel_id);
   segments_[channel_id] = segment;
   previous_indexes_[channel_id] = UINT32_MAX;
 }
@@ -94,7 +94,7 @@ void ShmDispatcher::OnMessage(uint64_t channel_id,
         *handler_base);
     handler->Run(rb, msg_info);
   } else {
-    AERROR << "Cant find " << GlobalData::GetChannelById(channel_id)
+    AERROR << "Cannot find " << GlobalData::GetChannelById(channel_id)
            << "'s handler.";
   }
 }
@@ -107,8 +107,7 @@ void ShmDispatcher::ThreadFunc() {
       continue;
     }
 
-    uint64_t host_id = readable_info.host_id();
-    if (host_id != host_id_) {
+    if (readable_info.host_id() != host_id_) {
       ADEBUG << "shm readable info from other host.";
       continue;
     }
@@ -149,7 +148,7 @@ bool ShmDispatcher::Init() {
   host_id_ = common::Hash(GlobalData::Instance()->HostIp());
   notifier_ = NotifierFactory::CreateNotifier();
   thread_ = std::thread(&ShmDispatcher::ThreadFunc, this);
-  scheduler::Instance()->SetInnerThreadAttr(&thread_, "shm_disp");
+  scheduler::Instance()->SetInnerThreadAttr("shm_disp", &thread_);
   return true;
 }
 

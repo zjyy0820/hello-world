@@ -20,12 +20,14 @@
 #include <cmath>
 #include <utility>
 
+#include "Eigen/Core"
+
 #include "cyber/common/log.h"
 #include "modules/common/math/linear_interpolation.h"
 #include "modules/common/math/math_utils.h"
 #include "modules/common/math/search.h"
+#include "modules/control/common/control_gflags.h"
 
-namespace math = apollo::common::math;
 using apollo::common::PathPoint;
 using apollo::common::TrajectoryPoint;
 
@@ -168,17 +170,19 @@ TrajectoryPoint TrajectoryAnalyzer::QueryNearestPointByRelativeTime(
     return trajectory_points_.back();
   }
 
-  auto it_lower = it_low - 1;
-  if (it_low->relative_time() - t < t - it_lower->relative_time()) {
+  if (FLAGS_query_forward_time_point_only) {
     return *it_low;
+  } else {
+    auto it_lower = it_low - 1;
+    if (it_low->relative_time() - t < t - it_lower->relative_time()) {
+      return *it_low;
+    }
+    return *it_lower;
   }
-  return *it_lower;
 }
 
 TrajectoryPoint TrajectoryAnalyzer::QueryNearestPointByPosition(
     const double x, const double y) const {
-  CHECK_GT(trajectory_points_.size(), 0);
-
   double d_min = PointDistanceSquare(trajectory_points_.front(), x, y);
   size_t index_min = 0;
 
@@ -204,29 +208,59 @@ PathPoint TrajectoryAnalyzer::FindMinDistancePoint(const TrajectoryPoint &p0,
   // given the fact that the discretized trajectory is dense enough,
   // we assume linear trajectory between consecutive trajectory points.
   auto dist_square = [&p0, &p1, &x, &y](const double s) {
-    double px = math::lerp(p0.path_point().x(), p0.path_point().s(),
-                           p1.path_point().x(), p1.path_point().s(), s);
-    double py = math::lerp(p0.path_point().y(), p0.path_point().s(),
-                           p1.path_point().y(), p1.path_point().s(), s);
+    double px = common::math::lerp(p0.path_point().x(), p0.path_point().s(),
+                                   p1.path_point().x(), p1.path_point().s(), s);
+    double py = common::math::lerp(p0.path_point().y(), p0.path_point().s(),
+                                   p1.path_point().y(), p1.path_point().s(), s);
     double dx = px - x;
     double dy = py - y;
     return dx * dx + dy * dy;
   };
 
   PathPoint p = p0.path_point();
-  double s = math::GoldenSectionSearch(dist_square, p0.path_point().s(),
-                                       p1.path_point().s());
+  double s = common::math::GoldenSectionSearch(dist_square, p0.path_point().s(),
+                                               p1.path_point().s());
   p.set_s(s);
-  p.set_x(math::lerp(p0.path_point().x(), p0.path_point().s(),
-                     p1.path_point().x(), p1.path_point().s(), s));
-  p.set_y(math::lerp(p0.path_point().y(), p0.path_point().s(),
-                     p1.path_point().y(), p1.path_point().s(), s));
-  p.set_theta(math::slerp(p0.path_point().theta(), p0.path_point().s(),
-                          p1.path_point().theta(), p1.path_point().s(), s));
+  p.set_x(common::math::lerp(p0.path_point().x(), p0.path_point().s(),
+                             p1.path_point().x(), p1.path_point().s(), s));
+  p.set_y(common::math::lerp(p0.path_point().y(), p0.path_point().s(),
+                             p1.path_point().y(), p1.path_point().s(), s));
+  p.set_theta(common::math::slerp(p0.path_point().theta(), p0.path_point().s(),
+                                  p1.path_point().theta(), p1.path_point().s(),
+                                  s));
   // approximate the curvature at the intermediate point
-  p.set_kappa(math::lerp(p0.path_point().kappa(), p0.path_point().s(),
-                         p1.path_point().kappa(), p1.path_point().s(), s));
+  p.set_kappa(common::math::lerp(p0.path_point().kappa(), p0.path_point().s(),
+                                 p1.path_point().kappa(), p1.path_point().s(),
+                                 s));
   return p;
+}
+
+void TrajectoryAnalyzer::TrajectoryTransformToCOM(
+    const double rear_to_com_distance) {
+  CHECK_GT(trajectory_points_.size(), 0);
+  for (size_t i = 0; i < trajectory_points_.size(); ++i) {
+    auto com = ComputeCOMPosition(rear_to_com_distance,
+                                  trajectory_points_[i].path_point());
+    trajectory_points_[i].mutable_path_point()->set_x(com.x());
+    trajectory_points_[i].mutable_path_point()->set_y(com.y());
+  }
+}
+
+common::math::Vec2d TrajectoryAnalyzer::ComputeCOMPosition(
+    const double rear_to_com_distance, const PathPoint &path_point) const {
+  // Initialize the vector for coordinate transformation of the position
+  // reference point
+  Eigen::Vector3d v;
+  const double cos_heading = std::cos(path_point.theta());
+  const double sin_heading = std::sin(path_point.theta());
+  v << rear_to_com_distance * cos_heading, rear_to_com_distance * sin_heading,
+      0.0;
+  // Original position reference point at center of rear-axis
+  Eigen::Vector3d pos_vec(path_point.x(), path_point.y(), path_point.z());
+  // Transform original position with vector v
+  Eigen::Vector3d com_pos_3d = v + pos_vec;
+  // Return transfromed x and y
+  return common::math::Vec2d(com_pos_3d[0], com_pos_3d[1]);
 }
 
 }  // namespace control

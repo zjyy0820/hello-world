@@ -69,7 +69,7 @@ DecisionData::DecisionData(
         continue;
       }
       const std::string obstacle_id =
-          apollo::common::util::StrCat(perception_id, "_", trajectory_index);
+          absl::StrCat(perception_id, "_", trajectory_index);
       obstacles_.emplace_back(new Obstacle(
           obstacle_id, prediction_obstacle.perception_obstacle(), trajectory));
       all_obstacle_.emplace_back(obstacles_.back().get());
@@ -83,11 +83,7 @@ DecisionData::DecisionData(
 
 Obstacle* DecisionData::GetObstacleById(const std::string& id) {
   std::lock_guard<std::mutex> lock(mutex_);
-  const auto it = obstacle_map_.find(id);
-  if (it == obstacle_map_.end()) {
-    return nullptr;
-  }
-  return it->second;
+  return common::util::FindPtrOrNull(obstacle_map_, id);
 }
 
 std::vector<Obstacle*> DecisionData::GetObstacleByType(
@@ -113,11 +109,7 @@ std::vector<Obstacle*> DecisionData::GetObstacleByType(
 std::unordered_set<std::string> DecisionData::GetObstacleIdByType(
     const VirtualObjectType& type) {
   std::lock_guard<std::mutex> lock(mutex_);
-  const auto it = virtual_obstacle_id_map_.find(type);
-  if (it == virtual_obstacle_id_map_.end()) {
-    return std::unordered_set<std::string>();
-  }
-  return it->second;
+  return common::util::FindWithDefault(virtual_obstacle_id_map_, type, {});
 }
 
 const std::vector<Obstacle*>& DecisionData::GetStaticObstacle() const {
@@ -182,7 +174,7 @@ bool DecisionData::CreateVirtualObstacle(
   std::lock_guard<std::mutex> lock(mutex_);
 
   perception::PerceptionObstacle perception_obstacle;
-  // TODO(lianglia-apollo) please chagne is_virtual in obstacle
+  // TODO(All) please chagne is_virtual in obstacle
   perception_obstacle.set_id(virtual_obstacle_.size() + 1);
   perception_obstacle.mutable_position()->set_x(obstacle_box.center().x());
   perception_obstacle.mutable_position()->set_y(obstacle_box.center().y());

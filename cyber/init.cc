@@ -17,45 +17,35 @@
 #include "cyber/init.h"
 
 #include <libgen.h>
-#include <stdio.h>
 #include <sys/types.h>
-#include <time.h>
 #include <unistd.h>
 #include <csignal>
+#include <cstdio>
+#include <ctime>
 #include <string>
 
 #include "cyber/binary.h"
-#include "cyber/common/environment.h"
-#include "cyber/common/file.h"
 #include "cyber/common/global_data.h"
 #include "cyber/data/data_dispatcher.h"
-#include "cyber/event/perf_event_cache.h"
 #include "cyber/logger/async_logger.h"
 #include "cyber/scheduler/scheduler.h"
 #include "cyber/service_discovery/topology_manager.h"
+#include "cyber/sysmo/sysmo.h"
 #include "cyber/task/task.h"
-#include "cyber/timer/timer_manager.h"
+#include "cyber/timer/timing_wheel.h"
 #include "cyber/transport/transport.h"
 
 namespace apollo {
 namespace cyber {
 
-using apollo::cyber::common::EnsureDirectory;
-using apollo::cyber::common::GetAbsolutePath;
-using apollo::cyber::common::GetProtoFromFile;
-using apollo::cyber::common::WorkRoot;
-using apollo::cyber::croutine::CRoutine;
-using apollo::cyber::event::PerfEventCache;
 using apollo::cyber::scheduler::Scheduler;
 using apollo::cyber::service_discovery::TopologyManager;
 
 namespace {
+
 bool g_atexit_registered = false;
 std::mutex g_mutex;
 logger::AsyncLogger* async_logger = nullptr;
-}
-
-namespace {
 
 void InitLogger(const char* binary_name) {
   const char* slash = strrchr(binary_name, '/');
@@ -64,7 +54,6 @@ void InitLogger(const char* binary_name) {
   } else {
     ::apollo::cyber::Binary::SetName(binary_name);
   }
-  CHECK_NOTNULL(common::GlobalData::Instance());
 
   // Init glog
   google::InitGoogleLogging(binary_name);
@@ -74,16 +63,15 @@ void InitLogger(const char* binary_name) {
 
   // Init async logger
   async_logger = new ::apollo::cyber::logger::AsyncLogger(
-      google::base::GetLogger(FLAGS_minloglevel), 2 * 1024 * 1024);
+      google::base::GetLogger(FLAGS_minloglevel));
   google::base::SetLogger(FLAGS_minloglevel, async_logger);
   async_logger->Start();
 }
 
 void StopLogger() {
-  if (async_logger != nullptr) {
-    async_logger->Stop();
-  }
+  delete async_logger;
 }
+
 }  // namespace
 
 void OnShutdown(int sig) {
@@ -102,6 +90,9 @@ bool Init(const char* binary_name) {
   }
 
   InitLogger(binary_name);
+  auto thread = const_cast<std::thread*>(async_logger->LogThread());
+  scheduler::Instance()->SetInnerThreadAttr("async_log", thread);
+  SysMo::Instance();
   std::signal(SIGINT, OnShutdown);
   // Register exit handlers
   if (!g_atexit_registered) {
@@ -121,8 +112,9 @@ void Clear() {
   if (GetState() == STATE_SHUTDOWN || GetState() == STATE_UNINITIALIZED) {
     return;
   }
+  SysMo::CleanUp();
   TaskManager::CleanUp();
-  TimerManager::CleanUp();
+  TimingWheel::CleanUp();
   scheduler::CleanUp();
   service_discovery::TopologyManager::CleanUp();
   transport::Transport::CleanUp();

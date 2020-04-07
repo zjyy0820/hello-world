@@ -14,11 +14,11 @@
  * limitations under the License.
  *****************************************************************************/
 
-#include <gtest/gtest.h>
 #include <memory>
 #include <string>
 #include <thread>
 #include <vector>
+#include "gtest/gtest.h"
 
 #include "cyber/common/global_data.h"
 #include "cyber/cyber.h"
@@ -213,7 +213,7 @@ TEST(WriterReaderTest, observe) {
   EXPECT_EQ(oldest->case_name(), "message_3");
 
   for (auto it = reader.Begin(); it != reader.End(); ++it) {
-    EXPECT_EQ(oldest->case_name(), "message_3");
+    EXPECT_EQ((*it)->case_name(), "message_3");
   }
 
   reader.ClearData();
@@ -223,7 +223,7 @@ TEST(WriterReaderTest, observe) {
   Writer<proto::UnitTest> writer(attr);
   writer.Init();
   writer.Write(msg1);
-  usleep(10000);
+  std::this_thread::sleep_for(std::chrono::milliseconds(10));
   ASSERT_TRUE(reader.HasReceived());
   reader.Observe();
   ASSERT_FALSE(reader.Empty());
@@ -263,8 +263,8 @@ TEST(WriterReaderTest, user_defined_message) {
   attr.set_channel_id(channel_id);
   attr.mutable_qos_profile()->set_depth(10);
 
-  EXPECT_EQ(false, message::HasSerializer<Message>::value);
-  EXPECT_EQ(false, message::HasType<Message>::value);
+  EXPECT_FALSE(message::HasSerializer<Message>::value);
+  EXPECT_FALSE(message::HasType<Message>::value);
 
   auto node = CreateNode("node");
   ASSERT_TRUE(node);
@@ -277,13 +277,13 @@ TEST(WriterReaderTest, user_defined_message) {
   msg->content = "message";
 
   writer->Write(msg);
-  usleep(10000);
+  std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
   writer->Write(msg);
-  usleep(10000);
+  std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
   writer->Write(msg);
-  usleep(10000);
+  std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
   reader->Observe();
   ASSERT_TRUE(reader->HasReceived());
@@ -299,6 +299,5 @@ TEST(WriterReaderTest, user_defined_message) {
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   apollo::cyber::Init(argv[0]);
-  auto res = RUN_ALL_TESTS();
-  return res;
+  return RUN_ALL_TESTS();
 }

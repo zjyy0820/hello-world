@@ -6,6 +6,9 @@ cc_library(
     name = "autotuning_speed_feature_builder",
     srcs = ["autotuning_speed_feature_builder.cc"],
     hdrs = ["autotuning_speed_feature_builder.h"],
+    copts = [
+        "-DMODULE_NAME=\\\"planning\\\"",
+    ],
     deps = [
         "//cyber/common:log",
         "//modules/common/proto:error_code_proto",
@@ -19,7 +22,7 @@ cc_test(
     srcs = ["autotuning_speed_feature_builder_test.cc"],
     deps = [
         ":autotuning_speed_feature_builder",
-        "@gtest//:main",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -39,7 +42,7 @@ cc_test(
     srcs = ["autotuning_speed_mlp_model_test.cc"],
     deps = [
         ":autotuning_speed_mlp_model",
-        "@gtest//:main",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 

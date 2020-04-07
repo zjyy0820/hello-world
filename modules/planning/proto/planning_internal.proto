@@ -2,6 +2,7 @@ syntax = "proto2";
 
 package apollo.planning_internal;
 
+import "modules/common/proto/geometry.proto";
 import "modules/common/proto/header.proto";
 import "modules/canbus/proto/chassis.proto";
 import "modules/common/proto/pnc_point.proto";
@@ -31,6 +32,7 @@ message StGraphBoundaryDebug {
     ST_BOUNDARY_TYPE_YIELD = 4;
     ST_BOUNDARY_TYPE_OVERTAKE = 5;
     ST_BOUNDARY_TYPE_KEEP_CLEAR = 6;
+    ST_BOUNDARY_TYPE_DRIVABLE_REGION = 7;
   }
   optional string name = 1;
   repeated apollo.common.SpeedPoint point = 2;
@@ -81,7 +83,7 @@ message SignalLightDebug {
     optional string light_id = 1;
     optional apollo.perception.TrafficLight.Color color = 2;
     optional double light_stop_s = 3;
-    optional double adc_stop_deacceleration = 4;
+    optional double adc_stop_deceleration = 4;
     optional bool is_stop_wall_created = 5;
   }
   optional double adc_speed = 1;
@@ -109,6 +111,15 @@ message ReferenceLineDebug {
   optional bool is_change_lane_path = 4;
   optional bool is_drivable = 5;
   optional bool is_protected = 6;
+  optional bool is_offroad = 7;
+  optional double minimum_boundary = 8;
+  optional double average_kappa = 9 [deprecated = true];
+  optional double average_dkappa = 10 [deprecated = true];
+  optional double kappa_rms = 11;
+  optional double dkappa_rms = 12;
+  optional double kappa_max_abs = 13;
+  optional double dkappa_max_abs = 14;
+  optional double average_offset = 15;
 }
 
 message SampleLayerDebug {
@@ -140,6 +151,15 @@ message OpenSpaceDebug {
   repeated double optimized_dual_miu = 7;
   repeated double xy_boundary = 8;
   repeated apollo.planning_internal.ObstacleDebug obstacles = 9;
+  optional apollo.common.TrajectoryPoint roi_shift_point = 10;
+  optional apollo.common.TrajectoryPoint end_point = 11;
+  optional apollo.planning_internal.Trajectories partitioned_trajectories = 12;
+  optional apollo.planning_internal.Trajectories chosen_trajectory = 13;
+  optional bool is_fallback_trajectory = 14;
+  optional apollo.planning_internal.Trajectories fallback_trajectory = 15;
+  optional apollo.common.TrajectoryPoint trajectory_stitching_point = 16;
+  optional apollo.common.TrajectoryPoint future_collision_point = 17;
+  optional double time_latency = 18 [default = 0.0];  // ms
 }
 
 message SmootherDebug {
@@ -153,7 +173,16 @@ message SmootherDebug {
   optional string reason = 3;
 }
 
-// next ID: 29
+message PullOverDebug {
+  optional apollo.common.PointENU position = 1;
+  optional double theta = 2;
+  optional double length_front = 3;
+  optional double length_back = 4;
+  optional double width_left = 5;
+  optional double width_right = 6;
+}
+
+// next ID: 30
 message PlanningData {
   // input
   optional apollo.localization.LocalizationEstimate adc_position = 7;
@@ -181,6 +210,7 @@ message PlanningData {
   optional ScenarioDebug scenario = 26;
   optional OpenSpaceDebug open_space = 27;
   optional SmootherDebug smoother = 28;
+  optional PullOverDebug pull_over = 29;
 }
 
 message LatticeStPixel {

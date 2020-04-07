@@ -6,18 +6,21 @@ cc_library(
     name = "vehicle_manager",
     srcs = ["vehicle_manager.cc"],
     hdrs = ["vehicle_manager.h"],
+    copts = ['-DMODULE_NAME=\\"dreamview\\"'],
     deps = [
         "//cyber",
         "//modules/common/configs:vehicle_config_helper",
         "//modules/common/util",
         "//modules/common/util:string_util",
         "//modules/dreamview/proto:hmi_config_proto",
+        "@com_google_absl//absl/strings",
     ],
 )
 
 cc_binary(
     name = "vehicle_manager_main",
     srcs = ["vehicle_manager_main.cc"],
+    copts = ['-DMODULE_NAME=\\"dreamview\\"'],
     deps = [
         ":vehicle_manager",
     ],
@@ -31,7 +34,7 @@ cc_test(
     deps = [
         ":vehicle_manager",
         "//modules/common/util",
-        "@gtest//:main",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -39,6 +42,7 @@ cc_library(
     name = "hmi",
     srcs = ["hmi.cc"],
     hdrs = ["hmi.h"],
+    copts = ['-DMODULE_NAME=\\"dreamview\\"'],
     deps = [
         ":hmi_worker",
         "//modules/common/adapters:adapter_gflags",
@@ -46,6 +50,7 @@ cc_library(
         "//modules/common/monitor_log",
         "//modules/common/util:json_util",
         "//modules/common/util:map_util",
+        "//modules/dreamview/backend/data_collection_monitor",
         "//modules/dreamview/backend/handlers:websocket_handler",
         "//modules/dreamview/backend/map:map_service",
         "//modules/dreamview/backend/point_cloud:point_cloud_updater",
@@ -56,9 +61,7 @@ cc_library(
     name = "hmi_worker",
     srcs = ["hmi_worker.cc"],
     hdrs = ["hmi_worker.h"],
-    linkopts = [
-        "-lboost_thread",
-    ],
+    copts = ['-DMODULE_NAME=\\"dreamview\\"'],
     deps = [
         ":vehicle_manager",
         "//cyber",
@@ -74,6 +77,8 @@ cc_library(
         "//modules/dreamview/proto:hmi_config_proto",
         "//modules/dreamview/proto:hmi_mode_proto",
         "//modules/dreamview/proto:hmi_status_proto",
+        "//third_party:boost",
+        "@com_google_absl//absl/strings",
         "@com_google_protobuf//:protobuf",
     ],
 )
@@ -84,7 +89,7 @@ cc_test(
     srcs = ["hmi_worker_test.cc"],
     deps = [
         ":hmi_worker",
-        "@gtest//:main",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 

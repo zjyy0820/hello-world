@@ -16,9 +16,9 @@
 
 #pragma once
 
-#include <QMainWindow>
-#include <QMenu>
-#include <QMutex>
+#include <QtCore/QMutex>
+#include <QtWidgets/QMainWindow>
+#include <QtWidgets/QMenu>
 
 #include "modules/drivers/proto/pointcloud.pb.h"
 #include "modules/drivers/proto/radar.pb.h"
@@ -49,7 +49,7 @@ class MainWindow : public QMainWindow {
   ~MainWindow();
 
   void TopologyChanged(const apollo::cyber::proto::ChangeMsg& change_msg);
-  void FindNewWriter(const apollo::cyber::proto::RoleAttributes& role);
+  void AddNewWriter(const apollo::cyber::proto::RoleAttributes& role);
 
  protected:
   void resizeEvent(QResizeEvent*) override;
@@ -121,7 +121,7 @@ class MainWindow : public QMainWindow {
 
   Grid* grid_;
   QCheckBox* enable_grid_checkBox_;
-  QTreeWidgetItem* grid_root_Item_;
+  QTreeWidgetItem* grid_root_item_;
 
   QTreeWidgetItem* pointcloud_top_item_;
   QComboBox* pointcloud_comboBox_;
@@ -142,6 +142,5 @@ class MainWindow : public QMainWindow {
   QList<RadarData*> radarData_list_;
   QList<RadarData*> closed_radarData_list_;
 
-  std::map<std::string , std::string>
-      _channelName2TypeMap;
+  std::map<std::string, std::string> _channelName2TypeMap;
 };

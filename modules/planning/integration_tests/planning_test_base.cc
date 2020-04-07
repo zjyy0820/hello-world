@@ -16,17 +16,16 @@
 
 #include "modules/planning/integration_tests/planning_test_base.h"
 
+#include "cyber/common/file.h"
 #include "cyber/common/log.h"
 
 #include "modules/canbus/proto/chassis.pb.h"
+#include "modules/common/adapters/adapter_gflags.h"
 #include "modules/localization/proto/localization.pb.h"
 #include "modules/perception/proto/traffic_light_detection.pb.h"
+#include "modules/planning/common/planning_gflags.h"
 #include "modules/prediction/proto/prediction_obstacle.pb.h"
 #include "modules/routing/proto/routing.pb.h"
-
-#include "modules/common/adapters/adapter_gflags.h"
-#include "modules/common/util/file.h"
-#include "modules/planning/common/planning_gflags.h"
 
 namespace apollo {
 namespace planning {
@@ -52,7 +51,6 @@ DEFINE_string(test_previous_planning_file, "",
 
 void PlanningTestBase::SetUpTestCase() {
   FLAGS_use_multi_thread_to_add_obstacles = false;
-  FLAGS_enable_multi_thread_in_dp_poly_path = false;
   FLAGS_enable_multi_thread_in_dp_st_graph = false;
   FLAGS_planning_config_file =
       "/apollo/modules/planning/conf/planning_config.pb.txt";
@@ -67,14 +65,11 @@ void PlanningTestBase::SetUpTestCase() {
   FLAGS_test_previous_planning_file = "";
   FLAGS_test_prediction_file = "";
   FLAGS_align_prediction_time = false;
-  FLAGS_estimate_current_vehicle_state = false;
   FLAGS_enable_reference_line_provider_thread = false;
   // FLAGS_enable_trajectory_check is temporarily disabled, otherwise EMPlanner
   // and LatticePlanner can't pass the unit test.
   FLAGS_enable_trajectory_check = false;
   FLAGS_planning_test_mode = true;
-  FLAGS_enable_lag_prediction = false;
-  FLAGS_use_osqp_optimizer_for_qp_st = false;
   FLAGS_use_osqp_optimizer_for_reference_line = false;
 }
 
@@ -85,7 +80,7 @@ bool PlanningTestBase::FeedTestData() {
     AERROR << "Requires FLAGS_test_chassis_file to be set";
     return false;
   }
-  if (!apollo::common::util::GetProtoFromFile(
+  if (!apollo::cyber::common::GetProtoFromFile(
           FLAGS_test_data_dir + "/" + FLAGS_test_chassis_file, &chassis)) {
     AERROR << "failed to load file: " << FLAGS_test_chassis_file;
     return false;
@@ -96,7 +91,7 @@ bool PlanningTestBase::FeedTestData() {
     return false;
   }
   LocalizationEstimate localization;
-  if (!apollo::common::util::GetProtoFromFile(
+  if (!apollo::cyber::common::GetProtoFromFile(
           FLAGS_test_data_dir + "/" + FLAGS_test_localization_file,
           &localization)) {
     AERROR << "failed to load file: " << FLAGS_test_localization_file;
@@ -111,7 +106,7 @@ bool PlanningTestBase::FeedTestData() {
     return false;
   }
   PredictionObstacles prediction;
-  if (!apollo::common::util::GetProtoFromFile(
+  if (!apollo::cyber::common::GetProtoFromFile(
           FLAGS_test_data_dir + "/" + FLAGS_test_prediction_file,
           &prediction)) {
     AERROR << "failed to load file: " << FLAGS_test_prediction_file;
@@ -123,7 +118,7 @@ bool PlanningTestBase::FeedTestData() {
     return false;
   }
   RoutingResponse routing_response;
-  if (!apollo::common::util::GetProtoFromFile(
+  if (!apollo::cyber::common::GetProtoFromFile(
           FLAGS_test_data_dir + "/" + FLAGS_test_routing_response_file,
           &routing_response)) {
     AERROR << "failed to load file: " << FLAGS_test_routing_response_file;
@@ -132,7 +127,7 @@ bool PlanningTestBase::FeedTestData() {
   // traffic_light_detection
   // optional
   TrafficLightDetection traffic_light_detection;
-  if (!apollo::common::util::GetProtoFromFile(
+  if (!apollo::cyber::common::GetProtoFromFile(
           FLAGS_test_data_dir + "/" + FLAGS_test_traffic_light_file,
           &traffic_light_detection)) {
     AERROR << "failed to load file: " << FLAGS_test_traffic_light_file;
@@ -158,25 +153,21 @@ void PlanningTestBase::SetUp() {
     // TODO(all)
     // planning_ = std::unique_ptr<PlanningBase>(new NaviPlanning());
   } else {
-    planning_ = std::unique_ptr<PlanningBase>(new StdPlanning());
+    planning_ = std::unique_ptr<PlanningBase>(new OnLanePlanning());
   }
 
-  CHECK(FeedTestData()) << "Failed to feed test data";
+  ACHECK(FeedTestData()) << "Failed to feed test data";
 
-  CHECK(apollo::common::util::GetProtoFromFile(FLAGS_planning_config_file,
-                                               &config_))
+  ACHECK(cyber::common::GetProtoFromFile(FLAGS_planning_config_file, &config_))
       << "failed to load planning config file " << FLAGS_planning_config_file;
 
-  CHECK(planning_->Init(config_).ok()) << "Failed to init planning module";
-
-  // Do not use fallback trajectory during testing
-  FLAGS_use_planning_fallback = false;
+  ACHECK(planning_->Init(config_).ok()) << "Failed to init planning module";
 
   if (!FLAGS_test_previous_planning_file.empty()) {
     const auto prev_planning_file =
         FLAGS_test_data_dir + "/" + FLAGS_test_previous_planning_file;
     ADCTrajectory prev_planning;
-    CHECK(common::util::GetProtoFromFile(prev_planning_file, &prev_planning));
+    ACHECK(cyber::common::GetProtoFromFile(prev_planning_file, &prev_planning));
     planning_->last_publishable_trajectory_.reset(
         new PublishableTrajectory(prev_planning));
   }
@@ -189,13 +180,13 @@ void PlanningTestBase::SetUp() {
 }
 
 void PlanningTestBase::UpdateData() {
-  CHECK(FeedTestData()) << "Failed to feed test data";
+  ACHECK(FeedTestData()) << "Failed to feed test data";
 
   if (!FLAGS_test_previous_planning_file.empty()) {
     const auto prev_planning_file =
         FLAGS_test_data_dir + "/" + FLAGS_test_previous_planning_file;
     ADCTrajectory prev_planning;
-    CHECK(common::util::GetProtoFromFile(prev_planning_file, &prev_planning));
+    ACHECK(cyber::common::GetProtoFromFile(prev_planning_file, &prev_planning));
     planning_->last_publishable_trajectory_.reset(
         new PublishableTrajectory(prev_planning));
   }
@@ -226,8 +217,8 @@ void PlanningTestBase::TrimPlanning(ADCTrajectory* origin,
 
 bool PlanningTestBase::RunPlanning(const std::string& test_case_name,
                                    int case_num, bool no_trajectory_point) {
-  const std::string golden_result_file = apollo::common::util::StrCat(
-      "result_", test_case_name, "_", case_num, ".pb.txt");
+  const std::string golden_result_file =
+      absl::StrCat("result_", test_case_name, "_", case_num, ".pb.txt");
 
   std::string full_golden_path = FLAGS_test_data_dir + "/" + golden_result_file;
 
@@ -243,18 +234,22 @@ bool PlanningTestBase::RunPlanning(const std::string& test_case_name,
   TrimPlanning(&adc_trajectory_, no_trajectory_point);
   if (FLAGS_test_update_golden_log) {
     AINFO << "The golden file is regenerated:" << full_golden_path;
-    common::util::SetProtoToASCIIFile(adc_trajectory_, full_golden_path);
+    cyber::common::SetProtoToASCIIFile(adc_trajectory_, full_golden_path);
   } else {
     ADCTrajectory golden_result;
     bool load_success =
-        common::util::GetProtoFromASCIIFile(full_golden_path, &golden_result);
+        cyber::common::GetProtoFromASCIIFile(full_golden_path, &golden_result);
     TrimPlanning(&golden_result, no_trajectory_point);
     if (!load_success ||
         !common::util::IsProtoEqual(golden_result, adc_trajectory_)) {
       char tmp_fname[100] = "/tmp/XXXXXX";
       int fd = mkstemp(tmp_fname);
-      if (!common::util::SetProtoToASCIIFile(adc_trajectory_, fd)) {
-        AERROR << "Failed to write to file " << tmp_fname;
+      if (fd < 0) {
+        AERROR << "Failed to create temporary file: " << tmp_fname;
+        return false;
+      }
+      if (!cyber::common::SetProtoToASCIIFile(adc_trajectory_, fd)) {
+        AERROR << "Failed to write to file: " << tmp_fname;
       }
       AERROR << "found error\ndiff -y " << tmp_fname << " " << full_golden_path;
       AERROR << "to override error\nmv " << tmp_fname << " "

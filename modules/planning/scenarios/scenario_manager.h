@@ -17,7 +17,6 @@
 #pragma once
 
 #include <memory>
-#include <set>
 #include <unordered_map>
 
 #include "modules/planning/proto/planning_config.pb.h"
@@ -33,47 +32,83 @@ class ScenarioManager final {
  public:
   ScenarioManager() = default;
 
-  bool Init(const std::set<ScenarioConfig::ScenarioType>& supported_scenarios);
+  bool Init();
 
   Scenario* mutable_scenario() { return current_scenario_.get(); }
 
   void Update(const common::TrajectoryPoint& ego_point, const Frame& frame);
 
  private:
-  /**
-   * This function will wake up each scenario's observe function to cache
-   * necessary information in planning context, even when the scenario is not
-   * scheduled.
-   */
   void Observe(const Frame& frame);
 
   std::unique_ptr<Scenario> CreateScenario(
       ScenarioConfig::ScenarioType scenario_type);
 
-  bool SelectChangeLaneScenario(const common::TrajectoryPoint& ego_point,
-                                const Frame& frame);
-  bool ReuseCurrentScenario(const common::TrajectoryPoint& ego_point,
-                            const Frame& frame);
-  bool SelectScenario(const ScenarioConfig::ScenarioType type,
-                      const common::TrajectoryPoint& ego_point,
-                      const Frame& frame);
-
   void RegisterScenarios();
 
-  ScenarioConfig::ScenarioType DecideCurrentScenario(
-      const common::TrajectoryPoint& ego_point, const Frame& frame);
+  ScenarioConfig::ScenarioType SelectBareIntersectionScenario(
+      const Frame& frame, const hdmap::PathOverlap& pnc_junction_overlap);
 
+  ScenarioConfig::ScenarioType SelectPullOverScenario(const Frame& frame);
+
+  ScenarioConfig::ScenarioType SelectPadMsgScenario(const Frame& frame);
+
+  ScenarioConfig::ScenarioType SelectInterceptionScenario(const Frame& frame);
+
+  ScenarioConfig::ScenarioType SelectStopSignScenario(
+      const Frame& frame, const hdmap::PathOverlap& stop_sign_overlap);
+
+  ScenarioConfig::ScenarioType SelectTrafficLightScenario(
+      const Frame& frame, const hdmap::PathOverlap& traffic_light_overlap);
+
+  ScenarioConfig::ScenarioType SelectValetParkingScenario(const Frame& frame);
+
+  ScenarioConfig::ScenarioType SelectYieldSignScenario(
+      const Frame& frame, const hdmap::PathOverlap& yield_sign_overlap);
+
+  ScenarioConfig::ScenarioType SelectParkAndGoScenario(const Frame& frame);
+
+  void ScenarioDispatch(const common::TrajectoryPoint& ego_point,
+                        const Frame& frame);
+
+  bool IsBareIntersectionScenario(
+      const ScenarioConfig::ScenarioType& scenario_type);
+  bool IsStopSignScenario(const ScenarioConfig::ScenarioType& scenario_type);
+  bool IsTrafficLightScenario(
+      const ScenarioConfig::ScenarioType& scenario_type);
+  bool IsYieldSignScenario(const ScenarioConfig::ScenarioType& scenario_type);
+
+  void UpdatePlanningContext(const Frame& frame,
+                             const ScenarioConfig::ScenarioType& scenario_type);
+
+  void UpdatePlanningContextBareIntersectionScenario(
+      const Frame& frame, const ScenarioConfig::ScenarioType& scenario_type);
+
+  void UpdatePlanningContextEmergencyStopcenario(
+      const Frame& frame, const ScenarioConfig::ScenarioType& scenario_type);
+
+  void UpdatePlanningContextPullOverScenario(
+      const Frame& frame, const ScenarioConfig::ScenarioType& scenario_type);
+
+  void UpdatePlanningContextStopSignScenario(
+      const Frame& frame, const ScenarioConfig::ScenarioType& scenario_type);
+
+  void UpdatePlanningContextTrafficLightScenario(
+      const Frame& frame, const ScenarioConfig::ScenarioType& scenario_type);
+
+  void UpdatePlanningContextYieldSignScenario(
+      const Frame& frame, const ScenarioConfig::ScenarioType& scenario_type);
+
+ private:
   std::unordered_map<ScenarioConfig::ScenarioType, ScenarioConfig,
                      std::hash<int>>
       config_map_;
-
   std::unique_ptr<Scenario> current_scenario_;
   ScenarioConfig::ScenarioType default_scenario_type_;
-  std::set<ScenarioConfig::ScenarioType> supported_scenarios_;
   ScenarioContext scenario_context_;
-
-  // TODO(all): move to scenario conf later
-  const uint32_t conf_min_pass_s_distance_ = 3.0;  // meter
+  std::unordered_map<ReferenceLineInfo::OverlapType, hdmap::PathOverlap,
+                     std::hash<int>>
+      first_encountered_overlap_map_;
 };
 
 }  // namespace scenario

@@ -18,7 +18,6 @@
 
 #include <string>
 #include <thread>
-
 #include "gtest/gtest.h"
 
 namespace apollo {
@@ -69,7 +68,11 @@ TEST(AtomicHashMapTest, concurrency) {
   for (int i = 0; i < thread_num; i++) {
     t[i] = std::thread([&, i]() {
       while (!ready) {
+#if defined(__aarch64__)
+        asm volatile("yield" ::: "memory");
+#else
         asm volatile("rep; nop" ::: "memory");
+#endif
       }
       for (int j = 0; j < thread_num * 1024; j++) {
         auto j_str = std::to_string(j);
@@ -89,7 +92,7 @@ TEST(AtomicHashMapTest, concurrency) {
     EXPECT_TRUE(map.Get(i, &value));
     EXPECT_EQ(std::to_string(i), value);
   }
-  std::string* str;
+  std::string* str = nullptr;
   EXPECT_TRUE(map.Get(0, &str));
   EXPECT_EQ("0", *str);
 }

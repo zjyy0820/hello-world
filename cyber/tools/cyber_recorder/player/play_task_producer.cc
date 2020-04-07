@@ -19,6 +19,7 @@
 #include <iostream>
 
 #include "cyber/common/log.h"
+#include "cyber/common/time_conversion.h"
 #include "cyber/cyber.h"
 #include "cyber/message/protobuf_factory.h"
 #include "cyber/record/record_viewer.h"
@@ -51,18 +52,8 @@ bool PlayTaskProducer::Init() {
     return false;
   }
 
-  if (!ReadRecordInfo()) {
-    is_initialized_.exchange(false);
-    return false;
-  }
-
-  if (!UpdatePlayParam()) {
-    is_initialized_.exchange(false);
-    return false;
-  }
-
-  if (!CreateWriters()) {
-    is_initialized_.exchange(false);
+  if (!ReadRecordInfo() || !UpdatePlayParam() || !CreateWriters()) {
+    is_initialized_.store(false);
     return false;
   }
 
@@ -81,12 +72,6 @@ void PlayTaskProducer::Start() {
   }
 
   produce_th_.reset(new std::thread(&PlayTaskProducer::ThreadFunc, this));
-
-  auto preload_sec = kPreloadTimeSec;
-  while (preload_sec > 0 && !is_stopped_.load()) {
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    --preload_sec;
-  }
 }
 
 void PlayTaskProducer::Stop() {
@@ -113,30 +98,36 @@ bool PlayTaskProducer::ReadRecordInfo() {
     if (!record_reader->IsValid()) {
       continue;
     }
-    if (!record_reader->header().is_complete()) {
+    if (!record_reader->GetHeader().is_complete()) {
       std::cout << "file: " << file << " is not complete." << std::endl;
       continue;
     }
 
     record_readers_.emplace_back(record_reader);
 
-    auto& channel_info = record_reader->channel_info();
+    auto channel_list = record_reader->GetChannelList();
     // loop each channel info
-    for (auto& item : channel_info) {
-      auto& channel_name = item.first;
-      auto& msg_type = item.second.message_type();
+    for (auto& channel_name : channel_list) {
+      if (play_param_.black_channels.find(channel_name) !=
+          play_param_.black_channels.end()) {
+        // minus the black message number from record file header
+        total_msg_num_ -= record_reader->GetMessageNumber(channel_name);
+        continue;
+      }
+
+      auto& msg_type = record_reader->GetMessageType(channel_name);
       msg_types_[channel_name] = msg_type;
 
       if (!play_param_.is_play_all_channels &&
           play_param_.channels_to_play.count(channel_name) > 0) {
-        total_msg_num_ += item.second.message_number();
+        total_msg_num_ += record_reader->GetMessageNumber(channel_name);
       }
 
-      auto& proto_desc = item.second.proto_desc();
+      auto& proto_desc = record_reader->GetProtoDesc(channel_name);
       pb_factory->RegisterMessage(proto_desc);
     }
 
-    auto& header = record_reader->header();
+    auto& header = record_reader->GetHeader();
     if (play_param_.is_play_all_channels) {
       total_msg_num_ += header.message_number();
     }
@@ -148,9 +139,18 @@ bool PlayTaskProducer::ReadRecordInfo() {
       latest_end_time_ = header.end_time();
     }
 
+    auto begin_time_s = static_cast<double>(header.begin_time()) / 1e9;
+    auto end_time_s = static_cast<double>(header.end_time()) / 1e9;
+    auto begin_time_str =
+        common::UnixSecondsToString(static_cast<int>(begin_time_s));
+    auto end_time_str =
+        common::UnixSecondsToString(static_cast<int>(end_time_s));
+
     std::cout << "file: " << file << ", chunk_number: " << header.chunk_number()
-              << ", begin_time: " << header.begin_time()
-              << ", end_time: " << header.end_time()
+              << ", begin_time: " << header.begin_time() << " ("
+              << begin_time_str << ")"
+              << ", end_time: " << header.end_time() << " (" << end_time_str
+              << ")"
               << ", message_number: " << header.message_number() << std::endl;
   }
 
@@ -178,6 +178,11 @@ bool PlayTaskProducer::UpdatePlayParam() {
            << ", end_time_ns=" << play_param_.end_time_ns;
     return false;
   }
+  if (play_param_.preload_time_s == 0) {
+    AINFO << "preload time is zero, we will use defalut value: "
+          << kPreloadTimeSec << " seconds.";
+    play_param_.preload_time_s = kPreloadTimeSec;
+  }
   return true;
 }
 
@@ -195,12 +200,16 @@ bool PlayTaskProducer::CreateWriters() {
 
     if (play_param_.is_play_all_channels ||
         play_param_.channels_to_play.count(channel_name) > 0) {
+      if (play_param_.black_channels.find(channel_name) !=
+          play_param_.black_channels.end()) {
+        continue;
+      }
       proto::RoleAttributes attr;
       attr.set_channel_name(channel_name);
       attr.set_message_type(msg_type);
       auto writer = node_->CreateWriter<message::RawMessage>(attr);
       if (writer == nullptr) {
-        AERROR << "create wirter failed. channel name: " << channel_name
+        AERROR << "create writer failed. channel name: " << channel_name
                << ", message type: " << msg_type;
         return false;
       }
@@ -221,7 +230,8 @@ void PlayTaskProducer::ThreadFunc() {
 
   double avg_freq_hz = static_cast<double>(total_msg_num_) /
                        (static_cast<double>(loop_time_ns) * 1e-9);
-  uint32_t preload_size = (uint32_t)avg_freq_hz * kPreloadTimeSec;
+  uint32_t preload_size = (uint32_t)avg_freq_hz * play_param_.preload_time_s;
+  AINFO << "preload_size: " << preload_size;
   if (preload_size < kMinTaskBufferSize) {
     preload_size = kMinTaskBufferSize;
   }
@@ -241,8 +251,7 @@ void PlayTaskProducer::ThreadFunc() {
         std::this_thread::sleep_for(
             std::chrono::nanoseconds(avg_interval_time_ns));
       }
-
-      for (; itr != itr_end; ++itr) {
+      for (; itr != itr_end && !is_stopped_.load(); ++itr) {
         if (task_buffer_->Size() > preload_size) {
           break;
         }
@@ -260,7 +269,7 @@ void PlayTaskProducer::ThreadFunc() {
     }
 
     if (!play_param_.is_loop_playback) {
-      is_stopped_.exchange(true);
+      is_stopped_.store(true);
       break;
     }
     ++loop_num;

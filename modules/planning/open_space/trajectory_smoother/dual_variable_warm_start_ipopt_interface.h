@@ -20,14 +20,15 @@
 
 #pragma once
 
+#include <adolc/adolc.h>
+#include <adolc/adolc_sparse.h>
+#include <coin/IpTNLP.hpp>
+#include <coin/IpTypes.hpp>
+
 #include <limits>
 #include <vector>
 
 #include "Eigen/Dense"
-#include "IpTNLP.hpp"
-#include "IpTypes.hpp"
-#include "adolc/adolc.h"
-#include "adolc/adolc_sparse.h"
 
 #include "modules/common/configs/proto/vehicle_config.pb.h"
 #include "modules/common/configs/vehicle_config_helper.h"
@@ -45,9 +46,9 @@ class DualVariableWarmStartIPOPTInterface : public Ipopt::TNLP {
  public:
   explicit DualVariableWarmStartIPOPTInterface(
       size_t horizon, double ts, const Eigen::MatrixXd& ego,
-      const Eigen::MatrixXi& obstacles_edges_num,
-      const size_t obstacles_num, const Eigen::MatrixXd& obstacles_A,
-      const Eigen::MatrixXd& obstacles_b, const Eigen::MatrixXd& xWS,
+      const Eigen::MatrixXi& obstacles_edges_num, const size_t obstacles_num,
+      const Eigen::MatrixXd& obstacles_A, const Eigen::MatrixXd& obstacles_b,
+      const Eigen::MatrixXd& xWS,
       const PlannerOpenSpaceConfig& planner_open_space_config);
 
   virtual ~DualVariableWarmStartIPOPTInterface() = default;

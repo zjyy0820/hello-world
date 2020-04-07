@@ -24,6 +24,7 @@
 #include <string>
 #include <vector>
 
+#include "modules/prediction/container/obstacles/obstacles_container.h"
 #include "modules/prediction/predictor/predictor.h"
 
 namespace apollo {
@@ -34,7 +35,7 @@ class JunctionPredictor : public Predictor {
   /**
    * @brief Constructor
    */
-  JunctionPredictor() = default;
+  JunctionPredictor();
 
   /**
    * @brief Destructor
@@ -43,13 +44,18 @@ class JunctionPredictor : public Predictor {
 
   /**
    * @brief Make prediction
+   * @param ADC trajectory container
    * @param Obstacle pointer
+   * @param Obstacles container
+   * @return If predicted successfully
    */
-  void Predict(Obstacle* obstacle) override;
+  bool Predict(const ADCTrajectoryContainer* adc_trajectory_container,
+               Obstacle* obstacle,
+               ObstaclesContainer* obstacles_container) override;
 
  private:
-  void DrawJunctionTrajectoryPoints(const Feature& feature,
-      const JunctionExit& junction_exit,
+  void DrawJunctionTrajectoryPoints(
+      const Feature& feature, const JunctionExit& junction_exit,
       const double total_time, const double period,
       std::vector<apollo::common::TrajectoryPoint>* trajectory_points);
 

@@ -23,7 +23,7 @@ before you proceed.
 ## Hardware and Software Installation
 
 Please refer to
-[Apollo master Hardware and System Installation Guide](apollo_master_hardware_system_installation_guide.md)
+[Apollo master Hardware and System Installation Guide](apollo_3_5_hardware_system_installation_guide.md)
 for the steps to install the hardware components and the system software, as well as
 [Apollo Software Installation Guide](apollo_software_installation_guide.md).
 
@@ -34,7 +34,7 @@ For questions regarding Dreamview icons refer to the
 
 ## Onboard Test
 
-1. Plug-in an external hard-drive to any available USB port in the host machine. 
+1. Plug-in an external hard-drive to any available USB port in the host machine.
 
 2. Turn on the vehicle, and then the host machine.
 
@@ -81,6 +81,6 @@ For questions regarding Dreamview icons refer to the
    ![](images/dreamview_2_5_start_auto.png)
 
 9. After the autonomous testing is complete, under Tasks click `Reset All`, close all
-   windows and shutdown the machine. 
+   windows and shutdown the machine.
 
 10. Remove the hard drive.

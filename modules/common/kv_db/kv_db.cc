@@ -19,9 +19,8 @@
 
 #include "gflags/gflags.h"
 
+#include "absl/strings/str_cat.h"
 #include "cyber/common/log.h"
-#include "modules/common/util/file.h"
-#include "modules/common/util/string_util.h"
 #include "modules/common/util/util.h"
 
 DEFINE_string(kv_db_path, "/apollo/data/kv_db.sqlite",
@@ -30,14 +29,13 @@ DEFINE_string(kv_db_path, "/apollo/data/kv_db.sqlite",
 namespace apollo {
 namespace common {
 namespace {
-using apollo::common::util::StrCat;
 
 // Self-maintained sqlite instance.
 class SqliteWraper {
  public:
   static int Callback(void *data, int argc, char **argv, char **col_name) {
     if (data != nullptr) {
-      std::string *data_str = static_cast<std::string*>(data);
+      std::string *data_str = static_cast<std::string *>(data);
       *data_str = argc > 0 ? argv[0] : "";
     }
     return 0;
@@ -62,7 +60,7 @@ class SqliteWraper {
 
   ~SqliteWraper() { Release(); }
 
-  bool SQL(const std::string &sql, std::string *value = nullptr) {
+  bool SQL(std::string_view sql, std::string *value = nullptr) {
     AINFO << "Executing SQL: " << sql;
     if (db_ == nullptr) {
       AERROR << "DB is not open properly.";
@@ -70,7 +68,7 @@ class SqliteWraper {
     }
 
     char *error = nullptr;
-    if (sqlite3_exec(db_, sql.c_str(), Callback, value, &error) != SQLITE_OK) {
+    if (sqlite3_exec(db_, sql.data(), Callback, value, &error) != SQLITE_OK) {
       AERROR << "Failed to execute SQL: " << error;
       sqlite3_free(error);
       return false;
@@ -91,33 +89,29 @@ class SqliteWraper {
 
 }  // namespace
 
-bool KVDB::Put(const std::string &key, const std::string &value) {
+bool KVDB::Put(std::string_view key, std::string_view value) {
   SqliteWraper sqlite;
-  return sqlite.SQL(StrCat("INSERT OR REPLACE INTO key_value (key, value) "
-                           "VALUES ('", key, "', '", value, "');"));
+  return sqlite.SQL(
+      absl::StrCat("INSERT OR REPLACE INTO key_value (key, value) VALUES ('",
+                   key, "', '", value, "');"));
 }
 
-bool KVDB::Delete(const std::string &key) {
+bool KVDB::Delete(std::string_view key) {
   SqliteWraper sqlite;
-  return sqlite.SQL(StrCat("DELETE FROM key_value WHERE key='", key, "';"));
+  return sqlite.SQL(
+      absl::StrCat("DELETE FROM key_value WHERE key='", key, "';"));
 }
 
-bool KVDB::Has(const std::string &key) {
+std::optional<std::string> KVDB::Get(std::string_view key) {
   SqliteWraper sqlite;
   std::string value;
   const bool ret = sqlite.SQL(
-      StrCat("SELECT value FROM key_value WHERE key='", key, "';"), &value);
-  // Take empty field as non-exist.
-  return ret && !value.empty();
-}
-
-std::string KVDB::Get(const std::string &key,
-                      const std::string &default_value) {
-  SqliteWraper sqlite;
-  std::string value;
-  const bool ret = sqlite.SQL(
-      StrCat("SELECT value FROM key_value WHERE key='", key, "';"), &value);
-  return (ret && !value.empty()) ? value : default_value;
+      absl::StrCat("SELECT value FROM key_value WHERE key='", key, "';"),
+      &value);
+  if (ret && !value.empty()) {
+    return value;
+  }
+  return {};
 }
 
 }  // namespace common

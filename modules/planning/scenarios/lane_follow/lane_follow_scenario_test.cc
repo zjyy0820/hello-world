@@ -17,14 +17,13 @@
 /**
  * @file
  **/
-#define protected public
-#define private public
+
 #include "modules/planning/scenarios/lane_follow/lane_follow_scenario.h"
 
 #include "gtest/gtest.h"
 
+#include "cyber/common/file.h"
 #include "cyber/common/log.h"
-#include "modules/common/util/file.h"
 #include "modules/planning/common/planning_gflags.h"
 
 namespace apollo {
@@ -40,22 +39,12 @@ class LaneFollowScenarioTest : public ::testing::Test {
   std::unique_ptr<LaneFollowScenario> scenario_;
 };
 
-TEST_F(LaneFollowScenarioTest, VerifyConf) {
-  FLAGS_scenario_lane_follow_config_file =
-      "/apollo/modules/planning/conf/scenario_lane_follow_config.pb.txt";
-
-  ScenarioConfig config;
-  EXPECT_TRUE(apollo::common::util::GetProtoFromFile(
-      FLAGS_scenario_side_pass_config_file, &config));
-}
-
 TEST_F(LaneFollowScenarioTest, Init) {
   FLAGS_scenario_lane_follow_config_file =
-      "/apollo/modules/planning/testdata/conf/"
-      "scenario_lane_follow_config.pb.txt";
+      "/apollo/modules/planning/conf/scenario/lane_follow_config.pb.txt";
 
   ScenarioConfig config;
-  EXPECT_TRUE(apollo::common::util::GetProtoFromFile(
+  EXPECT_TRUE(apollo::cyber::common::GetProtoFromFile(
       FLAGS_scenario_lane_follow_config_file, &config));
   ScenarioContext context;
   scenario_.reset(new LaneFollowScenario(config, &context));

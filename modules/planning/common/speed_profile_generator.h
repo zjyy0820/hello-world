@@ -20,7 +20,6 @@
 
 #pragma once
 
-#include <utility>
 #include <vector>
 
 #include "modules/common/proto/pnc_point.pb.h"
@@ -35,31 +34,17 @@ namespace planning {
 class SpeedProfileGenerator {
  public:
   SpeedProfileGenerator() = delete;
-  ~SpeedProfileGenerator() = delete;
 
-  static std::vector<common::SpeedPoint> GenerateInitSpeedProfile(
-      const common::TrajectoryPoint& planning_init_point,
-      const ReferenceLineInfo* reference_line_info);
+  static SpeedData GenerateFallbackSpeed(const double stop_distance = 0.0);
 
-  static std::vector<common::SpeedPoint> GenerateSpeedHotStart(
-      const common::TrajectoryPoint& planning_init_point);
-
-  static SpeedData GenerateFallbackSpeedProfile();
+  static void FillEnoughSpeedPoints(SpeedData* const speed_data);
 
   static SpeedData GenerateFixedDistanceCreepProfile(const double distance,
                                                      const double max_speed);
 
-  static SpeedData GenerateFixedSpeedCreepProfile(const double distance,
-                                                  const double max_speed);
-
  private:
   static SpeedData GenerateStopProfile(const double init_speed,
                                        const double init_acc);
-
-  static SpeedData GenerateStopProfileFromPolynomial(const double init_speed,
-                                                     const double init_acc);
-
-  static bool IsValidProfile(const QuinticPolynomialCurve1d& curve);
 };
 
 }  // namespace planning

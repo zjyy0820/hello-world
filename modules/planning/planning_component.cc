@@ -15,18 +15,21 @@
  *****************************************************************************/
 #include "modules/planning/planning_component.h"
 
+#include "cyber/common/file.h"
 #include "modules/common/adapters/adapter_gflags.h"
-
 #include "modules/common/configs/config_gflags.h"
 #include "modules/common/util/message_util.h"
+#include "modules/common/util/util.h"
 #include "modules/map/hdmap/hdmap_util.h"
 #include "modules/map/pnc_map/pnc_map.h"
+#include "modules/planning/common/history.h"
 #include "modules/planning/common/planning_context.h"
+#include "modules/planning/navi_planning.h"
+#include "modules/planning/on_lane_planning.h"
 
 namespace apollo {
 namespace planning {
 
-using apollo::common::time::Clock;
 using apollo::hdmap::HDMapUtil;
 using apollo::perception::TrafficLightDetection;
 using apollo::relative_map::MapMsg;
@@ -34,19 +37,17 @@ using apollo::routing::RoutingRequest;
 using apollo::routing::RoutingResponse;
 
 bool PlanningComponent::Init() {
-  if (FLAGS_open_space_planner_switchable) {
-    planning_base_ = std::unique_ptr<PlanningBase>(new OpenSpacePlanning());
+  if (FLAGS_use_navigation_mode) {
+    planning_base_ = std::make_unique<NaviPlanning>();
   } else {
-    planning_base_ = std::unique_ptr<PlanningBase>(new StdPlanning());
+    planning_base_ = std::make_unique<OnLanePlanning>();
   }
-  CHECK(apollo::common::util::GetProtoFromFile(FLAGS_planning_config_file,
-                                               &config_))
+
+  ACHECK(apollo::cyber::common::GetProtoFromFile(FLAGS_planning_config_file,
+                                                 &config_))
       << "failed to load planning config file " << FLAGS_planning_config_file;
   planning_base_->Init(config_);
 
-  if (FLAGS_use_sim_time) {
-    Clock::SetMode(Clock::MOCK);
-  }
   routing_reader_ = node_->CreateReader<RoutingResponse>(
       FLAGS_routing_response_topic,
       [this](const std::shared_ptr<RoutingResponse>& routing) {
@@ -63,14 +64,15 @@ bool PlanningComponent::Init() {
         traffic_light_.CopyFrom(*traffic_light);
       });
 
+  pad_msg_reader_ = node_->CreateReader<PadMessage>(
+      FLAGS_planning_pad_topic,
+      [this](const std::shared_ptr<PadMessage>& pad_msg) {
+        ADEBUG << "Received pad data: run pad callback.";
+        std::lock_guard<std::mutex> lock(mutex_);
+        pad_msg_.CopyFrom(*pad_msg);
+      });
+
   if (FLAGS_use_navigation_mode) {
-    pad_message_reader_ = node_->CreateReader<PadMessage>(
-        FLAGS_planning_pad_topic,
-        [this](const std::shared_ptr<PadMessage>& pad_message) {
-          ADEBUG << "Received pad data: run pad callback.";
-          std::lock_guard<std::mutex> lock(mutex_);
-          pad_message_.CopyFrom(*pad_message);
-        });
     relative_map_reader_ = node_->CreateReader<MapMsg>(
         FLAGS_relative_map_topic,
         [this](const std::shared_ptr<MapMsg>& map_message) {
@@ -94,11 +96,8 @@ bool PlanningComponent::Proc(
     const std::shared_ptr<canbus::Chassis>& chassis,
     const std::shared_ptr<localization::LocalizationEstimate>&
         localization_estimate) {
-  CHECK(prediction_obstacles != nullptr);
+  ACHECK(prediction_obstacles != nullptr);
 
-  if (FLAGS_use_sim_time) {
-    Clock::SetNowInSeconds(localization_estimate->header().timestamp_sec());
-  }
   // check and process possible rerouting request
   CheckRerouting();
 
@@ -112,15 +111,17 @@ bool PlanningComponent::Proc(
         hdmap::PncMap::IsNewRouting(*local_view_.routing, routing_)) {
       local_view_.routing =
           std::make_shared<routing::RoutingResponse>(routing_);
-      local_view_.is_new_routing = true;
-    } else {
-      local_view_.is_new_routing = false;
     }
   }
   {
     std::lock_guard<std::mutex> lock(mutex_);
     local_view_.traffic_light =
         std::make_shared<TrafficLightDetection>(traffic_light_);
+    local_view_.relative_map = std::make_shared<MapMsg>(relative_map_);
+  }
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    local_view_.pad_msg = std::make_shared<PadMessage>(pad_msg_);
   }
 
   if (!CheckInput()) {
@@ -133,25 +134,30 @@ bool PlanningComponent::Proc(
   auto start_time = adc_trajectory_pb.header().timestamp_sec();
   common::util::FillHeader(node_->Name(), &adc_trajectory_pb);
 
-  // modify trajecotry relative time due to the timestamp change in header
+  // modify trajectory relative time due to the timestamp change in header
   const double dt = start_time - adc_trajectory_pb.header().timestamp_sec();
   for (auto& p : *adc_trajectory_pb.mutable_trajectory_point()) {
     p.set_relative_time(p.relative_time() + dt);
   }
-  planning_writer_->Write(std::make_shared<ADCTrajectory>(adc_trajectory_pb));
+  planning_writer_->Write(adc_trajectory_pb);
+
+  // record in history
+  auto* history = History::Instance();
+  history->Add(adc_trajectory_pb);
+
   return true;
 }
 
 void PlanningComponent::CheckRerouting() {
-  auto* rerouting =
-      PlanningContext::MutablePlanningStatus()->mutable_rerouting();
+  auto* rerouting = PlanningContext::Instance()
+                        ->mutable_planning_status()
+                        ->mutable_rerouting();
   if (!rerouting->need_rerouting()) {
     return;
   }
   common::util::FillHeader(node_->Name(), rerouting->mutable_routing_request());
   rerouting->set_need_rerouting(false);
-  rerouting_writer_->Write(
-      std::make_shared<RoutingRequest>(rerouting->routing_request()));
+  rerouting_writer_->Write(rerouting->routing_request());
 }
 
 bool PlanningComponent::CheckInput() {
@@ -164,16 +170,26 @@ bool PlanningComponent::CheckInput() {
     not_ready->set_reason("localization not ready");
   } else if (local_view_.chassis == nullptr) {
     not_ready->set_reason("chassis not ready");
-  } else if (!local_view_.routing->has_header()) {
-    not_ready->set_reason("routing not ready");
   } else if (HDMapUtil::BaseMapPtr() == nullptr) {
     not_ready->set_reason("map not ready");
+  } else {
+    // nothing
+  }
+
+  if (FLAGS_use_navigation_mode) {
+    if (!local_view_.relative_map->has_header()) {
+      not_ready->set_reason("relative map not ready");
+    }
+  } else {
+    if (!local_view_.routing->has_header()) {
+      not_ready->set_reason("routing not ready");
+    }
   }
 
   if (not_ready->has_reason()) {
     AERROR << not_ready->reason() << "; skip the planning cycle.";
     common::util::FillHeader(node_->Name(), &trajectory_pb);
-    planning_writer_->Write(std::make_shared<ADCTrajectory>(trajectory_pb));
+    planning_writer_->Write(trajectory_pb);
     return false;
   }
   return true;

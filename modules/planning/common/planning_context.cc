@@ -16,22 +16,14 @@
 
 #include "modules/planning/common/planning_context.h"
 
-#include "modules/planning/common/planning_gflags.h"
-
 namespace apollo {
 namespace planning {
-
-PlanningStatus PlanningContext::planning_status_;
-PlanningContext::ScenarioInfo PlanningContext::scenario_info_;
 
 PlanningContext::PlanningContext() {}
 
 void PlanningContext::Init() {}
 
-void PlanningContext::Clear() {
-  planning_status_.Clear();
-  scenario_info_ = {};
-}
+void PlanningContext::Clear() { planning_status_.Clear(); }
 
 }  // namespace planning
 }  // namespace apollo

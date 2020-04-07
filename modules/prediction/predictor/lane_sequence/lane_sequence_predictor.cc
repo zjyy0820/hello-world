@@ -22,6 +22,7 @@
 
 #include "modules/prediction/common/prediction_gflags.h"
 #include "modules/prediction/common/validation_checker.h"
+#include "modules/prediction/proto/prediction_conf.pb.h"
 
 namespace apollo {
 namespace prediction {
@@ -30,17 +31,25 @@ using common::PathPoint;
 using common::TrajectoryPoint;
 using hdmap::LaneInfo;
 
-void LaneSequencePredictor::Predict(Obstacle* obstacle) {
+LaneSequencePredictor::LaneSequencePredictor() {
+  predictor_type_ = ObstacleConf::LANE_SEQUENCE_PREDICTOR;
+}
+
+bool LaneSequencePredictor::Predict(
+    const ADCTrajectoryContainer* adc_trajectory_container, Obstacle* obstacle,
+    ObstaclesContainer* obstacles_container) {
   Clear();
 
   CHECK_NOTNULL(obstacle);
   CHECK_GT(obstacle->history_size(), 0);
 
+  obstacle->SetPredictorType(predictor_type_);
+
   const Feature& feature = obstacle->latest_feature();
 
   if (!feature.has_lane() || !feature.lane().has_lane_graph()) {
     AERROR << "Obstacle [" << obstacle->id() << " has no lane graph.";
-    return;
+    return false;
   }
 
   std::string lane_id = "";
@@ -49,11 +58,14 @@ void LaneSequencePredictor::Predict(Obstacle* obstacle) {
   }
   int num_lane_sequence = feature.lane().lane_graph().lane_sequence_size();
   std::vector<bool> enable_lane_sequence(num_lane_sequence, true);
-  FilterLaneSequences(feature, lane_id, &enable_lane_sequence);
+  Obstacle* ego_vehicle_ptr =
+      obstacles_container->GetObstacle(FLAGS_ego_vehicle_id);
+  FilterLaneSequences(feature, lane_id, ego_vehicle_ptr,
+                      adc_trajectory_container, &enable_lane_sequence);
 
   for (int i = 0; i < num_lane_sequence; ++i) {
     const LaneSequence& sequence = feature.lane().lane_graph().lane_sequence(i);
-    if (sequence.lane_segment_size() <= 0) {
+    if (sequence.lane_segment().empty()) {
       AERROR << "Empty lane segments.";
       continue;
     }
@@ -73,8 +85,8 @@ void LaneSequencePredictor::Predict(Obstacle* obstacle) {
     bool is_about_to_stop = false;
     double acceleration = 0.0;
     if (sequence.has_stop_sign()) {
-      double stop_distance = sequence.stop_sign().lane_sequence_s() -
-                             sequence.lane_s();
+      double stop_distance =
+          sequence.stop_sign().lane_sequence_s() - sequence.lane_s();
       is_about_to_stop = SupposedToStop(feature, stop_distance, &acceleration);
     }
 
@@ -83,8 +95,8 @@ void LaneSequencePredictor::Predict(Obstacle* obstacle) {
           *obstacle, sequence, FLAGS_prediction_trajectory_time_length,
           FLAGS_prediction_trajectory_time_resolution, acceleration, &points);
     } else {
-      DrawLaneSequenceTrajectoryPoints(*obstacle, sequence,
-          FLAGS_prediction_trajectory_time_length,
+      DrawLaneSequenceTrajectoryPoints(
+          *obstacle, sequence, FLAGS_prediction_trajectory_time_length,
           FLAGS_prediction_trajectory_time_resolution, &points);
     }
 
@@ -99,11 +111,10 @@ void LaneSequencePredictor::Predict(Obstacle* obstacle) {
 
     Trajectory trajectory = GenerateTrajectory(points);
     trajectory.set_probability(sequence.probability());
-    trajectories_.push_back(std::move(trajectory));
+    obstacle->mutable_latest_feature()->add_predicted_trajectory()->CopyFrom(
+        trajectory);
   }
-
-  ADEBUG << "Obstacle [" << obstacle->id() << "] has total "
-         << trajectories_.size() << " trajectories.";
+  return true;
 }
 
 void LaneSequencePredictor::DrawLaneSequenceTrajectoryPoints(

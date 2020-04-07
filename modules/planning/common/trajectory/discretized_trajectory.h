@@ -55,7 +55,8 @@ class DiscretizedTrajectory : public std::vector<common::TrajectoryPoint> {
 
   virtual common::TrajectoryPoint Evaluate(const double relative_time) const;
 
-  virtual size_t QueryLowerBoundPoint(const double relative_time) const;
+  virtual size_t QueryLowerBoundPoint(const double relative_time,
+                                      const double epsilon = 1.0e-5) const;
 
   virtual size_t QueryNearestPoint(const common::math::Vec2d& position) const;
 
@@ -68,7 +69,8 @@ class DiscretizedTrajectory : public std::vector<common::TrajectoryPoint> {
   void PrependTrajectoryPoints(
       const std::vector<common::TrajectoryPoint>& trajectory_points) {
     if (!empty() && trajectory_points.size() > 1) {
-      CHECK(trajectory_points.back().relative_time() < front().relative_time());
+      ACHECK(trajectory_points.back().relative_time() <
+             front().relative_time());
     }
     insert(begin(), trajectory_points.begin(), trajectory_points.end());
   }
