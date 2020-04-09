@@ -51,7 +51,7 @@ class PIDController
           * @return control value based on PID terms
           */
         virtual double Control(const double err, const double dt);
-        virtual ~PIDBCController() = default;
+        virtual ~PIDController() = default;
         /**
          * @brief set pid controller coefficients for the proportional,
          * integral, and derivative
