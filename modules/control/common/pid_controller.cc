@@ -23,82 +23,109 @@
 namespace apollo {
 namespace control {
 
-double PIDController::Control(const double error, const double dt) {
-  if (dt <= 0) {
-    AWARN << "dt <= 0, will use the last output, dt: " << dt;
-    return previous_output_;
-  }
-  double diff = 0;
-  double output = 0;
+PIDController vPID;
+void PIDController::Init(const PidConf &pid_conf)
+{
+    pre_error = 0.0;
+    pre_pre_error = 0.0;
+    pre_output = 0.0;
+    integral_ = 0.0;
+    integrator_enabled_ = pid_conf.integrator_enable();
+    integrator_saturation_high_ = std::fabs(pid_conf.integrator_saturation_level());
+    integrator_saturation_low_ = -std::fabs(pid_conf.integrator_saturation_level());
+    integrator_hold_ = false;
+    integrator_saturation_status_ = 0;
+    // deadband_ = 0.0003;
+    // ceff_ = 0.12;
+    // wp_ = 0.1;
+    // wi_ = 0.1;
+    // wd_ = 0.05;
+    SetPID(pid_conf);
+}
 
-  if (first_hit_) {
-    first_hit_ = false;
-  } else {
-    diff = (error - previous_error_) / dt;
-  }
-  // integral hold
-  if (!integrator_enabled_) {
-    integral_ = 0;
-  } else if (!integrator_hold_) {
-    integral_ += error * dt * ki_;
-    // apply Ki before integrating to avoid steps when change Ki at steady state
-    if (integral_ > integrator_saturation_high_) {
-      integral_ = integrator_saturation_high_;
-      integrator_saturation_status_ = 1;
-    } else if (integral_ < integrator_saturation_low_) {
-      integral_ = integrator_saturation_low_;
-      integrator_saturation_status_ = -1;
-    } else {
-      integrator_saturation_status_ = 0;
+void PIDController::SetPID(const PidConf &pid_conf)
+{
+    kp_ = pid_conf.kp();
+    ki_ = pid_conf.ki();
+    kd_ = pid_conf.kd();
+    wp_ = pid_conf.wp();
+    wi_ = pid_conf.wi();
+    wd_ = pid_conf.wd();
+    ceff_ = pid_conf.ceff();
+    deadband_ = pid_conf.deadband();
+}
+
+double PIDController::Control(const double err, const double dt)
+{
+    if (dt <= 0)
+    {
+        AWARN << "dt <= 0, will use the last output, dt: " << dt;
+        return pre_output;
     }
-  }
-  previous_error_ = error;
-  output = error * kp_ + integral_ + diff * kd_;  // Ki already applied
-  previous_output_ = output;
-  return output;
+    double x[3];
+    double w[3];
+    double output = 0.0;
+    double deltaoutput;
+    double W;
+    // double dw;
+    if (std::abs(err) > deadband_)
+    {
+        x[0] = 0.0;
+        x[1] = err - pre_error;
+        x[2] = err - 2 * pre_error + pre_pre_error;
+        W = std::abs(vPID.wp_ + vPID.wi_ + vPID.wd_);
+        w[0] = vPID.wi_ / W;
+        w[1] = vPID.wp_ / W;
+        w[2] = vPID.wd_ / W;
+        integral_ = w[0] * x[0];
+        if (integral_ > integrator_saturation_high_)
+        {
+            integral_ = integrator_saturation_high_;
+        }
+        else if (integral_ < integrator_saturation_low_)
+        {
+            integral_ = integrator_saturation_low_;
+        }
+        deltaoutput = (integral_ + w[1] * x[1] + w[2] * x[2]) * ceff_;
+    }
+    else
+    {
+        deltaoutput = 0.0;
+    }
+    output = output + deltaoutput;
+    pre_output = output;
+    NeuralLearningRules(vPID,err,output,x);
+    pre_pre_error = pre_error;
+    pre_error = err;
+    return output;
 }
 
-void PIDController::Reset() {
-  previous_error_ = 0.0;
-  previous_output_ = 0.0;
-  integral_ = 0.0;
-  first_hit_ = true;
-  integrator_saturation_status_ = 0;
-  output_saturation_status_ = 0;
+void PIDController::NeuralLearningRules(PIDController vPID, double e, double r, double *x)
+{
+    vPID.wi_ = vPID.wi_ + vPID.ki_ * e * r * x[0];
+    vPID.wp_ = vPID.wp_ + vPID.kp_ * e * r * x[1];
+    vPID.wd_ = vPID.wp_ + vPID.kd_ * e * r * x[2];
 }
 
-void PIDController::Init(const PidConf &pid_conf) {
-  previous_error_ = 0.0;
-  previous_output_ = 0.0;
-  integral_ = 0.0;
-  first_hit_ = true;
-  integrator_enabled_ = pid_conf.integrator_enable();
-  integrator_saturation_high_ =
-      std::fabs(pid_conf.integrator_saturation_level());
-  integrator_saturation_low_ =
-      -std::fabs(pid_conf.integrator_saturation_level());
-  integrator_saturation_status_ = 0;
-  integrator_hold_ = false;
-  output_saturation_high_ = std::fabs(pid_conf.output_saturation_level());
-  output_saturation_low_ = -std::fabs(pid_conf.output_saturation_level());
-  output_saturation_status_ = 0;
-  SetPID(pid_conf);
-}
-
-void PIDController::SetPID(const PidConf &pid_conf) {
-  kp_ = pid_conf.kp();
-  ki_ = pid_conf.ki();
-  kd_ = pid_conf.kd();
-  kaw_ = pid_conf.kaw();
-}
-
-int PIDController::IntegratorSaturationStatus() const {
+int PIDController::IntegratorSaturationStatus() const 
+{
   return integrator_saturation_status_;
 }
 
-bool PIDController::IntegratorHold() const { return integrator_hold_; }
+bool PIDController::IntegratorHold() const 
+{
+  return integrator_hold_;
+}
 
-void PIDController::SetIntegratorHold(bool hold) { integrator_hold_ = hold; }
+void PIDController::Reset() 
+{
+  pre_error = 0.0;
+  pre_pre_error = 0.0;
+  pre_output = 0.0;
+  integral_ = 0.0;
+  integrator_saturation_status_ = 0;
+}
+
 
 }  // namespace control
 }  // namespace apollo

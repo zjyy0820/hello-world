@@ -99,23 +99,38 @@ lon_controller_conf {
   station_pid_conf {
     integrator_enable: false
     integrator_saturation_level: 0.3
+    deadband: 0.0003
+    ceff: 0.12
     kp: 0.2
     ki: 0.0
     kd: 0.0
+    wp: 0.1
+    wi: 0.1
+    wd: 0.05
   }
   low_speed_pid_conf {
     integrator_enable: true
     integrator_saturation_level: 0.3
+    deadband: 0.0003
+    ceff: 0.12
     kp: 0.5
-    ki: 0.1
+    ki: 0.3
     kd: 0.0
+    wp: 0.2
+    wi: 0.15
+    wd: 0.3
   }
   high_speed_pid_conf {
     integrator_enable: true
     integrator_saturation_level: 0.3
-    kp: 0.3
-    ki: 0.1
+    deadband: 0.0003
+    ceff: 0.12
+    kp: 1.0
+    ki: 0.3
     kd: 0.0
+    wp: 0.4
+    wi: 0.2
+    wd: 0.1
   }
   switch_speed: 6.0
   pitch_angle_filter_conf {
