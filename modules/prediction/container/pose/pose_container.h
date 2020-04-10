@@ -19,14 +19,12 @@
  * @brief Obstacles container
  */
 
-#ifndef MODULES_PREDICTION_CONTAINER_POSE_OBSTACLES_H_
-#define MODULES_PREDICTION_CONTAINER_POSE_OBSTACLES_H_
+#pragma once
 
 #include <memory>
 
 #include "modules/localization/proto/localization.pb.h"
 #include "modules/perception/proto/perception_obstacle.pb.h"
-
 #include "modules/prediction/container/container.h"
 
 namespace apollo {
@@ -54,7 +52,7 @@ class PoseContainer : public Container {
    * @brief Transform pose to a perception obstacle.
    * @return A pointer to a perception obstacle.
    */
-  apollo::perception::PerceptionObstacle* ToPerceptionObstacle();
+  const perception::PerceptionObstacle* ToPerceptionObstacle();
 
   /**
    * @brief Get timestamp
@@ -69,15 +67,12 @@ class PoseContainer : public Container {
   void Update(const localization::LocalizationEstimate& localization);
 
  public:
-  static const int ID = -1;
-  static const apollo::perception::PerceptionObstacle::Type type_ =
+  static const perception::PerceptionObstacle::Type type_ =
       perception::PerceptionObstacle::VEHICLE;
 
  private:
-  std::unique_ptr<apollo::perception::PerceptionObstacle> obstacle_ptr_;
+  std::unique_ptr<perception::PerceptionObstacle> obstacle_ptr_;
 };
 
 }  // namespace prediction
 }  // namespace apollo
-
-#endif  // MODULES_PREDICTION_CONTAINER_POSE_OBSTACLES_H_

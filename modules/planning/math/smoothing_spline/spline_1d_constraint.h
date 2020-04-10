@@ -20,11 +20,9 @@
  *methods
  **/
 
-#ifndef MODULES_PLANNING_MATH_SMOOTHING_SPLINE_SPLINE_1D_CONSTRAINT_H_
-#define MODULES_PLANNING_MATH_SMOOTHING_SPLINE_SPLINE_1D_CONSTRAINT_H_
+#pragma once
 
 #include <algorithm>
-#include <functional>
 #include <vector>
 
 #include "Eigen/Core"
@@ -71,7 +69,7 @@ class Spline1dConstraint {
   /**
    * @brief: equality constraint to guarantee joint smoothness
    * boundary equality constriant constraint on fx, dfx, ddfx ... in vector
-   * form; upto third order
+   * form; up to third order
    **/
   bool AddPointConstraint(const double x, const double fx);
   bool AddPointDerivativeConstraint(const double x, const double dfx);
@@ -88,16 +86,16 @@ class Spline1dConstraint {
   bool AddPointThirdDerivativeConstraintInRange(const double x,
                                                 const double dddfx,
                                                 const double range);
-  // guarantee upto values are joint
+  // guarantee up to values are joint
   bool AddSmoothConstraint();
 
-  // guarantee upto derivative are joint
+  // guarantee up to derivative are joint
   bool AddDerivativeSmoothConstraint();
 
-  // guarantee upto second order derivative are joint
+  // guarantee up to second order derivative are joint
   bool AddSecondDerivativeSmoothConstraint();
 
-  // guarantee upto third order derivative are joint
+  // guarantee up to third order derivative are joint
   bool AddThirdDerivativeSmoothConstraint();
 
   /**
@@ -143,5 +141,3 @@ class Spline1dConstraint {
 
 }  // namespace planning
 }  // namespace apollo
-
-#endif  // MODULES_PLANNING_MATH_SMOOTHING_SPLINE_SPLINE_1D_CONSTRAINT_H_

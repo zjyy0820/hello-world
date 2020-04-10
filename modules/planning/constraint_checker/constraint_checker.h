@@ -18,8 +18,7 @@
  * @file constraint_checker.h
  **/
 
-#ifndef MODULES_PLANNING_CONSTRAINT_CHECKER_CONSTRAINT_CHECKER_H_
-#define MODULES_PLANNING_CONSTRAINT_CHECKER_CONSTRAINT_CHECKER_H_
+#pragma once
 
 #include "modules/planning/common/trajectory/discretized_trajectory.h"
 
@@ -44,5 +43,3 @@ class ConstraintChecker {
 
 }  // namespace planning
 }  // namespace apollo
-
-#endif  // MODULES_PLANNING_CONSTRAINT_CHECKER_CONSTRAINT_CHECKER_H_

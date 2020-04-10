@@ -18,8 +18,7 @@
  * @file
  */
 
-#ifndef MODEULES_THIRD_PARTY_PERCEPTION_FUSION_H_
-#define MODEULES_THIRD_PARTY_PERCEPTION_FUSION_H_
+#pragma once
 
 #include "modules/perception/proto/perception_obstacle.pb.h"
 
@@ -38,5 +37,3 @@ apollo::perception::PerceptionObstacles MobileyeRadarFusion(
 }  // namespace fusion
 }  // namespace third_party_perception
 }  // namespace apollo
-
-#endif  // MODULES_THIRD_PARTY_PERCEPTION_FUSION_H_

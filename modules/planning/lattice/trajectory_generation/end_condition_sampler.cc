@@ -21,9 +21,8 @@
 #include "modules/planning/lattice/trajectory_generation/end_condition_sampler.h"
 
 #include <algorithm>
-#include <utility>
 
-#include "modules/common/log.h"
+#include "cyber/common/log.h"
 #include "modules/planning/common/planning_gflags.h"
 
 namespace apollo {
@@ -61,12 +60,14 @@ std::vector<Condition> EndConditionSampler::SampleLonEndConditionsForCruising(
   CHECK_GT(FLAGS_num_velocity_sample, 1);
 
   // time interval is one second plus the last one 0.01
-  constexpr std::size_t num_of_time_samples = 9;
+  static constexpr size_t num_of_time_samples = 9;
   std::array<double, num_of_time_samples> time_samples;
-  for (std::size_t i = 0; i + 1 < num_of_time_samples; ++i) {
-    time_samples[i] = FLAGS_trajectory_time_length - i;
+  for (size_t i = 1; i < num_of_time_samples; ++i) {
+    auto ratio =
+        static_cast<double>(i) / static_cast<double>(num_of_time_samples - 1);
+    time_samples[i] = FLAGS_trajectory_time_length * ratio;
   }
-  time_samples[num_of_time_samples - 1] = FLAGS_polynomial_minimal_param;
+  time_samples[0] = FLAGS_polynomial_minimal_param;
 
   std::vector<Condition> end_s_conditions;
   for (const auto& time : time_samples) {
@@ -81,14 +82,16 @@ std::vector<Condition> EndConditionSampler::SampleLonEndConditionsForCruising(
 
     double v_range = v_upper - v_lower;
     // Number of sample velocities
-    std::size_t num_of_mid_points = std::min(
-        static_cast<std::size_t>(FLAGS_num_velocity_sample - 2),
-        static_cast<std::size_t>(v_range / FLAGS_min_velocity_sample_gap));
+    size_t num_of_mid_points =
+        std::min(static_cast<size_t>(FLAGS_num_velocity_sample - 2),
+                 static_cast<size_t>(v_range / FLAGS_min_velocity_sample_gap));
 
     if (num_of_mid_points > 0) {
-      double velocity_seg = v_range / (num_of_mid_points + 1);
-      for (std::size_t i = 1; i <= num_of_mid_points; ++i) {
-        State end_s = {0.0, v_lower + velocity_seg * i, 0.0};
+      double velocity_seg =
+          v_range / static_cast<double>(num_of_mid_points + 1);
+      for (size_t i = 1; i <= num_of_mid_points; ++i) {
+        State end_s = {0.0, v_lower + velocity_seg * static_cast<double>(i),
+                       0.0};
         end_s_conditions.emplace_back(end_s, time);
       }
     }
@@ -99,15 +102,17 @@ std::vector<Condition> EndConditionSampler::SampleLonEndConditionsForCruising(
 std::vector<Condition> EndConditionSampler::SampleLonEndConditionsForStopping(
     const double ref_stop_point) const {
   // time interval is one second plus the last one 0.01
-  constexpr std::size_t num_time_section = 9;
-  std::array<double, num_time_section> time_sections;
-  for (std::size_t i = 0; i + 1 < num_time_section; ++i) {
-    time_sections[i] = FLAGS_trajectory_time_length - i;
+  static constexpr size_t num_of_time_samples = 9;
+  std::array<double, num_of_time_samples> time_samples;
+  for (size_t i = 1; i < num_of_time_samples; ++i) {
+    auto ratio =
+        static_cast<double>(i) / static_cast<double>(num_of_time_samples - 1);
+    time_samples[i] = FLAGS_trajectory_time_length * ratio;
   }
-  time_sections[num_time_section - 1] = FLAGS_polynomial_minimal_param;
+  time_samples[0] = FLAGS_polynomial_minimal_param;
 
   std::vector<Condition> end_s_conditions;
-  for (const auto& time : time_sections) {
+  for (const auto& time : time_samples) {
     State end_s = {std::max(init_s_[0], ref_stop_point), 0.0, 0.0};
     end_s_conditions.emplace_back(end_s, time);
   }
@@ -120,12 +125,12 @@ EndConditionSampler::SampleLonEndConditionsForPathTimePoints() const {
 
   std::vector<SamplePoint> sample_points = QueryPathTimeObstacleSamplePoints();
   for (const SamplePoint& sample_point : sample_points) {
-    if (sample_point.path_time_point().t() < FLAGS_polynomial_minimal_param) {
+    if (sample_point.path_time_point.t() < FLAGS_polynomial_minimal_param) {
       continue;
     }
-    double s = sample_point.path_time_point().s();
-    double v = sample_point.ref_v();
-    double t = sample_point.path_time_point().t();
+    double s = sample_point.path_time_point.s();
+    double v = sample_point.ref_v;
+    double t = sample_point.path_time_point.t();
     if (s > feasible_region_.SUpper(t) || s < feasible_region_.SLower(t)) {
       continue;
     }
@@ -138,11 +143,11 @@ EndConditionSampler::SampleLonEndConditionsForPathTimePoints() const {
 std::vector<SamplePoint>
 EndConditionSampler::QueryPathTimeObstacleSamplePoints() const {
   const auto& vehicle_config =
-      common::VehicleConfigHelper::instance()->GetConfig();
+      common::VehicleConfigHelper::Instance()->GetConfig();
   std::vector<SamplePoint> sample_points;
   for (const auto& path_time_obstacle :
        ptr_path_time_graph_->GetPathTimeObstacles()) {
-    std::string obstacle_id = path_time_obstacle.obstacle_id();
+    std::string obstacle_id = path_time_obstacle.id();
     QueryFollowPathTimePoints(vehicle_config, obstacle_id, &sample_points);
     QueryOvertakePathTimePoints(vehicle_config, obstacle_id, &sample_points);
   }
@@ -150,12 +155,11 @@ EndConditionSampler::QueryPathTimeObstacleSamplePoints() const {
 }
 
 void EndConditionSampler::QueryFollowPathTimePoints(
-    const common::VehicleConfig& vehicle_config,
-    const std::string& obstacle_id,
+    const common::VehicleConfig& vehicle_config, const std::string& obstacle_id,
     std::vector<SamplePoint>* const sample_points) const {
-  std::vector<PathTimePoint> follow_path_time_points =
+  std::vector<STPoint> follow_path_time_points =
       ptr_path_time_graph_->GetObstacleSurroundingPoints(
-          obstacle_id, -FLAGS_lattice_epsilon, FLAGS_time_min_density);
+          obstacle_id, -FLAGS_numerical_epsilon, FLAGS_time_min_density);
 
   for (const auto& path_time_point : follow_path_time_points) {
     double v = ptr_prediction_querier_->ProjectVelocityAlongReferenceLine(
@@ -165,35 +169,35 @@ void EndConditionSampler::QueryFollowPathTimePoints(
                      vehicle_config.vehicle_param().front_edge_to_center();
     double s_lower = s_upper - FLAGS_default_lon_buffer;
     CHECK_GE(FLAGS_num_sample_follow_per_timestamp, 2);
-    double s_gap = FLAGS_default_lon_buffer
-        / static_cast<double>(FLAGS_num_sample_follow_per_timestamp - 1);
-    for (std::size_t i = 0; i < FLAGS_num_sample_follow_per_timestamp; ++i) {
+    double s_gap =
+        FLAGS_default_lon_buffer /
+        static_cast<double>(FLAGS_num_sample_follow_per_timestamp - 1);
+    for (size_t i = 0; i < FLAGS_num_sample_follow_per_timestamp; ++i) {
       double s = s_lower + s_gap * static_cast<double>(i);
       SamplePoint sample_point;
-      sample_point.mutable_path_time_point()->CopyFrom(path_time_point);
-      sample_point.mutable_path_time_point()->set_s(s);
-      sample_point.set_ref_v(v);
+      sample_point.path_time_point = path_time_point;
+      sample_point.path_time_point.set_s(s);
+      sample_point.ref_v = v;
       sample_points->push_back(std::move(sample_point));
     }
   }
 }
 
 void EndConditionSampler::QueryOvertakePathTimePoints(
-    const common::VehicleConfig& vehicle_config,
-    const std::string& obstacle_id,
+    const common::VehicleConfig& vehicle_config, const std::string& obstacle_id,
     std::vector<SamplePoint>* sample_points) const {
-  std::vector<PathTimePoint> overtake_path_time_points =
+  std::vector<STPoint> overtake_path_time_points =
       ptr_path_time_graph_->GetObstacleSurroundingPoints(
-          obstacle_id, FLAGS_lattice_epsilon, FLAGS_time_min_density);
+          obstacle_id, FLAGS_numerical_epsilon, FLAGS_time_min_density);
 
   for (const auto& path_time_point : overtake_path_time_points) {
     double v = ptr_prediction_querier_->ProjectVelocityAlongReferenceLine(
         obstacle_id, path_time_point.s(), path_time_point.t());
     SamplePoint sample_point;
-    sample_point.mutable_path_time_point()->CopyFrom(path_time_point);
-    sample_point.mutable_path_time_point()->set_s(path_time_point.s() +
-                                                  FLAGS_default_lon_buffer);
-    sample_point.set_ref_v(v);
+    sample_point.path_time_point = path_time_point;
+    sample_point.path_time_point.set_s(path_time_point.s() +
+                                       FLAGS_default_lon_buffer);
+    sample_point.ref_v = v;
     sample_points->push_back(std::move(sample_point));
   }
 }

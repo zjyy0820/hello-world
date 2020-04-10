@@ -18,18 +18,13 @@
  * @file indexed_list.h
  **/
 
-#ifndef MODULES_PLANNING_COMMON_INDEXED_LIST_H_
-#define MODULES_PLANNING_COMMON_INDEXED_LIST_H_
+#pragma once
 
-#include <memory>
+#include <boost/thread/shared_mutex.hpp>
 #include <unordered_map>
-#include <utility>
 #include <vector>
 
-#include "boost/thread/locks.hpp"
-#include "boost/thread/shared_mutex.hpp"
-
-#include "modules/common/log.h"
+#include "cyber/common/log.h"
 #include "modules/common/util/map_util.h"
 
 namespace apollo {
@@ -86,6 +81,24 @@ class IndexedList {
    */
   const std::vector<const T*>& Items() const { return object_list_; }
 
+  /**
+   * @brief List all the items in the container.
+   * @return the unordered_map of ids and objects in the container.
+   */
+  const std::unordered_map<I, T>& Dict() const { return object_dict_; }
+
+  /**
+   * @brief Copy the container with objects.
+   */
+  IndexedList& operator=(const IndexedList& other) {
+    this->object_list_.clear();
+    this->object_dict_.clear();
+    for (const auto& item : other.Dict()) {
+      Add(item.first, item.second);
+    }
+    return *this;
+  }
+
  private:
   std::vector<const T*> object_list_;
   std::unordered_map<I, T> object_dict_;
@@ -115,5 +128,3 @@ class ThreadSafeIndexedList : public IndexedList<I, T> {
 
 }  // namespace planning
 }  // namespace apollo
-
-#endif  // MODULES_PLANNING_COMMON_INDEXED_LIST_H

@@ -19,8 +19,7 @@
  * @brief Defines the LatController class.
  */
 
-#ifndef MODULES_CONTROL_CONTROLLER_LAT_CONTROLLER_H_
-#define MODULES_CONTROL_CONTROLLER_LAT_CONTROLLER_H_
+#pragma once
 
 #include <fstream>
 #include <memory>
@@ -34,6 +33,8 @@
 #include "modules/common/filters/digital_filter_coefficients.h"
 #include "modules/common/filters/mean_filter.h"
 #include "modules/control/common/interpolation_1d.h"
+#include "modules/control/common/leadlag_controller.h"
+#include "modules/control/common/mrac_controller.h"
 #include "modules/control/common/trajectory_analyzer.h"
 #include "modules/control/controller/controller.h"
 
@@ -104,6 +105,9 @@ class LatController : public Controller {
  protected:
   void UpdateState(SimpleLateralDebug *debug);
 
+  // logic for reverse driving mode
+  void UpdateDrivingOrientation();
+
   void UpdateMatrix();
 
   void UpdateMatrixCompound();
@@ -112,6 +116,7 @@ class LatController : public Controller {
 
   void ComputeLateralErrors(const double x, const double y, const double theta,
                             const double linear_v, const double angular_v,
+                            const double linear_a,
                             const TrajectoryAnalyzer &trajectory_analyzer,
                             SimpleLateralDebug *debug);
   bool LoadControlConf(const ControlConf *control_conf);
@@ -122,6 +127,9 @@ class LatController : public Controller {
                    const canbus::Chassis *chassis);
 
   void CloseLogFile();
+
+  // vehicle
+  const ControlConf *control_conf_ = nullptr;
 
   // vehicle parameter
   common::VehicleParam vehicle_param_;
@@ -147,7 +155,7 @@ class LatController : public Controller {
   // rotational inertia
   double iz_ = 0.0;
   // the ratio between the turn of the steering wheel and the turn of the wheels
-  double steer_transmission_ratio_ = 0.0;
+  double steer_ratio_ = 0.0;
   // the maximum turn of steer
   double steer_single_direction_max_degree_ = 0.0;
 
@@ -156,6 +164,13 @@ class LatController : public Controller {
 
   // number of control cycles look ahead (preview controller)
   int preview_window_ = 0;
+
+  // longitudial length for look-ahead lateral error estimation during forward
+  // driving and look-back lateral error estimation during backward driving
+  // (look-ahead controller)
+  double lookahead_station_ = 0.0;
+  double lookback_station_ = 0.0;
+
   // number of states without previews, includes
   // lateral error, lateral error rate, heading error, heading error rate
   const int basic_state_size_ = 4;
@@ -199,12 +214,33 @@ class LatController : public Controller {
   common::MeanFilter lateral_error_filter_;
   common::MeanFilter heading_error_filter_;
 
+  // Lead/Lag controller
+  bool enable_leadlag_ = false;
+  LeadlagController leadlag_controller_;
+
+  // Mrac controller
+  bool enable_mrac_ = false;
+  MracController mrac_controller_;
+
+  // for compute the differential valute to estimate acceleration/lon_jerk
+  double previous_lateral_acceleration_ = 0.0;
+
+  double previous_heading_rate_ = 0.0;
+  double previous_ref_heading_rate_ = 0.0;
+
+  double previous_heading_acceleration_ = 0.0;
+  double previous_ref_heading_acceleration_ = 0.0;
+
   // for logging purpose
   std::ofstream steer_log_file_;
 
   const std::string name_;
 
+  double query_relative_time_;
+
   double pre_steer_angle_ = 0.0;
+
+  double pre_steering_position_ = 0.0;
 
   double minimum_speed_protection_ = 0.1;
 
@@ -215,9 +251,11 @@ class LatController : public Controller {
   double init_vehicle_y_ = 0.0;
 
   double init_vehicle_heading_ = 0.0;
+
+  double low_speed_bound_ = 0.0;
+
+  double driving_orientation_ = 0.0;
 };
 
 }  // namespace control
 }  // namespace apollo
-
-#endif  // MODULES_CONTROL_CONTROLLER_LATERAL_CONTROLLER_H_

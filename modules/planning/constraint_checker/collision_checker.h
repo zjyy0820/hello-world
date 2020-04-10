@@ -18,10 +18,8 @@
  * @file
  **/
 
-#ifndef MODULES_PLANNING_CONSTRAINT_CHECKER_COLLISION_CHECKER_H_
-#define MODULES_PLANNING_CONSTRAINT_CHECKER_COLLISION_CHECKER_H_
+#pragma once
 
-#include <array>
 #include <memory>
 #include <vector>
 
@@ -36,9 +34,8 @@ namespace planning {
 
 class CollisionChecker {
  public:
-  explicit CollisionChecker(
-      const std::vector<const Obstacle*>& obstacles,
-      const double ego_vehicle_s,
+  CollisionChecker(
+      const std::vector<const Obstacle*>& obstacles, const double ego_vehicle_s,
       const double ego_vehicle_d,
       const std::vector<common::PathPoint>& discretized_reference_line,
       const ReferenceLineInfo* ptr_reference_line_info,
@@ -46,10 +43,14 @@ class CollisionChecker {
 
   bool InCollision(const DiscretizedTrajectory& discretized_trajectory);
 
+  static bool InCollision(const std::vector<const Obstacle*>& obstacles,
+                          const DiscretizedTrajectory& ego_trajectory,
+                          const double ego_length, const double ego_width,
+                          const double ego_edge_to_center);
+
  private:
   void BuildPredictedEnvironment(
-      const std::vector<const Obstacle*>& obstacles,
-      const double ego_vehicle_s,
+      const std::vector<const Obstacle*>& obstacles, const double ego_vehicle_s,
       const double ego_vehicle_d,
       const std::vector<common::PathPoint>& discretized_reference_line);
 
@@ -68,5 +69,3 @@ class CollisionChecker {
 
 }  // namespace planning
 }  // namespace apollo
-
-#endif  // MODULES_PLANNING_CONSTRAINT_CHECKER_COLLISION_CHECKER_H_

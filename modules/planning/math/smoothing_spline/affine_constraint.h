@@ -18,8 +18,7 @@
  * @file : affine_constraint.h
  **/
 
-#ifndef MODULES_PLANNING_MATH_SMOOTHING_SPLINE_AFFINE_CONSTRAINT_H_
-#define MODULES_PLANNING_MATH_SMOOTHING_SPLINE_AFFINE_CONSTRAINT_H_
+#pragma once
 
 #include "Eigen/Core"
 #include "modules/planning/math/polynomial_xd.h"
@@ -31,9 +30,9 @@ class AffineConstraint {
  public:
   AffineConstraint() = default;
   explicit AffineConstraint(const bool is_equality);
-  explicit AffineConstraint(const Eigen::MatrixXd& constraint_matrix,
-                            const Eigen::MatrixXd& constraint_boundary,
-                            const bool is_equality);
+  AffineConstraint(const Eigen::MatrixXd& constraint_matrix,
+                   const Eigen::MatrixXd& constraint_boundary,
+                   const bool is_equality);
 
   void SetIsEquality(const double is_equality);
 
@@ -50,5 +49,3 @@ class AffineConstraint {
 
 }  // namespace planning
 }  // namespace apollo
-
-#endif  // MODULES_PLANNING_MATH_SMOOTHING_SPLINE_AFFINE_CONSTRAINT_H_

@@ -18,13 +18,9 @@
 
 #include <vector>
 
-#include "modules/common/adapters/adapter_manager.h"
-#include "modules/common/adapters/proto/adapter_config.pb.h"
+#include "cyber/common/file.h"
 #include "modules/common/configs/vehicle_config_helper.h"
 #include "modules/common/time/time.h"
-#include "modules/common/util/file.h"
-#include "modules/map/hdmap/hdmap_util.h"
-
 #include "modules/dreamview/backend/common/dreamview_gflags.h"
 
 namespace apollo {
@@ -32,68 +28,30 @@ namespace dreamview {
 
 using apollo::common::Status;
 using apollo::common::VehicleConfigHelper;
-using apollo::common::adapter::AdapterManager;
-using apollo::common::time::Clock;
-using apollo::common::util::PathExists;
-using apollo::hdmap::BaseMapFile;
+using cyber::common::PathExists;
 
-std::string Dreamview::Name() const { return FLAGS_dreamview_module_name; }
+Dreamview::~Dreamview() { Stop(); }
 
-void Dreamview::TerminateProfilingMode(const ros::TimerEvent& event) {
+void Dreamview::TerminateProfilingMode() {
   Stop();
-  ros::shutdown();
   AWARN << "Profiling timer called shutdown!";
 }
 
-void Dreamview::CheckAdapters() {
-  // Check the expected adapters are initialized.
-  CHECK(AdapterManager::GetChassis()) << "ChassisAdapter is not initialized.";
-  CHECK(AdapterManager::GetControlCommand())
-      << "ControlCommandAdapter is not initialized.";
-  CHECK(AdapterManager::GetGps()) << "GpsAdapter is not initialized.";
-  CHECK(AdapterManager::GetPlanning()) << "PlanningAdapter is not initialized.";
-  CHECK(AdapterManager::GetLocalization())
-      << "LocalizationAdapter is not initialized.";
-  CHECK(AdapterManager::GetMonitor()) << "MonitorAdapter is not initialized.";
-  CHECK(AdapterManager::GetNavigation())
-      << "NavigationAdapter is not initialized.";
-  CHECK(AdapterManager::GetPad()) << "PadAdapter is not initialized.";
-  CHECK(AdapterManager::GetPrediction())
-      << "PredictionAdapter is not initialized.";
-  CHECK(AdapterManager::GetPerceptionObstacles())
-      << "PerceptionObstaclesAdapter is not initialized.";
-  CHECK(AdapterManager::GetTrafficLightDetection())
-      << "TrafficLightDetectionAdapter is not initialized.";
-  CHECK(AdapterManager::GetRoutingRequest())
-      << "RoutingRequestAdapter is not initialized.";
-  CHECK(AdapterManager::GetRoutingResponse())
-      << "RoutingResponseAdapter is not initialized.";
-  CHECK(AdapterManager::GetImageFront())
-      << "ImageFrontAdapter is not initialized.";
-  CHECK(AdapterManager::GetImageShort())
-      << "ImageShortAdapter is not initialized.";
-  CHECK(AdapterManager::GetPointCloud())
-      << "PointCloudAdapter is not initialized.";
-  CHECK(AdapterManager::GetRelativeMap())
-      << "RelativeMapAdapter is not initialized.";
-}
-
 Status Dreamview::Init() {
-  AdapterManager::Init(FLAGS_dreamview_adapter_config_filename);
   VehicleConfigHelper::Init();
 
   if (FLAGS_dreamview_profiling_mode &&
       FLAGS_dreamview_profiling_duration > 0.0) {
-    exit_timer_ = AdapterManager::CreateTimer(
-        ros::Duration(FLAGS_dreamview_profiling_duration),
-        &Dreamview::TerminateProfilingMode, this, true, true);
+    exit_timer_.reset(
+        new cyber::Timer(FLAGS_dreamview_profiling_duration,
+                         [this]() { this->TerminateProfilingMode(); }, false));
+
+    exit_timer_->Start();
     AWARN << "============================================================";
     AWARN << "| Dreamview running in profiling mode, exit in "
           << FLAGS_dreamview_profiling_duration << " seconds |";
     AWARN << "============================================================";
   }
-
-  CheckAdapters();
 
   // Initialize and run the web server which serves the dreamview htmls and
   // javascripts and handles websocket requests.
@@ -110,32 +68,47 @@ Status Dreamview::Init() {
   }
   server_.reset(new CivetServer(options));
 
-  image_.reset(new ImageHandler());
   websocket_.reset(new WebSocketHandler("SimWorld"));
   map_ws_.reset(new WebSocketHandler("Map"));
   point_cloud_ws_.reset(new WebSocketHandler("PointCloud"));
+  camera_ws_.reset(new WebSocketHandler("Camera"));
+
   map_service_.reset(new MapService());
+  image_.reset(new ImageHandler());
   sim_control_.reset(new SimControl(map_service_.get()));
+  data_collection_monitor_.reset(new DataCollectionMonitor());
+  perception_camera_updater_.reset(
+      new PerceptionCameraUpdater(camera_ws_.get()));
 
   sim_world_updater_.reset(new SimulationWorldUpdater(
-      websocket_.get(), map_ws_.get(), sim_control_.get(), map_service_.get(),
-      FLAGS_routing_from_file));
+      websocket_.get(), map_ws_.get(), camera_ws_.get(), sim_control_.get(),
+      map_service_.get(), data_collection_monitor_.get(),
+      perception_camera_updater_.get(), FLAGS_routing_from_file));
   point_cloud_updater_.reset(new PointCloudUpdater(point_cloud_ws_.get()));
-  hmi_.reset(new HMI(websocket_.get(), map_service_.get()));
+  hmi_.reset(new HMI(websocket_.get(), map_service_.get(),
+                     data_collection_monitor_.get()));
 
   server_->addWebSocketHandler("/websocket", *websocket_);
   server_->addWebSocketHandler("/map", *map_ws_);
   server_->addWebSocketHandler("/pointcloud", *point_cloud_ws_);
+  server_->addWebSocketHandler("/camera", *camera_ws_);
   server_->addHandler("/image", *image_);
-
-  ApolloApp::SetCallbackThreadNumber(FLAGS_dreamview_worker_num);
-
+#ifdef TELEOP
+  teleop_ws_.reset(new WebSocketHandler("Teleop"));
+  teleop_.reset(new TeleopService(teleop_ws_.get()));
+  server_->addWebSocketHandler("/teleop", *teleop_ws_);
+#endif
   return Status::OK();
 }
 
 Status Dreamview::Start() {
   sim_world_updater_->Start();
   point_cloud_updater_->Start();
+  hmi_->Start();
+  perception_camera_updater_->Start();
+#ifdef TELEOP
+  teleop_->Start();
+#endif
   return Status::OK();
 }
 
@@ -143,6 +116,8 @@ void Dreamview::Stop() {
   server_->close();
   sim_control_->Stop();
   point_cloud_updater_->Stop();
+  hmi_->Stop();
+  perception_camera_updater_->Stop();
 }
 
 }  // namespace dreamview

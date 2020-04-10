@@ -18,8 +18,7 @@
  * @file
  **/
 
-#ifndef MODULES_PLANNING_REFERENCE_LINE_REFERENCE_LINE_SMOOTHER_H_
-#define MODULES_PLANNING_REFERENCE_LINE_REFERENCE_LINE_SMOOTHER_H_
+#pragma once
 
 #include <vector>
 
@@ -62,5 +61,3 @@ class ReferenceLineSmoother {
 
 }  // namespace planning
 }  // namespace apollo
-
-#endif  // MODULES_PLANNING_REFERENCE_LINE_REFERENCE_LINE_SMOOTHER_H_

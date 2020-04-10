@@ -14,14 +14,17 @@
  * limitations under the License.
  *****************************************************************************/
 
-#ifndef MODULES_MONITOR_COMMON_MONITOR_MANAGER_H_
-#define MODULES_MONITOR_COMMON_MONITOR_MANAGER_H_
+#pragma once
 
+#include <memory>
 #include <string>
+#include <unordered_map>
 
-#include "modules/common/macro.h"
+#include "cyber/common/macros.h"
 #include "modules/common/monitor_log/monitor_log_buffer.h"
-#include "modules/monitor/proto/monitor_conf.pb.h"
+#include "modules/dreamview/proto/hmi_config.pb.h"
+#include "modules/dreamview/proto/hmi_mode.pb.h"
+#include "modules/dreamview/proto/hmi_status.pb.h"
 #include "modules/monitor/proto/system_status.pb.h"
 
 /**
@@ -31,28 +34,51 @@
 namespace apollo {
 namespace monitor {
 
+// Centralized monitor config and status manager.
 class MonitorManager {
  public:
-  static const MonitorConf &GetConfig();
-  static void InitFrame(const double current_time);
-  static SystemStatus *GetStatus();
-  static HardwareStatus *GetHardwareStatus(const std::string &hardware_name);
-  static ModuleStatus *GetModuleStatus(const std::string &module_name);
-  static apollo::common::monitor::MonitorLogBuffer &LogBuffer();
+  void Init(const std::shared_ptr<apollo::cyber::Node>& node);
 
-  static bool IsInAutonomousDriving();
+  // Start and end a monitoring frame.
+  bool StartFrame(const double current_time);
+  void EndFrame();
+
+  // Getters.
+  const apollo::dreamview::HMIMode& GetHMIMode() const { return mode_config_; }
+  bool IsInAutonomousMode() const { return in_autonomous_driving_; }
+  SystemStatus* GetStatus() { return &status_; }
+  apollo::common::monitor::MonitorLogBuffer& LogBuffer() { return log_buffer_; }
+
+  // Cyber reader / writer creator.
+  template <class T>
+  std::shared_ptr<cyber::Reader<T>> CreateReader(const std::string& channel) {
+    if (readers_.find(channel) == readers_.end()) {
+      readers_.emplace(channel, node_->CreateReader<T>(channel));
+    }
+    return std::dynamic_pointer_cast<cyber::Reader<T>>(readers_[channel]);
+  }
+
+  template <class T>
+  std::shared_ptr<cyber::Writer<T>> CreateWriter(const std::string& channel) {
+    return node_->CreateWriter<T>(channel);
+  }
 
  private:
-  MonitorConf config_;
   SystemStatus status_;
-  apollo::common::monitor::MonitorLogger logger_;
-  apollo::common::monitor::MonitorLogBuffer log_buffer_;
-  bool in_autonomous_driving_ = false;
 
-  DECLARE_SINGLETON(MonitorManager);
+  // Input statuses.
+  std::string current_mode_;
+  const apollo::dreamview::HMIConfig hmi_config_;
+  apollo::dreamview::HMIMode mode_config_;
+  bool in_autonomous_driving_ = false;
+  bool CheckAutonomousDriving(const double current_time);
+
+  apollo::common::monitor::MonitorLogBuffer log_buffer_;
+  std::shared_ptr<apollo::cyber::Node> node_;
+  std::unordered_map<std::string, std::shared_ptr<cyber::ReaderBase>> readers_;
+
+  DECLARE_SINGLETON(MonitorManager)
 };
 
 }  // namespace monitor
 }  // namespace apollo
-
-#endif  // MODULES_MONITOR_COMMON_MONITOR_MANAGER_H_

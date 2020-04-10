@@ -18,8 +18,7 @@
  * @file speed_limit.h
  **/
 
-#ifndef MODULES_PLANNING_COMMON_SPEED_LIMIT_H_
-#define MODULES_PLANNING_COMMON_SPEED_LIMIT_H_
+#pragma once
 
 #include <utility>
 #include <vector>
@@ -48,5 +47,3 @@ class SpeedLimit {
 
 }  // namespace planning
 }  // namespace apollo
-
-#endif  // MODULES_PLANNING_COMMON_SPEED_LIMIT_H_

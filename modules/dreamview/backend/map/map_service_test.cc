@@ -22,9 +22,7 @@
 #include "modules/common/configs/config_gflags.h"
 
 using apollo::common::PointENU;
-using apollo::hdmap::Id;
 using apollo::hdmap::Map;
-using ::testing::UnorderedElementsAre;
 
 namespace apollo {
 namespace dreamview {
@@ -54,7 +52,6 @@ TEST_F(MapServiceTest, CollectMapElementIds) {
   EXPECT_TRUE(map_element_ids.signal().empty());
   EXPECT_TRUE(map_element_ids.stop_sign().empty());
   EXPECT_TRUE(map_element_ids.yield().empty());
-  EXPECT_TRUE(map_element_ids.overlap().empty());
 }
 
 TEST_F(MapServiceTest, RetrieveMapElements) {

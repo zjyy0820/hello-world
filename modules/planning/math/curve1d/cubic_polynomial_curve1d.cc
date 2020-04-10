@@ -20,8 +20,9 @@
 
 #include "modules/planning/math/curve1d/cubic_polynomial_curve1d.h"
 
-#include "modules/common/log.h"
-#include "modules/common/util/string_util.h"
+#include "absl/strings/str_cat.h"
+#include "absl/strings/str_join.h"
+#include "cyber/common/log.h"
 
 namespace apollo {
 namespace planning {
@@ -41,6 +42,15 @@ CubicPolynomialCurve1d::CubicPolynomialCurve1d(const double x0,
   start_condition_[1] = dx0;
   start_condition_[2] = ddx0;
   end_condition_ = x1;
+}
+
+void CubicPolynomialCurve1d::DerivedFromQuarticCurve(
+    const PolynomialCurve1d& other) {
+  CHECK_EQ(other.Order(), 4);
+  param_ = other.ParamLength();
+  for (size_t i = 1; i < 5; ++i) {
+    coef_[i - 1] = other.Coef(i) * static_cast<double>(i);
+  }
 }
 
 double CubicPolynomialCurve1d::Evaluate(const std::uint32_t order,
@@ -64,8 +74,7 @@ double CubicPolynomialCurve1d::Evaluate(const std::uint32_t order,
 }
 
 std::string CubicPolynomialCurve1d::ToString() const {
-  return apollo::common::util::StrCat(
-      apollo::common::util::PrintIter(coef_, "\t"), param_, "\n");
+  return absl::StrCat(absl::StrJoin(coef_, "\t"), param_, "\n");
 }
 
 void CubicPolynomialCurve1d::ComputeCoefficients(const double x0,
@@ -80,6 +89,11 @@ void CubicPolynomialCurve1d::ComputeCoefficients(const double x0,
   coef_[1] = dx0;
   coef_[2] = 0.5 * ddx0;
   coef_[3] = (x1 - x0 - dx0 * param - coef_[2] * p2) / p3;
+}
+
+double CubicPolynomialCurve1d::Coef(const size_t order) const {
+  CHECK_GT(4, order);
+  return coef_[order];
 }
 
 }  // namespace planning

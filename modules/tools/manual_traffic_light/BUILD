@@ -2,20 +2,24 @@ load("//tools:cpplint.bzl", "cpplint")
 
 package(default_visibility = ["//visibility:public"])
 
-cc_binary(
+cc_library(
     name = "manual_traffic_light",
     srcs = ["manual_traffic_light.cc"],
-    data = ["//modules/map:map_data"],
+    copts = ["-DMODULE_NAME=\\\"manual_traffic_light\\\""],
     deps = [
-        "//external:gflags",
-        "//modules/common",
-        "//modules/common/adapters:adapter_manager",
-        "//modules/common/configs:config_gflags",
-        "//modules/common/util",
+        "//cyber",
+        "//modules/common/adapters:adapter_gflags",
         "//modules/common/util:color",
+        "//modules/common/util:message_util",
         "//modules/map/hdmap:hdmap_util",
-        "//modules/perception/proto:perception_proto",
     ],
+)
+
+cc_binary(
+    name = "libmanual_traffic_light_component.so",
+    linkshared = True,
+    linkstatic = False,
+    deps = [":manual_traffic_light"],
 )
 
 cpplint()

@@ -16,11 +16,10 @@
 
 #include "modules/planning/planner/rtk/rtk_replay_planner.h"
 
-#include <fstream>
 #include <utility>
 
-#include "modules/common/log.h"
-#include "modules/common/util/string_tokenizer.h"
+#include "absl/strings/str_split.h"
+#include "cyber/common/log.h"
 #include "modules/common/vehicle_state/vehicle_state_provider.h"
 #include "modules/planning/common/planning_gflags.h"
 
@@ -30,7 +29,6 @@ namespace planning {
 using apollo::common::ErrorCode;
 using apollo::common::Status;
 using apollo::common::TrajectoryPoint;
-using apollo::common::VehicleStateProvider;
 
 RTKReplayPlanner::RTKReplayPlanner() {
   ReadTrajectoryFile(FLAGS_rtk_trajectory_filename);
@@ -39,23 +37,26 @@ RTKReplayPlanner::RTKReplayPlanner() {
 Status RTKReplayPlanner::Init(const PlanningConfig&) { return Status::OK(); }
 
 Status RTKReplayPlanner::Plan(const TrajectoryPoint& planning_start_point,
-                              Frame* frame) {
+                              Frame* frame,
+                              ADCTrajectory* ptr_computed_trajectory) {
   auto status = Status::OK();
   bool has_plan = false;
   auto it = std::find_if(
-      frame->reference_line_info().begin(), frame->reference_line_info().end(),
+      frame->mutable_reference_line_info()->begin(),
+      frame->mutable_reference_line_info()->end(),
       [](const ReferenceLineInfo& ref) { return ref.IsChangeLanePath(); });
-  if (it != frame->reference_line_info().end()) {
+  if (it != frame->mutable_reference_line_info()->end()) {
     status = PlanOnReferenceLine(planning_start_point, frame, &(*it));
-    has_plan = (it->IsDrivable() && it->IsChangeLanePath() &&
-                it->TrajectoryLength() > FLAGS_change_lane_min_length);
+    has_plan =
+        (it->IsDrivable() && it->IsChangeLanePath() &&
+         it->trajectory().GetSpatialLength() > FLAGS_change_lane_min_length);
     if (!has_plan) {
       AERROR << "Fail to plan for lane change.";
     }
   }
 
   if (!has_plan || !FLAGS_prioritize_change_lane) {
-    for (auto& reference_line_info : frame->reference_line_info()) {
+    for (auto& reference_line_info : *frame->mutable_reference_line_info()) {
       if (reference_line_info.IsChangeLanePath()) {
         continue;
       }
@@ -85,10 +86,12 @@ Status RTKReplayPlanner::PlanOnReferenceLine(
   std::uint32_t matched_index =
       QueryPositionMatchedPoint(planning_init_point, complete_rtk_trajectory_);
 
-  std::uint32_t forward_buffer = FLAGS_rtk_trajectory_forward;
+  std::uint32_t forward_buffer =
+      static_cast<std::uint32_t>(FLAGS_rtk_trajectory_forward);
   // end_index is excluded.
   std::uint32_t end_index = std::min<std::uint32_t>(
-      complete_rtk_trajectory_.size(), matched_index + forward_buffer);
+      static_cast<std::uint32_t>(complete_rtk_trajectory_.size()),
+      matched_index + forward_buffer);
 
   //  auto* trajectory_points = trajectory_pb->mutable_trajectory_point();
   std::vector<TrajectoryPoint> trajectory_points(
@@ -106,7 +109,7 @@ Status RTKReplayPlanner::PlanOnReferenceLine(
   // if not, append the last points multiple times and
   // adjust their corresponding time stamps.
   while (trajectory_points.size() <
-         static_cast<std::size_t>(FLAGS_rtk_trajectory_forward)) {
+         static_cast<size_t>(FLAGS_rtk_trajectory_forward)) {
     const auto& last_point = trajectory_points.rbegin();
     auto new_point = last_point;
     new_point->set_relative_time(new_point->relative_time() +
@@ -138,7 +141,8 @@ void RTKReplayPlanner::ReadTrajectoryFile(const std::string& filename) {
       break;
     }
 
-    auto tokens = apollo::common::util::StringTokenizer::Split(line, "\t ");
+    const std::vector<std::string> tokens =
+        absl::StrSplit(line, absl::ByAnyChar("\t "));
     if (tokens.size() < 11) {
       AERROR << "RTKReplayPlanner parse line failed; the data dimension does "
                 "not match.";

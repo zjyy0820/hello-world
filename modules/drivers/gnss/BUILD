@@ -2,45 +2,22 @@ load("//tools:cpplint.bzl", "cpplint")
 
 package(default_visibility = ["//visibility:public"])
 
-cc_library(
-    name = "gnss_lib",
-    srcs = [
-        "gnss.cc",
-    ],
-    hdrs = [
-        "gnss.h",
-    ],
-    deps = [
-        "//modules/drivers/gnss/stream:gnss_stream",
-        "//modules/common",
-        "//modules/common:apollo_app",
-        "//modules/common/adapters:adapter_manager",
-        "//modules/common/monitor_log"
-    ],
-)
-
 cc_binary(
-    name = "gnss",
-    srcs = ["main.cc"],
-    deps = [
-        ":gnss_lib",
-        "//external:gflags",
-        "//modules/common:log",
-        "//modules/common/monitor_log",
-        "@ros//:ros_common",
-    ],
+    name = "libgnss_component.so",
+    linkopts = ["-shared"],
+    linkstatic = False,
+    deps = [":gnss_component_lib"],
 )
 
 cc_library(
-    name = "gnss_gflags",
-    srcs = [
-        "gnss_gflags.cc",
-    ],
-    hdrs = [
-        "gnss_gflags.h",
-    ],
+    name = "gnss_component_lib",
+    srcs = ["gnss_component.cc"],
+    hdrs = ["gnss_component.h"],
+    copts = ['-DMODULE_NAME=\\"gnss\\"'],
     deps = [
-        "//external:gflags",
+        "//cyber",
+        "//modules/common/monitor_log",
+        "//modules/drivers/gnss/stream:gnss_stream",
     ],
 )
 

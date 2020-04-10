@@ -18,15 +18,13 @@
  * @file
  */
 
-#ifndef MODULES_DREAMVIEW_BACKEND_HANDLERS_IMAGE_HANDLER_H_
-#define MODULES_DREAMVIEW_BACKEND_HANDLERS_IMAGE_HANDLER_H_
+#pragma once
 
-#include <atomic>
-#include <condition_variable>
-#include <mutex>
-#include <string>
+#include <memory>
 #include <vector>
-#include "cv_bridge/cv_bridge.h"
+
+#include "cyber/cyber.h"
+#include "modules/drivers/proto/sensor_image.pb.h"
 
 #include "CivetServer.h"
 
@@ -41,7 +39,7 @@ namespace dreamview {
  * @class ImageHandler
  *
  * @brief The ImageHandler, built on top of CivetHandler, converts the received
- * ROS image message to a image stream, wrapped by MJPEG Streaming Protocol.
+ * ROS image message to an image stream, wrapped by MJPEG Streaming Protocol.
  */
 class ImageHandler : public CivetHandler {
  public:
@@ -54,20 +52,21 @@ class ImageHandler : public CivetHandler {
 
  private:
   template <typename SensorMsgsImage>
-  void OnImage(const SensorMsgsImage &image);
+  void OnImage(const std::shared_ptr<SensorMsgsImage> &image);
 
-  void OnImageFront(const sensor_msgs::Image &image);
-  void OnImageShort(const sensor_msgs::Image &image);
+  void OnImageFront(const std::shared_ptr<apollo::drivers::Image> &image);
+  void OnImageShort(
+      const std::shared_ptr<apollo::drivers::CompressedImage> &image);
 
-  std::vector<uchar> send_buffer_;
+  std::vector<uint8_t> send_buffer_;
   std::atomic<int> requests_;
 
   // mutex lock and condition variable to protect the received image
   std::mutex mutex_;
   std::condition_variable cvar_;
+
+  std::unique_ptr<cyber::Node> node_;
 };
 
 }  // namespace dreamview
 }  // namespace apollo
-
-#endif /* MODULES_DREAMVIEW_BACKEND_HANDLERS_IMAGE_HANDLER_H_ */

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 ###############################################################################
 # Copyright 2018 The Apollo Authors. All Rights Reserved.
@@ -16,21 +16,23 @@
 # limitations under the License.
 ###############################################################################
 
-import sys
 import json
 import pyproj
+import argparse
 from yattag import Doc
 import common.proto_utils as proto_utils
 from modules.map.proto import map_pb2
 
 
-def generate(left_boundaries, right_boundaries, center_lat, center_lon):
+def generate(api_key, left_boundaries, right_boundaries, center_lat,
+             center_lon):
     """
     function to generate html code.
     """
     doc, tag, text, line = Doc().ttl()
     doc.asis('<!DOCTYPE html>')
-    api_url = 'http://maps.google.com/maps/api/js?sensor=false&callback=initMap'
+    api_url = 'https://maps.googleapis.com/maps/api/js?key=' + \
+              api_key + '&callback=initMap'
     with tag('html'):
         with tag('head'):
             with tag('title'):
@@ -53,11 +55,11 @@ def generate(left_boundaries, right_boundaries, center_lat, center_lon):
                 doc.asis('function initMap() {\n')
                 doc.asis("map = new google.maps.Map(\
                 document.getElementById('map'), {\n")
-                doc.asis('center: {lat: ' + str(center_lat) + \
+                doc.asis('center: {lat: ' + str(center_lat) +
                          ', lng: ' + str(center_lon) + '},\n')
                 doc.asis('zoom: 16\n')
                 doc.asis('});\n')
-                doc.asis('var left_boundaries = ' + \
+                doc.asis('var left_boundaries = ' +
                          json.dumps(left_boundaries) + ';\n')
                 doc.asis("""
                     for (var i = 0; i < left_boundaries.length; i++) {
@@ -71,7 +73,7 @@ def generate(left_boundaries, right_boundaries, center_lat, center_lon):
                         boundary.setMap(map);
                     }
                 """)
-                doc.asis('var right_boundaries = ' + \
+                doc.asis('var right_boundaries = ' +
                          json.dumps(right_boundaries) + ';\n')
                 doc.asis("""
                     for (var i = 0; i < right_boundaries.length; i++) {
@@ -100,7 +102,7 @@ def utm2latlon(x, y, pzone=10):
     return lat, lon
 
 
-def run(map_file, utm_zone):
+def run(gmap_key, map_file, utm_zone):
     """
     read and process map file
     """
@@ -137,22 +139,28 @@ def run(map_file, utm_zone):
                     right_boundary.append(point)
                 right_boundaries.append(right_boundary)
 
-    html = generate(left_boundaries, right_boundaries, center_lat, center_lon)
+    html = generate(gmap_key, left_boundaries, right_boundaries, center_lat,
+                    center_lon)
 
     with open('gmap.html', 'w') as file:
         file.write(html)
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print "=================================================="
-        print "usage: python gmapviewer.py map_file [utm_zone=10]"
-        print "------------------------------------------------\n"
-        sys.exit(0)
+    parser = argparse.ArgumentParser(
+        description="Mapshow is a tool to display hdmap info on a map.",
+        prog="mapshow.py")
 
-    map_file = sys.argv[1]
-    utm_zone = 10
-    if len(sys.argv) >= 3:
-        utm_zone = int(sys.argv[2])
+    parser.add_argument(
+        "-m", "--map", action="store", type=str, required=True,
+        help="Specify the HDMap file in txt or binary format")
+    parser.add_argument(
+        "-k", "--key", action="store", type=str, required=True,
+        help="Specify your google map api key")
+    parser.add_argument(
+        "-z", "--zone", action="store", type=int, required=True,
+        help="Specify utm zone id. e.g, -z 10")
 
-    run(map_file, utm_zone)
+    args = parser.parse_args()
+
+    run(args.key, args.map, args.zone)

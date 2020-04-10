@@ -18,7 +18,7 @@
 
 #include <utility>
 
-#include "modules/common/log.h"
+#include "cyber/common/log.h"
 #include "modules/common/time/time.h"
 #include "modules/control/common/control_gflags.h"
 #include "modules/control/controller/lat_controller.h"
@@ -79,17 +79,15 @@ Status ControllerAgent::InitializeConf(const ControlConf *control_conf) {
 
 Status ControllerAgent::Init(const ControlConf *control_conf) {
   RegisterControllers(control_conf);
-  CHECK(InitializeConf(control_conf).ok()) << "Fail to initialize config.";
+  ACHECK(InitializeConf(control_conf).ok()) << "Failed to initialize config.";
   for (auto &controller : controller_list_) {
-    if (controller == NULL || !controller->Init(control_conf_).ok()) {
-      if (controller != NULL) {
-        AERROR << "Controller <" << controller->Name() << "> init failed!";
-        return Status(ErrorCode::CONTROL_INIT_ERROR,
-                      "Failed to init Controller:" + controller->Name());
-      } else {
-        return Status(ErrorCode::CONTROL_INIT_ERROR,
-                      "Failed to init Controller");
-      }
+    if (controller == nullptr) {
+      return Status(ErrorCode::CONTROL_INIT_ERROR, "Controller is null.");
+    }
+    if (!controller->Init(control_conf_).ok()) {
+      AERROR << "Controller <" << controller->Name() << "> init failed!";
+      return Status(ErrorCode::CONTROL_INIT_ERROR,
+                    "Failed to init Controller:" + controller->Name());
     }
     AINFO << "Controller <" << controller->Name() << "> init done!";
   }

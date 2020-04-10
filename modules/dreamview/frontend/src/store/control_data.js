@@ -20,8 +20,9 @@ export default class ControlData {
                 real: [],
                 autoModeZone: [],
                 steerCurve: [],
-                pose: [{ x: null, y: null, rotation: null }],
+                currentTargetPoint: [],
             },
+            pose: { x: null, y: null, heading: null },
             speedGraph: {
                 plan: [],
                 target: [],
@@ -79,7 +80,7 @@ export default class ControlData {
         const steeringAngle = adc.steeringAngle / vehicleParam.steerRatio;
         let R = null;
         if (Math.abs(Math.tan(steeringAngle)) > 0.0001) {
-            R = vehicleParam.length / Math.tan(steeringAngle);
+            R = vehicleParam.wheelBase / Math.tan(steeringAngle);
         } else {
             R = 100000;
         }
@@ -180,6 +181,16 @@ export default class ControlData {
         }
     }
 
+    setCurrentTargetPoint(graph, trajectoryPoint) {
+        graph.currentTargetPoint = [];
+        if (trajectoryPoint && trajectoryPoint.pathPoint) {
+            graph.currentTargetPoint.push({
+                x: trajectoryPoint.pathPoint.x,
+                y: trajectoryPoint.pathPoint.y,
+            });
+        }
+    }
+
     update(world, vehicleParam) {
         const trajectory = world.planningTrajectory;
         const adc = world.autoDrivingCar;
@@ -191,22 +202,23 @@ export default class ControlData {
             this.updateAdcStatusGraph(this.data.curvatureGraph,
                 trajectory, adc, 'timestampSec', 'kappa');
 
+            // trajectory graph update
             this.updateAdcStatusGraph(this.data.trajectoryGraph,
                 trajectory, adc, 'positionX', 'positionY');
             this.updateSteerCurve(this.data.trajectoryGraph, adc, vehicleParam);
-            this.data.trajectoryGraph.pose[0].x = adc.positionX;
-            this.data.trajectoryGraph.pose[0].y = adc.positionY;
-            this.data.trajectoryGraph.pose[0].rotation = adc.heading;
-
-            this.updateTime(world.planningTime);
+            this.data.pose.x = adc.positionX;
+            this.data.pose.y = adc.positionY;
+            this.data.pose.heading = adc.heading;
         }
 
         if (world.controlData) {
-            const data = world.controlData;
-            const timestamp = data.timestampSec;
-            this.updateErrorGraph(this.data.stationErrorGraph, timestamp, data.stationError);
-            this.updateErrorGraph(this.data.lateralErrorGraph, timestamp, data.lateralError);
-            this.updateErrorGraph(this.data.headingErrorGraph, timestamp, data.headingError);
+            const control = world.controlData;
+            this.setCurrentTargetPoint(this.data.trajectoryGraph, control.currentTargetPoint);
+            const timestamp = control.timestampSec;
+            this.updateErrorGraph(this.data.stationErrorGraph, timestamp, control.stationError);
+            this.updateErrorGraph(this.data.lateralErrorGraph, timestamp, control.lateralError);
+            this.updateErrorGraph(this.data.headingErrorGraph, timestamp, control.headingError);
+            this.updateTime(timestamp);
         }
     }
 }

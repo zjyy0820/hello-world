@@ -7,7 +7,16 @@ cc_library(
     srcs = ["prediction_gflags.cc"],
     hdrs = ["prediction_gflags.h"],
     deps = [
-        "//external:gflags",
+        "@com_github_gflags_gflags//:gflags",
+    ],
+)
+
+cc_library(
+    name = "prediction_system_gflags",
+    srcs = ["prediction_system_gflags.cc"],
+    hdrs = ["prediction_system_gflags.h"],
+    deps = [
+        "@com_github_gflags_gflags//:gflags",
     ],
 )
 
@@ -15,14 +24,12 @@ cc_library(
     name = "prediction_util",
     srcs = ["prediction_util.cc"],
     hdrs = ["prediction_util.h"],
+    copts = [
+        "-DMODULE_NAME=\\\"prediction\\\"",
+    ],
     deps = [
         ":prediction_gflags",
         ":prediction_map",
-        "//modules/common:log",
-        "//modules/common/math",
-        "//modules/common/proto:pnc_point_proto",
-        "//modules/prediction/proto:lane_graph_proto",
-        "@eigen",
     ],
 )
 
@@ -32,7 +39,7 @@ cc_test(
     srcs = ["prediction_util_test.cc"],
     deps = [
         ":prediction_util",
-        "@gtest//:main",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -40,13 +47,12 @@ cc_library(
     name = "prediction_map",
     srcs = ["prediction_map.cc"],
     hdrs = ["prediction_map.h"],
+    copts = [
+        "-DMODULE_NAME=\\\"prediction\\\"",
+    ],
     deps = [
         ":prediction_gflags",
-        "//modules/common/math:geometry",
-        "//modules/common/math:linear_interpolation",
-        "//modules/map/hdmap:hdmap_util",
         "//modules/map/pnc_map",
-        "@eigen",
     ],
 )
 
@@ -60,9 +66,8 @@ cc_test(
     ],
     deps = [
         ":kml_map_based_test",
-        ":prediction_gflags",
         ":prediction_map",
-        "@gtest//:main",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -70,12 +75,15 @@ cc_library(
     name = "feature_output",
     srcs = ["feature_output.cc"],
     hdrs = ["feature_output.h"],
+    copts = [
+        "-DMODULE_NAME=\\\"prediction\\\"",
+    ],
     deps = [
-        "//modules/common:log",
         "//modules/common/util",
         "//modules/prediction/common:prediction_gflags",
-        "//modules/prediction/proto:feature_proto",
+        "//modules/prediction/container/obstacles:obstacle",
         "//modules/prediction/proto:offline_features_proto",
+        "//modules/prediction/proto:prediction_proto",
     ],
 )
 
@@ -85,7 +93,7 @@ cc_test(
     srcs = ["feature_output_test.cc"],
     deps = [
         ":feature_output",
-        "@gtest//:main",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -93,10 +101,14 @@ cc_library(
     name = "road_graph",
     srcs = ["road_graph.cc"],
     hdrs = ["road_graph.h"],
+    copts = [
+        "-DMODULE_NAME=\\\"prediction\\\"",
+    ],
     deps = [
         ":prediction_map",
-        "//modules/common/status",
-        "//modules/map/hdmap",
+        "//modules/prediction/common:prediction_constants",
+        "//modules/prediction/common:prediction_gflags",
+        "//modules/prediction/common:prediction_system_gflags",
         "//modules/prediction/proto:lane_graph_proto",
     ],
 )
@@ -111,20 +123,14 @@ cc_test(
     ],
     deps = [
         ":kml_map_based_test",
-        ":prediction_gflags",
-        ":prediction_map",
         ":road_graph",
-        "@gtest//:main",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
 cc_library(
     name = "kml_map_based_test",
     hdrs = ["kml_map_based_test.h"],
-    deps = [
-        "//modules/common/configs:config_gflags",
-        "@gtest",
-    ],
 )
 
 cc_library(
@@ -132,7 +138,7 @@ cc_library(
     srcs = ["validation_checker.cc"],
     hdrs = ["validation_checker.h"],
     deps = [
-        "//modules/common/proto:pnc_point_proto",
+        "//modules/common/math",
         "//modules/prediction/common:prediction_gflags",
         "//modules/prediction/proto:lane_graph_proto",
     ],
@@ -148,8 +154,122 @@ cc_test(
     ],
     deps = [
         ":validation_checker",
-        "@gtest//:main",
+        "@com_google_googletest//:gtest_main",
     ],
+)
+
+cc_library(
+    name = "environment_features",
+    srcs = ["environment_features.cc"],
+    hdrs = ["environment_features.h"],
+    deps = [
+        "//cyber",
+        "//modules/common/proto:geometry_proto",
+    ],
+)
+
+cc_test(
+    name = "environment_features_test",
+    size = "small",
+    srcs = ["environment_features_test.cc"],
+    deps = [
+        ":environment_features",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "junction_analyzer",
+    srcs = ["junction_analyzer.cc"],
+    hdrs = ["junction_analyzer.h"],
+    copts = [
+        "-DMODULE_NAME=\\\"prediction\\\"",
+    ],
+    deps = [
+        ":prediction_map",
+        "//modules/prediction/proto:feature_proto",
+    ],
+)
+
+cc_test(
+    name = "junction_analyzer_test",
+    size = "small",
+    srcs = ["junction_analyzer_test.cc"],
+    data = [
+        "//modules/prediction:prediction_data",
+        "//modules/prediction:prediction_testdata",
+    ],
+    deps = [
+        ":junction_analyzer",
+        ":kml_map_based_test",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "message_process",
+    srcs = ["message_process.cc"],
+    hdrs = ["message_process.h"],
+    copts = [
+        "-DMODULE_NAME=\\\"prediction\\\"",
+    ],
+    deps = [
+        ":semantic_map",
+        "//cyber/common:file",
+        "//modules/common/adapters:adapter_gflags",
+        "//modules/prediction/evaluator:evaluator_manager",
+        "//modules/prediction/predictor:predictor_manager",
+        "//modules/prediction/proto:offline_features_proto",
+        "//modules/prediction/scenario:scenario_manager",
+        "//modules/prediction/util:data_extraction",
+    ],
+)
+
+cc_library(
+    name = "prediction_thread_pool",
+    srcs = ["prediction_thread_pool.cc"],
+    hdrs = ["prediction_thread_pool.h"],
+    copts = [
+        "-DMODULE_NAME=\\\"prediction\\\"",
+    ],
+    deps = [
+        "//cyber/base",
+        "//cyber/common",
+    ],
+)
+
+cc_test(
+    name = "prediction_thread_pool_test",
+    size = "small",
+    srcs = ["prediction_thread_pool_test.cc"],
+    deps = [
+        ":prediction_thread_pool",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "semantic_map",
+    srcs = ["semantic_map.cc"],
+    hdrs = ["semantic_map.h"],
+    copts = [
+        "-DMODULE_NAME=\\\"prediction\\\"",
+    ],
+    deps = [
+        ":prediction_gflags",
+        "//cyber/common",
+        "//modules/common/configs:config_gflags",
+        "//modules/common/util",
+        "//modules/prediction/container:container_manager",
+        "//modules/prediction/container/pose:pose_container",
+        "//modules/prediction/proto:feature_proto",
+        "@opencv",
+    ],
+)
+
+cc_library(
+    name = "prediction_constants",
+    hdrs = ["prediction_constants.h"],
 )
 
 cpplint()

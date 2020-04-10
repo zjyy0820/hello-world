@@ -20,14 +20,14 @@
 
 #include "modules/prediction/network/net_layer.h"
 
-#include "modules/common/log.h"
+#include <algorithm>
+#include <limits>
+
+#include "cyber/common/log.h"
 
 namespace apollo {
 namespace prediction {
 namespace network {
-
-using apollo::prediction::DenseParameter;
-using apollo::prediction::LayerParameter;
 
 bool Layer::Load(const LayerParameter& layer_pb) {
   if (!layer_pb.has_name()) {
@@ -51,6 +51,10 @@ bool Dense::Load(const LayerParameter& layer_pb) {
     return false;
   }
   DenseParameter dense_pb = layer_pb.dense();
+  return Load(dense_pb);
+}
+
+bool Dense::Load(const DenseParameter& dense_pb) {
   if (!dense_pb.has_weights() || !LoadTensor(dense_pb.weights(), &weights_)) {
     AERROR << "Fail to Load weights!";
     return false;
@@ -78,13 +82,159 @@ bool Dense::Load(const LayerParameter& layer_pb) {
 void Dense::Run(const std::vector<Eigen::MatrixXf>& inputs,
                 Eigen::MatrixXf* output) {
   CHECK_EQ(inputs.size(), 1);
-  Eigen::MatrixXf prod = inputs[0] * weights_;
+  Eigen::MatrixXf prod = static_cast<Eigen::MatrixXf>(inputs[0] * weights_);
   if (use_bias_) {
     Eigen::MatrixXf sum = prod.rowwise() + bias_.transpose();
     prod = sum;
   }
   *output = prod.unaryExpr(kactivation_);
   CHECK_EQ(output->cols(), units_);
+}
+
+bool Conv1d::Load(const LayerParameter& layer_pb) {
+  if (!Layer::Load(layer_pb)) {
+    AERROR << "Fail to Load LayerParameter!";
+    return false;
+  }
+  Conv1dParameter conv1d_pb = layer_pb.conv1d();
+  return Load(conv1d_pb);
+}
+
+bool Conv1d::Load(const Conv1dParameter& conv1d_pb) {
+  if (!conv1d_pb.has_kernel() || !LoadTensor(conv1d_pb.kernel(), &kernel_)) {
+    AERROR << "Fail to Load kernel!";
+    return false;
+  }
+  if (!conv1d_pb.has_bias() || !LoadTensor(conv1d_pb.bias(), &bias_)) {
+    AERROR << "Fail to Load bias!";
+    return false;
+  }
+  if (!conv1d_pb.has_use_bias()) {
+    AWARN << "Set use_bias as false.";
+    use_bias_ = true;
+  } else {
+    use_bias_ = conv1d_pb.use_bias();
+  }
+  for (int sz : conv1d_pb.shape()) {
+    shape_.push_back(sz);
+  }
+  if (conv1d_pb.has_stride()) {
+    stride_ = conv1d_pb.stride();
+  } else {
+    stride_ = 1;
+  }
+  return true;
+}
+
+void Conv1d::Run(const std::vector<Eigen::MatrixXf>& inputs,
+                 Eigen::MatrixXf* output) {
+  CHECK_EQ(inputs.size(), 1);
+  CHECK_GT(kernel_.size(), 0);
+  CHECK_EQ(kernel_[0].rows(), inputs[0].rows());
+  int kernel_size = static_cast<int>(kernel_[0].cols());
+  int output_num_col =
+      static_cast<int>((inputs[0].cols() - kernel_size) / stride_) + 1;
+  int output_num_row = static_cast<int>(kernel_.size());
+  output->resize(output_num_row, output_num_col);
+  for (int i = 0; i < output_num_row; ++i) {
+    for (int j = 0; j < output_num_col; ++j) {
+      float output_i_j_unbiased = 0.0f;
+      for (int p = 0; p < inputs[0].rows(); ++p) {
+        for (int q = j * stride_; q < j * stride_ + kernel_size; ++q) {
+          output_i_j_unbiased +=
+              inputs[0](p, q) * kernel_[i](p, q - j * stride_);
+        }
+      }
+
+      (*output)(i, j) = output_i_j_unbiased + bias_(i);
+    }
+  }
+}
+
+bool MaxPool1d::Load(const LayerParameter& layer_pb) {
+  if (!Layer::Load(layer_pb)) {
+    AERROR << "Fail to Load LayerParameter!";
+    return false;
+  }
+  MaxPool1dParameter maxpool1d_pb = layer_pb.maxpool1d();
+  return Load(maxpool1d_pb);
+}
+
+bool MaxPool1d::Load(const MaxPool1dParameter& maxpool1d_pb) {
+  ACHECK(maxpool1d_pb.has_kernel_size());
+  CHECK_GT(maxpool1d_pb.has_kernel_size(), 0);
+  kernel_size_ = maxpool1d_pb.kernel_size();
+  if (maxpool1d_pb.has_stride() && maxpool1d_pb.stride() > 0) {
+    stride_ = maxpool1d_pb.stride();
+  } else {
+    ADEBUG << "No valid stride found, use kernel size, instead";
+    stride_ = maxpool1d_pb.kernel_size();
+  }
+  return true;
+}
+
+void MaxPool1d::Run(const std::vector<Eigen::MatrixXf>& inputs,
+                    Eigen::MatrixXf* output) {
+  CHECK_EQ(inputs.size(), 1);
+  int output_num_col =
+      static_cast<int>((inputs[0].cols() - kernel_size_) / stride_) + 1;
+  int output_num_row = static_cast<int>(inputs[0].rows());
+  output->resize(output_num_row, output_num_col);
+  int input_index = 0;
+  for (int j = 0; j < output_num_col; ++j) {
+    CHECK_LE(input_index + kernel_size_, inputs[0].cols());
+    for (int i = 0; i < output_num_row; ++i) {
+      float output_i_j = -std::numeric_limits<float>::infinity();
+      for (int k = input_index; k < input_index + kernel_size_; ++k) {
+        output_i_j = std::max(output_i_j, inputs[0](i, k));
+      }
+      (*output)(i, j) = output_i_j;
+    }
+    input_index += stride_;
+  }
+}
+
+bool AvgPool1d::Load(const LayerParameter& layer_pb) {
+  if (!Layer::Load(layer_pb)) {
+    AERROR << "Fail to Load LayerParameter!";
+    return false;
+  }
+  AvgPool1dParameter avgpool1d_pb = layer_pb.avgpool1d();
+  return Load(avgpool1d_pb);
+}
+
+bool AvgPool1d::Load(const AvgPool1dParameter& avgpool1d_pb) {
+  ACHECK(avgpool1d_pb.has_kernel_size());
+  CHECK_GT(avgpool1d_pb.has_kernel_size(), 0);
+  kernel_size_ = avgpool1d_pb.kernel_size();
+  if (avgpool1d_pb.has_stride() && avgpool1d_pb.stride() > 0) {
+    stride_ = avgpool1d_pb.stride();
+  } else {
+    ADEBUG << "No valid stride found, use kernel size, instead";
+    stride_ = avgpool1d_pb.kernel_size();
+  }
+  return true;
+}
+
+void AvgPool1d::Run(const std::vector<Eigen::MatrixXf>& inputs,
+                    Eigen::MatrixXf* output) {
+  CHECK_EQ(inputs.size(), 1);
+  int output_num_col =
+      static_cast<int>((inputs[0].cols() - kernel_size_) / stride_) + 1;
+  int output_num_row = static_cast<int>(inputs[0].rows());
+  output->resize(output_num_row, output_num_col);
+  int input_index = 0;
+  for (int j = 0; j < output_num_col; ++j) {
+    CHECK_LE(input_index + kernel_size_, inputs[0].cols());
+    for (int i = 0; i < output_num_row; ++i) {
+      float output_i_j_sum = 0.0f;
+      for (int k = input_index; k < input_index + kernel_size_; ++k) {
+        output_i_j_sum += inputs[0](i, k);
+      }
+      (*output)(i, j) = output_i_j_sum / static_cast<float>(kernel_size_);
+    }
+    input_index += stride_;
+  }
 }
 
 bool Activation::Load(const LayerParameter& layer_pb) {
@@ -96,6 +246,15 @@ bool Activation::Load(const LayerParameter& layer_pb) {
     kactivation_ = serialize_to_function("linear");
   } else {
     ActivationParameter activation_pb = layer_pb.activation();
+    kactivation_ = serialize_to_function(activation_pb.activation());
+  }
+  return true;
+}
+
+bool Activation::Load(const ActivationParameter& activation_pb) {
+  if (!activation_pb.has_activation()) {
+    kactivation_ = serialize_to_function("linear");
+  } else {
     kactivation_ = serialize_to_function(activation_pb.activation());
   }
   return true;
@@ -113,8 +272,8 @@ bool BatchNormalization::Load(const LayerParameter& layer_pb) {
     return false;
   }
 
-  BatchNormalizationParameter bn_pb = layer_pb.batch_normalization();
-  epsilon_ = bn_pb.epsilon();
+  auto bn_pb = layer_pb.batch_normalization();
+  epsilon_ = static_cast<float>(bn_pb.epsilon());
   axis_ = bn_pb.axis();
   center_ = bn_pb.center();
   scale_ = bn_pb.scale();
@@ -244,22 +403,22 @@ bool LSTM::Load(const LayerParameter& layer_pb) {
   }
   if (!lstm_pb.has_recurrent_weights_input() ||
       !LoadTensor(lstm_pb.recurrent_weights_input(), &r_wi_)) {
-    AERROR << "Fail to Load reccurent input weights!";
+    AERROR << "Fail to Load recurrent input weights!";
     return false;
   }
   if (!lstm_pb.has_recurrent_weights_forget() ||
       !LoadTensor(lstm_pb.recurrent_weights_forget(), &r_wf_)) {
-    AERROR << "Fail to Load reccurent forget weights!";
+    AERROR << "Fail to Load recurrent forget weights!";
     return false;
   }
   if (!lstm_pb.has_recurrent_weights_cell() ||
       !LoadTensor(lstm_pb.recurrent_weights_cell(), &r_wc_)) {
-    AERROR << "Fail to Load reccurent cell weights!";
+    AERROR << "Fail to Load recurrent cell weights!";
     return false;
   }
   if (!lstm_pb.has_recurrent_weights_output() ||
       !LoadTensor(lstm_pb.recurrent_weights_output(), &r_wo_)) {
-    AERROR << "Fail to Load reccurent output weights!";
+    AERROR << "Fail to Load recurrent output weights!";
     return false;
   }
   ResetState();

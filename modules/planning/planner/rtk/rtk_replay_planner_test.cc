@@ -52,7 +52,7 @@ TEST(RTKReplayPlannerTest, ComputeTrajectory) {
   localization.mutable_pose()->mutable_linear_acceleration()->set_x(0.0);
   localization.mutable_pose()->mutable_linear_acceleration()->set_y(0.0);
   localization.mutable_pose()->mutable_linear_acceleration()->set_z(0.0);
-  common::VehicleStateProvider::instance()->Update(localization, chassis);
+  common::VehicleStateProvider::Instance()->Update(localization, chassis);
   common::VehicleState state;
   state.set_x(point.x());
   state.set_y(point.y());
@@ -62,15 +62,14 @@ TEST(RTKReplayPlannerTest, ComputeTrajectory) {
 
   const auto& trajectory = info.trajectory();
   EXPECT_TRUE(status.ok());
-  EXPECT_TRUE(!trajectory.trajectory_points().empty());
-  EXPECT_EQ(trajectory.trajectory_points().size(),
-            FLAGS_rtk_trajectory_forward);
+  EXPECT_FALSE(trajectory.empty());
+  EXPECT_EQ(trajectory.size(), FLAGS_rtk_trajectory_forward);
 
-  auto first_point = trajectory.trajectory_points().begin();
+  auto first_point = trajectory.begin();
   EXPECT_DOUBLE_EQ(first_point->path_point().x(), 586385.782841);
   EXPECT_DOUBLE_EQ(first_point->path_point().y(), 4140674.76065);
 
-  auto last_point = trajectory.trajectory_points().rbegin();
+  auto last_point = trajectory.rbegin();
   EXPECT_DOUBLE_EQ(last_point->path_point().x(), 586355.063786);
   EXPECT_DOUBLE_EQ(last_point->path_point().y(), 4140681.98605);
 }
@@ -98,7 +97,7 @@ TEST(RTKReplayPlannerTest, ErrorTest) {
   localization.mutable_pose()->mutable_linear_acceleration()->set_x(0.0);
   localization.mutable_pose()->mutable_linear_acceleration()->set_y(0.0);
   localization.mutable_pose()->mutable_linear_acceleration()->set_z(0.0);
-  common::VehicleStateProvider::instance()->Update(localization, chassis);
+  common::VehicleStateProvider::Instance()->Update(localization, chassis);
   ReferenceLine ref;
   hdmap::RouteSegments segments;
   common::VehicleState state;

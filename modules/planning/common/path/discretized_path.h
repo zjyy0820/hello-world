@@ -18,9 +18,9 @@
  * @file discretized_path.h
  **/
 
-#ifndef MODULES_PLANNING_COMMON_PATH_DISCRETIZED_PATH_H_
-#define MODULES_PLANNING_COMMON_PATH_DISCRETIZED_PATH_H_
+#pragma once
 
+#include <utility>
 #include <vector>
 
 #include "modules/common/proto/pnc_point.pb.h"
@@ -28,38 +28,24 @@
 namespace apollo {
 namespace planning {
 
-class DiscretizedPath {
+class DiscretizedPath : public std::vector<common::PathPoint> {
  public:
   DiscretizedPath() = default;
 
-  explicit DiscretizedPath(const std::vector<common::PathPoint>& path_points);
-
-  virtual ~DiscretizedPath() = default;
-
-  void set_path_points(const std::vector<common::PathPoint>& path_points);
+  explicit DiscretizedPath(std::vector<common::PathPoint> path_points);
 
   double Length() const;
 
-  const common::PathPoint& StartPoint() const;
-
-  const common::PathPoint& EndPoint() const;
-
   common::PathPoint Evaluate(const double path_s) const;
 
-  const std::vector<common::PathPoint>& path_points() const;
-
-  std::uint32_t NumOfPoints() const;
-
-  virtual void Clear();
+  common::PathPoint EvaluateReverse(const double path_s) const;
 
  protected:
   std::vector<common::PathPoint>::const_iterator QueryLowerBound(
       const double path_s) const;
-
-  std::vector<common::PathPoint> path_points_;
+  std::vector<common::PathPoint>::const_iterator QueryUpperBound(
+      const double path_s) const;
 };
 
 }  // namespace planning
 }  // namespace apollo
-
-#endif  // MODULES_PLANNING_COMMON_PATH_PATH_H_

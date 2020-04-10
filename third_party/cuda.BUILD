@@ -2,12 +2,21 @@ package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])
 
-
-
 cc_library(
     name = "cuda",
     includes = ["include"],
-    linkopts = [
+    linkopts = select(
+        {
+            ":x86_mode": [
+                "-L/usr/lib/x86_64-linux-gnu/",
+            ],
+            ":arm_mode": [
+                "-L/usr/lib/aarch64-linux-gnu/",
+            ],
+        },
+        no_match_error = "Please Build with an ARM or Linux x86_64 platform",
+    ) + [
+        "-lgomp",
         "-L/usr/local/cuda/lib64",
         "-lOpenCL",
         "-lcublas",
@@ -20,7 +29,6 @@ cc_library(
         "-lcusolver",
         "-lcusparse",
         "-lnppc",
-        "-lnppi",
         "-lnppial",
         "-lnppicc",
         "-lnppicom",
@@ -46,7 +54,6 @@ cc_library(
         "-lcusolver",
         "-lcusparse",
         "-lnppc",
-        "-lnppi",
         "-lnppial",
         "-lnppicc",
         "-lnppicom",
@@ -62,4 +69,14 @@ cc_library(
         "-lnvidia-ml",
         "-lnvrtc",
     ],
+)
+
+config_setting(
+    name = "x86_mode",
+    values = {"cpu": "k8"},
+)
+
+config_setting(
+    name = "arm_mode",
+    values = {"cpu": "arm"},
 )

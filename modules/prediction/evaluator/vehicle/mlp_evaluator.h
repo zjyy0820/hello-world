@@ -14,18 +14,15 @@
  * limitations under the License.
  *****************************************************************************/
 
-#ifndef MODULES_PREDICTION_EVALUATOR_VEHICLE_MLP_EVALUATOR_H_
-#define MODULES_PREDICTION_EVALUATOR_VEHICLE_MLP_EVALUATOR_H_
+#pragma once
 
 #include <memory>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
-#include "modules/prediction/container/obstacles/obstacle.h"
+#include "modules/prediction/container/obstacles/obstacles_container.h"
 #include "modules/prediction/evaluator/evaluator.h"
 #include "modules/prediction/proto/fnn_vehicle_model.pb.h"
-#include "modules/prediction/proto/lane_graph.pb.h"
 
 namespace apollo {
 namespace prediction {
@@ -45,8 +42,10 @@ class MLPEvaluator : public Evaluator {
   /**
    * @brief Override Evaluate
    * @param Obstacle pointer
+   * @param Obstacles container
    */
-  void Evaluate(Obstacle* obstacle_ptr) override;
+  bool Evaluate(Obstacle* obstacle_ptr,
+                ObstaclesContainer* obstacles_container) override;
 
   /**
    * @brief Extract feature vector
@@ -56,6 +55,11 @@ class MLPEvaluator : public Evaluator {
   void ExtractFeatureValues(Obstacle* obstacle_ptr,
                             LaneSequence* lane_sequence_ptr,
                             std::vector<double>* feature_values);
+
+  /**
+   * @brief Get the name of evaluator.
+   */
+  std::string GetName() override { return "MLP_EVALUATOR"; }
 
   /**
    * @brief Clear obstacle feature map
@@ -82,7 +86,7 @@ class MLPEvaluator : public Evaluator {
                             std::vector<double>* feature_values);
 
   /**
-   * @brief Load mode file
+   * @brief Load model file
    * @param Model file name
    */
   void LoadModel(const std::string& model_file);
@@ -101,7 +105,6 @@ class MLPEvaluator : public Evaluator {
                            const std::vector<double>& feature_values);
 
  private:
-  std::unordered_map<int, std::vector<double>> obstacle_feature_values_map_;
   static const size_t OBSTACLE_FEATURE_SIZE = 22;
   static const size_t LANE_FEATURE_SIZE = 40;
 
@@ -110,5 +113,3 @@ class MLPEvaluator : public Evaluator {
 
 }  // namespace prediction
 }  // namespace apollo
-
-#endif  // MODULES_PREDICTION_EVALUATOR_VEHICLE_MLP_EVALUATOR_H_

@@ -11,45 +11,36 @@ import PlaybackControls from "components/PlaybackControls";
 const Navigation = Loadable({
     loader: () => import("components/Navigation"),
     loading() {
-      return <div>Loading...</div>;
+        return <div className="navigation-view">Loading...</div>;
     }
 });
-
-
-class SensorCamera extends React.Component {
-    render() {
-        return (
-           <div className="video">
-                <img src='/image'/>
-            </div>
-        );
-    }
-}
 
 @inject("store") @observer
 class SceneView extends React.Component {
     render() {
-        const { sceneDimension, meters, monitor,
-                options, trafficSignal, video, hmi } = this.props.store;
+        const { dimension, meters, monitor,
+                hmi, options, trafficSignal } = this.props.store;
 
         return (
-            <div className="main-view" style={{ height: sceneDimension.height }}>
-                <Scene  width={sceneDimension.width}
-                        height={sceneDimension.height}
-                        options={options}
-                        invisible={false} />
+            <React.Fragment>
+                <Scene
+                    width={dimension.scene.width}
+                    height={dimension.scene.height}
+                    options={options}
+                    shouldDisplayOnRight={dimension.shouldDivideSceneAndMapSpace} />
                 {options.showRouteEditingBar
                     ? <RouteEditingBar />
                     : <StatusBar meters={meters}
                                  trafficSignal={trafficSignal}
                                  showNotification={!options.showTasks}
+                                 showPlanningRSSInfo={options.showPlanningRSSInfo}
                                  monitor={monitor} />}
-                {options.showVideo && <SensorCamera />}
                 {OFFLINE_PLAYBACK && <PlaybackControls />}
-                {hmi.inNavigationMode &&
-                    <Navigation viewHeight={sceneDimension.height}
-                                viewWidth={sceneDimension.width} />}
-            </div>
+                {hmi.shouldDisplayNavigationMap &&
+                    <Navigation onResize={() => dimension.toggleNavigationSize()}
+                                hasRoutingControls={hmi.inNavigationMode}
+                                {...dimension.navigation} />}
+            </React.Fragment>
         );
     }
 }
@@ -57,13 +48,13 @@ class SceneView extends React.Component {
 @inject("store") @observer
 export default class MainView extends React.Component {
     render() {
-        const { isInitialized, sceneDimension } = this.props.store;
+        const { isInitialized, dimension } = this.props.store;
 
-        if (!isInitialized && !OFFLINE_PLAYBACK) {
-            return <Loader height={sceneDimension.height} />;
-        } else {
-            return <SceneView />;
-        }
+        const height = dimension.main.height;
+        return (
+            <div className="main-view" style={{ height }}>
+                {(!isInitialized && !OFFLINE_PLAYBACK) ? <Loader /> : <SceneView />}
+            </div >
+        );
     }
 }
-

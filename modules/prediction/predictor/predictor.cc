@@ -17,109 +17,128 @@
 #include "modules/prediction/predictor/predictor.h"
 
 #include <algorithm>
-#include <cmath>
-#include <string>
-#include <vector>
 
-#include "Eigen/Dense"
 #include "modules/prediction/common/prediction_gflags.h"
-#include "modules/prediction/common/prediction_map.h"
 
 namespace apollo {
 namespace prediction {
 
 using apollo::common::PathPoint;
-using apollo::common::math::LineSegment2d;
-using apollo::common::math::Vec2d;
-using apollo::planning::ADCTrajectory;
+using apollo::common::TrajectoryPoint;
 
-const std::vector<Trajectory>& Predictor::trajectories() {
-  return trajectories_;
+int Predictor::NumOfTrajectories(const Obstacle& obstacle) {
+  CHECK_GT(obstacle.history_size(), 0);
+  return obstacle.latest_feature().predicted_trajectory_size();
 }
 
-int Predictor::NumOfTrajectories() { return trajectories_.size(); }
-
 Trajectory Predictor::GenerateTrajectory(
-    const std::vector<apollo::common::TrajectoryPoint>& points) {
+    const std::vector<TrajectoryPoint>& points) {
   Trajectory trajectory;
   *trajectory.mutable_trajectory_point() = {points.begin(), points.end()};
   return trajectory;
 }
 
-void Predictor::SetEqualProbability(double probability, int start_index) {
-  int num = NumOfTrajectories();
-  if (start_index >= 0 && num > start_index) {
-    probability /= static_cast<double>(num - start_index);
-    for (int i = start_index; i < num; ++i) {
-      trajectories_[i].set_probability(probability);
-    }
+void Predictor::SetEqualProbability(const double total_probability,
+                                    const int start_index,
+                                    Obstacle* obstacle_ptr) {
+  int num = NumOfTrajectories(*obstacle_ptr);
+  ACHECK(num > start_index);
+
+  const auto prob = total_probability / static_cast<double>(num - start_index);
+  for (int i = start_index; i < num; ++i) {
+    obstacle_ptr->mutable_latest_feature()
+        ->mutable_predicted_trajectory(i)
+        ->set_probability(prob);
   }
 }
 
-void Predictor::Clear() { trajectories_.clear(); }
+void Predictor::Clear() {}
 
 void Predictor::TrimTrajectories(
-    const Obstacle* obstacle,
-    const ADCTrajectoryContainer* adc_trajectory_container) {
-  for (size_t i = 0; i < trajectories_.size(); ++i) {
-    TrimTrajectory(obstacle, adc_trajectory_container, &trajectories_[i]);
+    const ADCTrajectoryContainer& adc_trajectory_container,
+    Obstacle* obstacle) {
+  for (auto& predicted_trajectory :
+       *obstacle->mutable_latest_feature()->mutable_predicted_trajectory()) {
+    TrimTrajectory(adc_trajectory_container, obstacle, &predicted_trajectory);
   }
 }
 
 bool Predictor::TrimTrajectory(
-    const Obstacle* obstacle,
-    const ADCTrajectoryContainer* adc_trajectory_container,
+    const ADCTrajectoryContainer& adc_trajectory_container, Obstacle* obstacle,
     Trajectory* trajectory) {
+  if (!adc_trajectory_container.IsProtected()) {
+    ADEBUG << "Not in protection mode.";
+    return false;
+  }
   if (obstacle == nullptr || obstacle->history_size() == 0) {
     AERROR << "Invalid obstacle.";
     return false;
   }
-  int num_point = trajectory->trajectory_point_size();
-  if (num_point == 0) {
+  int num_of_point = trajectory->trajectory_point_size();
+  if (num_of_point == 0) {
     return false;
   }
   const Feature& feature = obstacle->latest_feature();
-  double length = feature.length();
-  double heading = feature.velocity_heading();
+  double vehicle_length = feature.length();
+  double vehicle_heading = feature.velocity_heading();
   double forward_length =
-      std::max(length / 2.0 - FLAGS_distance_beyond_junction, 0.0);
+      std::fmax(vehicle_length / 2.0 - FLAGS_distance_beyond_junction, 0.0);
 
   double front_x = trajectory->trajectory_point(0).path_point().x() +
-                   forward_length * std::cos(heading);
+                   forward_length * std::cos(vehicle_heading);
   double front_y = trajectory->trajectory_point(0).path_point().y() +
-                   forward_length * std::sin(heading);
+                   forward_length * std::sin(vehicle_heading);
   PathPoint front_point;
   front_point.set_x(front_x);
   front_point.set_y(front_y);
   bool front_in_junction =
-      adc_trajectory_container->IsPointInJunction(front_point);
+      adc_trajectory_container.IsPointInJunction(front_point);
 
   const PathPoint& start_point = trajectory->trajectory_point(0).path_point();
   bool start_in_junction =
-      adc_trajectory_container->IsPointInJunction(start_point);
+      adc_trajectory_container.IsPointInJunction(start_point);
 
   if (front_in_junction || start_in_junction) {
     return false;
   }
 
   int index = 0;
-  while (index < num_point) {
+  while (index < num_of_point) {
     const PathPoint& point = trajectory->trajectory_point(index).path_point();
-    if (adc_trajectory_container->IsPointInJunction(point)) {
+    if (adc_trajectory_container.IsPointInJunction(point)) {
       break;
     }
     ++index;
   }
 
   // if no intersect
-  if (index == num_point) {
+  if (index == num_of_point) {
     return false;
   }
 
-  for (int i = index; i < num_point; ++i) {
+  for (int i = index; i < num_of_point; ++i) {
     trajectory->mutable_trajectory_point()->RemoveLast();
   }
   return true;
+}
+
+bool Predictor::SupposedToStop(const Feature& feature,
+                               const double stop_distance,
+                               double* acceleration) {
+  if (stop_distance < std::max(feature.length() * 0.5, 1.0)) {
+    return false;
+  }
+  if (stop_distance > FLAGS_distance_to_slow_down_at_stop_sign) {
+    return false;
+  }
+  double speed = feature.speed();
+  *acceleration = -speed * speed / (2.0 * stop_distance);
+  return *acceleration <= -FLAGS_double_precision &&
+         *acceleration >= FLAGS_vehicle_min_linear_acc;
+}
+
+const ObstacleConf::PredictorType& Predictor::predictor_type() {
+  return predictor_type_;
 }
 
 }  // namespace prediction

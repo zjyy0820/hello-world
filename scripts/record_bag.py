@@ -47,16 +47,18 @@ import psutil
 SMALL_TOPICS = [
     '/apollo/canbus/chassis',
     '/apollo/canbus/chassis_detail',
+    '/apollo/common/latency_records',
+    '/apollo/common/latency_reports',
     '/apollo/control',
     '/apollo/control/pad',
     '/apollo/drive_event',
     '/apollo/guardian',
+    '/apollo/hmi/status',
     '/apollo/localization/pose',
     '/apollo/localization/msf_gnss',
     '/apollo/localization/msf_lidar',
     '/apollo/localization/msf_status',
     '/apollo/monitor',
-    '/apollo/monitor/static_info',
     '/apollo/monitor/system_status',
     '/apollo/navigation',
     '/apollo/perception/obstacles',
@@ -66,6 +68,7 @@ SMALL_TOPICS = [
     '/apollo/relative_map',
     '/apollo/routing_request',
     '/apollo/routing_response',
+    '/apollo/routing_response_history',
     '/apollo/sensor/conti_radar',
     '/apollo/sensor/delphi_esr',
     '/apollo/sensor/gnss/best_pose',
@@ -75,24 +78,39 @@ SMALL_TOPICS = [
     '/apollo/sensor/gnss/ins_stat',
     '/apollo/sensor/gnss/odometry',
     '/apollo/sensor/gnss/raw_data',
+    '/apollo/sensor/gnss/rtcm_data',
     '/apollo/sensor/gnss/rtk_eph',
     '/apollo/sensor/gnss/rtk_obs',
+    '/apollo/sensor/gnss/heading',
     '/apollo/sensor/mobileye',
+    '/apollo/storytelling',
     '/tf',
     '/tf_static',
 ]
 
 LARGE_TOPICS = [
-    '/apollo/sensor/camera/traffic/image_short',
-    '/apollo/sensor/camera/traffic/image_long',
-    '/apollo/sensor/camera/obstacle/front_6mm',
+    '/apollo/sensor/camera/front_12mm/image/compressed',
+    '/apollo/sensor/camera/front_6mm/image/compressed',
+    '/apollo/sensor/camera/left_fisheye/image/compressed',
+    '/apollo/sensor/camera/rear_6mm/image/compressed',
+    '/apollo/sensor/camera/right_fisheye/image/compressed',
+    '/apollo/sensor/camera/front_12mm/video/compressed',
+    '/apollo/sensor/camera/front_6mm/video/compressed',
+    '/apollo/sensor/camera/left_fisheye/video/compressed',
+    '/apollo/sensor/camera/rear_6mm/video/compressed',
+    '/apollo/sensor/camera/right_fisheye/video/compressed',
+    '/apollo/sensor/radar/front',
+    '/apollo/sensor/radar/rear',
+    '/apollo/sensor/lidar16/front/center/PointCloud2',
+    '/apollo/sensor/lidar16/front/up/PointCloud2',
+    '/apollo/sensor/lidar16/rear/left/PointCloud2',
+    '/apollo/sensor/lidar16/rear/right/PointCloud2',
+    '/apollo/sensor/lidar16/fusion/PointCloud2',
+    '/apollo/sensor/lidar16/fusion/compensator/PointCloud2',
     '/apollo/sensor/velodyne64/compensator/PointCloud2',
-    '/apollo/sensor/velodyne16/compensator/PointCloud2',
+    '/apollo/sensor/lidar128/PointCloud2',
+    '/apollo/sensor/lidar128/compensator/PointCloud2',
 ]
-
-
-MIN_DISK_SIZE = 2**35  # 32GB
-
 
 def shell_cmd(cmd, alert_on_failure=True):
     """Execute shell command and return (ret-code, stdout, stderr)."""
@@ -119,9 +137,15 @@ class ArgManager(object):
                                  'that case, the False value is ignored.')
         self.parser.add_argument('--stop', default=False, action="store_true",
                                  help='Stop recorder.')
+        self.parser.add_argument('--stop_signal', default="SIGTERM",
+                                 help='Signal to stop the recorder.')
+        self.parser.add_argument('--additional_topics', action='append',
+                                 help='Record additional topics.')
         self.parser.add_argument('--all', default=False, action="store_true",
                                  help='Record all topics even without high '
                                  'performance disks.')
+        self.parser.add_argument('--small', default=False, action="store_true",
+                                 help='Record samll topics only.')
         self.parser.add_argument('--split_duration', default="1m",
                                  help='Duration to split bags, will be applied '
                                  'as parameter to "rosbag record --duration".')
@@ -130,7 +154,7 @@ class ArgManager(object):
     def args(self):
         """Get parsed args."""
         if self._args is None:
-           self._args = self.parser.parse_args()
+            self._args = self.parser.parse_args()
         return self._args
 
 
@@ -146,7 +170,7 @@ class DiskManager(object):
             disks.append({
                 'mountpoint': disk.mountpoint,
                 'available_size': DiskManager.disk_avail_size(disk.mountpoint),
-                'is_nvme': disk.device.startswith('/dev/nvme'),
+                'is_nvme': disk.mountpoint.startswith('/media/apollo/internal_nvme'),
             })
         # Prefer NVME disks and then larger disks.
         self.disks = sorted(
@@ -162,8 +186,6 @@ class DiskManager(object):
 
 class Recorder(object):
     """Data recorder."""
-    kEventCollector='modules/data/tools/event_collector_main'
-
 
     def __init__(self, args):
         self.args = args
@@ -178,54 +200,52 @@ class Recorder(object):
         disks = self.disk_manager.disks
         # To record all topics if
         # 1. User requested with '--all' argument.
-        # 2. Or we have a NVME disk.
-        record_all = self.args.all or (len(disks) > 0 and disks[0]['is_nvme'])
+        # 2. Or we have a NVME disk and '--small' is not set.
+        record_all = self.args.all or (
+            len(disks) > 0 and disks[0]['is_nvme'] and not self.args.small)
         # Use the best disk, or fallback '/apollo' if none available.
-        disk_to_use = '/apollo'
-        available_size = 0
-        if len(disks) > 0:
-            disk_to_use = disks[0]['mountpoint']
-            available_size = disks[0]['available_size']
-        else:
-            available_size = DiskManager.disk_avail_size(disk_to_use)
-        if available_size < MIN_DISK_SIZE:
-            print('Insufficient disk space, stop recording: {} with {}'.format(
-                disk_to_use, available_size))
-            return
+        disk_to_use = disks[0]['mountpoint'] if len(disks) > 0 else '/apollo'
+
+        topics = list(SMALL_TOPICS)
         if record_all:
-            self.record_task(disk_to_use, SMALL_TOPICS + LARGE_TOPICS)
-        else:
-            self.record_task(disk_to_use, SMALL_TOPICS)
+            topics.extend(LARGE_TOPICS)
+        if self.args.additional_topics:
+            topics.extend(self.args.additional_topics)
+        self.record_task(disk_to_use, SMALL_TOPICS, True)
+        self.record_task(disk_to_use, topics)
 
     def stop(self):
         """Stop recording."""
-        shell_cmd('kill -TERM $(pgrep -f "rosbag/record" | grep -v pgrep)')
-        shell_cmd('kill -INT $(pgrep -f "{}" | grep -v pgrep)'.format(
-            Recorder.kEventCollector))
+        shell_cmd('pkill --signal {} -f "cyber_recorder record"'.format(
+            self.args.stop_signal))
 
-    def record_task(self, disk, topics):
+    def record_task(self, disk, topics, is_small_topic=False):
         """Record tasks into the <disk>/data/bag/<task_id> directory."""
         task_id = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+        if is_small_topic:
+            task_id += "_s"
         task_dir = os.path.join(disk, 'data/bag', task_id)
         print('Recording bag to {}'.format(task_dir))
 
         log_file = '/apollo/data/log/apollo_record.out'
-        topics_str = ' '.join(topics)
+        if is_small_topic:
+            log_file += "_s"
+        topics_str = ' -c '.join(topics)
 
-        os.makedirs(task_dir)
+        if not os.path.exists(task_dir):
+            os.makedirs(task_dir)
         cmd = '''
             cd "{}"
             source /apollo/scripts/apollo_base.sh
-            nohup rosbag record --split --duration={} -b 2048 {} >{} 2>&1 &
-            nohup ${{APOLLO_BIN_PREFIX}}/{} >/dev/null 2>&1 &
-        '''.format(task_dir, self.args.split_duration, topics_str, log_file,
-                   Recorder.kEventCollector)
+            source /apollo/framework/install/setup.bash
+            nohup cyber_recorder record -c {} >{} 2>&1 &
+        '''.format(task_dir, topics_str, log_file)
         shell_cmd(cmd)
 
     @staticmethod
     def is_running():
         """Test if the given process running."""
-        _, stdout, _ = shell_cmd('pgrep -c -f "rosbag/record"', False)
+        _, stdout, _ = shell_cmd('pgrep -c -f "cyber_recorder record"', False)
         # If stdout is the pgrep command itself, no such process is running.
         return stdout.strip() != '1' if stdout else False
 
@@ -239,6 +259,7 @@ def main():
         recorder.stop()
     else:
         recorder.start()
+
 
 if __name__ == '__main__':
     main()

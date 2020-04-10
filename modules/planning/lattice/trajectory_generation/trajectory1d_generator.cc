@@ -20,17 +20,13 @@
 
 #include "modules/planning/lattice/trajectory_generation/trajectory1d_generator.h"
 
-#include <algorithm>
-#include <cmath>
-#include <limits>
-#include <utility>
-
-#include "modules/common/log.h"
+#include "cyber/common/log.h"
 #include "modules/planning/common/planning_gflags.h"
-#include "modules/planning/lattice/trajectory1d/constant_deceleration_trajectory1d.h"
-#include "modules/planning/lattice/trajectory1d/piecewise_jerk_trajectory1d.h"
-#include "modules/planning/lattice/trajectory1d/standing_still_trajectory1d.h"
-#include "modules/planning/lattice/trajectory_generation/lateral_trajectory_optimizer.h"
+#include "modules/planning/common/trajectory1d/constant_deceleration_trajectory1d.h"
+#include "modules/planning/common/trajectory1d/piecewise_jerk_trajectory1d.h"
+#include "modules/planning/common/trajectory1d/standing_still_trajectory1d.h"
+#include "modules/planning/lattice/trajectory_generation/lateral_osqp_optimizer.h"
+#include "modules/planning/lattice/trajectory_generation/lateral_qp_optimizer.h"
 
 namespace apollo {
 namespace planning {
@@ -59,7 +55,6 @@ void Trajectory1dGenerator::GenerateTrajectoryBundles(
                                        ptr_lon_trajectory_bundle);
 
   GenerateLateralTrajectoryBundle(ptr_lat_trajectory_bundle);
-  return;
 }
 
 void Trajectory1dGenerator::GenerateSpeedProfilesForCruising(
@@ -131,19 +126,21 @@ void Trajectory1dGenerator::GenerateLateralTrajectoryBundle(
     GenerateTrajectory1DBundle<5>(init_lat_state_, end_conditions,
                                   ptr_lat_trajectory_bundle);
   } else {
-    double s_min = 0.0;
-    double s_max = FLAGS_max_s_lateral_optimization;
+    double s_min = init_lon_state_[0];
+    double s_max = s_min + FLAGS_max_s_lateral_optimization;
 
     double delta_s = FLAGS_default_delta_s_lateral_optimization;
 
     auto lateral_bounds =
         ptr_path_time_graph_->GetLateralBounds(s_min, s_max, delta_s);
 
-    LateralTrajectoryOptimizer lateral_optimizer;
+    // LateralTrajectoryOptimizer lateral_optimizer;
+    std::unique_ptr<LateralQPOptimizer> lateral_optimizer(
+        new LateralOSQPOptimizer);
 
-    lateral_optimizer.optimize(init_lat_state_, delta_s, lateral_bounds);
+    lateral_optimizer->optimize(init_lat_state_, delta_s, lateral_bounds);
 
-    auto lateral_trajectory = lateral_optimizer.GetOptimalTrajectory();
+    auto lateral_trajectory = lateral_optimizer->GetOptimalTrajectory();
 
     ptr_lat_trajectory_bundle->push_back(
         std::make_shared<PiecewiseJerkTrajectory1d>(lateral_trajectory));

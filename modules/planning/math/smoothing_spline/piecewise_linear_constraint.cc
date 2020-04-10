@@ -21,9 +21,7 @@
 
 #include "modules/planning/math/smoothing_spline/piecewise_linear_constraint.h"
 
-#include <limits>
-
-#include "modules/common/log.h"
+#include "cyber/common/log.h"
 
 namespace apollo {
 namespace planning {
@@ -31,19 +29,19 @@ namespace planning {
 namespace {
 
 Eigen::MatrixXd MergeMaxtrices(const std::vector<Eigen::MatrixXd>& matrices) {
-  if (matrices.size() == 0) {
+  if (matrices.empty()) {
     return Eigen::MatrixXd(0, 0);
   }
   int32_t d = 0;
   for (const auto& mat : matrices) {
-    d += mat.rows();
+    d += static_cast<int32_t>(mat.rows());
   }
-  int32_t col = matrices.front().cols();
+  int32_t col = static_cast<int32_t>(matrices.front().cols());
   Eigen::MatrixXd res = Eigen::MatrixXd::Zero(d, col);
   int32_t index = 0;
   for (const auto& mat : matrices) {
     res.block(index, 0, mat.rows(), mat.cols()) = mat;
-    index += mat.rows();
+    index += static_cast<int32_t>(mat.rows());
   }
   return res;
 }

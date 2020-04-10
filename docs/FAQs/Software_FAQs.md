@@ -41,8 +41,45 @@ Here is a solution to solve this problem:
 
 Yes, you should be able to make Apollo work on Ubuntu 18. Just follow the document to install docker, then `apollo.sh build` and `apollo.sh lint` should work. But `apollo.sh test` might not, because the nvidia-drivers are generally miss-matched between HOST and Docker container, which will raise test failures.
 
-
+---
 ## How do I add a new module
 Apollo currently functions as a single system, therefore before adding a module to it, understand that there would be a lot of additional work to be done to ensure that the module functions perfectly with the other modules of Apollo. Simply add your module to the `modules/` folder. You can use `modules/routing` as an example, which is a relatively simple module. Write the BUILD files properly and apollo.sh will build your module automatically
 
+---
+## Rosbag: not found - What now?
+
+Should you see this error while building Apollo, please confirm the following:
+
+1. Make sure you are running rosbag when you are inside docker (dev or release). We recommend using the dev docker container.
+2. You are probably running it as `root`. If yes, you would need to add:
+    ```
+    source /apollo/scripts/apollo_base.sh (this script includes the ros environment setup procedure source /home/tmp/ros/setup.bash(for dev docker), or you can only source the ros env setup script as well).
+    ```
+    Usually, this could be avoid by running Apollo as a normal user, since it will be configured into .bashrc automatically.
+
+3. Do not use `sudo` parameter, when executing `dev_start.sh` and `dev_into.sh`
+
+---
+
+## Build error "docker: Error response from daemon: failed to copy files: userspace copy failed": 
+
+An error message like this means that your system does not have enough space to build Apollo and the build process will fail. To resolve this issue, run the following to free up some space:
+```
+docker/setup_host/cleanup_resources.sh 
+```
+If it does not work, delete the Apollo repo, free up some space and then try again.
+
+---
+## Bootstrap error: unix:///tmp/supervisor.sock refused connection
+
+There could be a number of reasons why this error occurs. 
+Please follow the steps recommended in the [following thread](https://github.com/ApolloAuto/apollo/issues/5344). There are quite a few suggestions. If it still does not work for you, comment on the thread mentioned above.
+
+---
+## My OS keeps freezing when building Apollo 3.5?
+
+If you see an error like this, you do not have enough memory to build Apollo. Please ensure that you have at least **16GB** memory available before building Apollo.
+You could also find `--jobs=$(nproc)` in apollo.sh file and replace it with `--jobs=2`. This will make build process to use only 2 cores. Building will be longer, but will use less memory.
+
+---
 **More Software FAQs to follow.**

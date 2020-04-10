@@ -18,8 +18,7 @@
  * @file
  **/
 
-#ifndef MODULES_PLANNING_TASKS_TASK_H_
-#define MODULES_PLANNING_TASKS_TASK_H_
+#pragma once
 
 #include <string>
 
@@ -34,25 +33,26 @@ namespace planning {
 
 class Task {
  public:
-  explicit Task(const std::string& name);
+  explicit Task(const TaskConfig& config);
+
   virtual ~Task() = default;
-  virtual const std::string& Name() const;
 
-  virtual apollo::common::Status Execute(
-      Frame* frame, ReferenceLineInfo* reference_line_info);
+  const std::string& Name() const;
 
-  virtual bool Init(const PlanningConfig& config);
+  const TaskConfig& Config() const { return config_; }
+
+  virtual common::Status Execute(Frame* frame,
+                                 ReferenceLineInfo* reference_line_info);
+
+  virtual common::Status Execute(Frame* frame);
 
  protected:
-  bool is_init_ = false;
   Frame* frame_ = nullptr;
   ReferenceLineInfo* reference_line_info_ = nullptr;
 
- private:
-  const std::string name_;
+  TaskConfig config_;
+  std::string name_;
 };
 
 }  // namespace planning
 }  // namespace apollo
-
-#endif  // MODULES_PLANNING_TASKS_TASK_H_

@@ -23,11 +23,24 @@ adduser --disabled-password --force-badname --gecos '' "$DOCKER_USER" \
 usermod -aG sudo "$DOCKER_USER"
 echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 cp -r /etc/skel/. /home/${DOCKER_USER}
-echo "export PATH=\$PATH:/apollo/scripts:/usr/local/miniconda2/bin/" >> /home/${DOCKER_USER}/.bashrc
-echo 'if [ -e "/apollo/scripts/apollo_base.sh" ]; then source /apollo/scripts/apollo_base.sh; fi' >> "/home/${DOCKER_USER}/.bashrc"
-echo "ulimit -c unlimited" >> /home/${DOCKER_USER}/.bashrc
+echo '
+export PATH=${PATH}:/apollo/scripts:/usr/local/miniconda/bin
 
-chown -R ${DOCKER_USER}:${DOCKER_GRP} "/home/${DOCKER_USER}"
+if [ -e "/apollo/scripts/apollo_base.sh" ]; then
+  source /apollo/scripts/apollo_base.sh
+fi
+
+ulimit -c unlimited
+' >> "/home/${DOCKER_USER}/.bashrc"
+
+echo '
+genhtml_branch_coverage = 1
+lcov_branch_coverage = 1
+' > "/home/${DOCKER_USER}/.lcovrc"
+
+# Set user files ownership to current user, such as .bashrc, .profile, etc.
+chown ${DOCKER_USER}:${DOCKER_GRP} /home/${DOCKER_USER}
+ls -ad /home/${DOCKER_USER}/.??* | xargs chown -R ${DOCKER_USER}:${DOCKER_GRP}
 
 # setup GPS device
 if [ -e /dev/novatel0 ]; then
@@ -49,19 +62,4 @@ if [ -e /dev/camera/obstacle ]; then
 fi
 if [ -e /dev/camera/trafficlights ]; then
   chmod a+rw /dev/camera/trafficlights
-fi
-
-
-if [ "$RELEASE_DOCKER" != "1" ];then
-  # setup map data
-  if [ -e /home/tmp/modules_data ]; then
-    cp -r /home/tmp/modules_data/* /apollo/modules/
-    chown -R ${DOCKER_USER}:${DOCKER_GRP} "/apollo/modules"
-  fi
-
-  # setup ros package
-  # this is a temporary solution to avoid ros package downloading.
-  ROS="/home/tmp/ros"
-  chmod a+w "${ROS}/share/velodyne/launch/start_velodyne.launch"
-  chmod a+w -R "${ROS}/share/velodyne_pointcloud/params"
 fi

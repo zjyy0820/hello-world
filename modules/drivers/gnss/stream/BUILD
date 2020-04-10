@@ -6,10 +6,10 @@ cc_library(
     name = "gnss_stream",
     deps = [
         ":ntrip_stream",
-        ":serial_stream",
         ":raw_stream",
+        ":serial_stream",
         ":tcp_stream",
-        ":udp_stream"
+        ":udp_stream",
     ],
 )
 
@@ -19,10 +19,11 @@ cc_library(
     hdrs = ["tcp_stream.h"],
     deps = [
         ":stream",
-        "//external:gflags",
-        "//modules/common:log",
-        "//modules/common/monitor_log",
-        "@ros//:ros_common",
+        "//cyber",
+        "//modules/common/adapters:adapter_gflags",
+        "//modules/common/math",
+        "//modules/common/proto:pnc_point_proto",
+        "//modules/common/util",
     ],
 )
 
@@ -31,18 +32,16 @@ cc_library(
     srcs = ["raw_stream.cc"],
     hdrs = ["raw_stream.h"],
     deps = [
-        ":stream",
-        ":serial_stream",
         ":ntrip_stream",
-        "//modules/drivers/gnss/util:gnss_util",
+        ":serial_stream",
+        ":stream",
+        "//cyber",
+        "//modules/canbus/proto:canbus_proto",
+        "//modules/common/adapters:adapter_gflags",
+        "//modules/common/util:message_util",
+        "//modules/drivers/gnss/parser:gnss_parser",
         "//modules/drivers/gnss/proto:gnss_proto",
-        "//modules/drivers/gnss:gnss_gflags",
-        "//modules/drivers/gnss/parser:data_parser",
-        "//modules/drivers/gnss/parser:rtcm_parser",
-        "//modules/drivers/gnss/parser:rtcm3_parser",
-        "//modules/common:log",
-        "//modules/common/adapters:adapter_manager",
-        "@ros//:ros_common", 
+        "//modules/drivers/gnss/util:gnss_util",
     ],
 )
 
@@ -51,11 +50,8 @@ cc_library(
     srcs = ["serial_stream.cc"],
     deps = [
         ":stream",
-        "//external:gflags",
-        "//modules/common:log",
-        "//modules/common/monitor_log",
+        "//cyber",
         "//modules/drivers/gnss/util:gnss_util",
-        "@ros//:ros_common",
     ],
 )
 
@@ -65,10 +61,7 @@ cc_library(
     hdrs = ["tcp_stream.h"],
     deps = [
         ":stream",
-        "//external:gflags",
-        "//modules/common:log",
-        "//modules/common/monitor_log",
-        "@ros//:ros_common"
+        "//cyber",
     ],
 )
 
@@ -77,11 +70,8 @@ cc_library(
     srcs = ["udp_stream.cc"],
     deps = [
         ":stream",
-        "//external:gflags",
-        "//modules/common:log",
-        "//modules/common/monitor_log",
+        "//cyber",
         "//modules/drivers/gnss/util:gnss_util",
-        "@ros//:ros_common",
     ],
 )
 
@@ -89,7 +79,7 @@ cc_library(
     name = "stream",
     hdrs = ["stream.h"],
     deps = [
-        "//modules/common:log",
+        "//cyber",
         "//modules/drivers/gnss/util:gnss_util",
     ],
 )

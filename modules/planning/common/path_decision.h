@@ -18,21 +18,15 @@
  * @file
  **/
 
-#ifndef MODULES_PLANNING_COMMON_PATH_DECISION_H_
-#define MODULES_PLANNING_COMMON_PATH_DECISION_H_
+#pragma once
 
 #include <limits>
-#include <list>
-#include <memory>
-#include <mutex>
 #include <string>
-#include <vector>
 
 #include "modules/planning/proto/decision.pb.h"
 
 #include "modules/planning/common/indexed_list.h"
 #include "modules/planning/common/obstacle.h"
-#include "modules/planning/common/path_obstacle.h"
 
 namespace apollo {
 namespace planning {
@@ -46,9 +40,9 @@ class PathDecision {
  public:
   PathDecision() = default;
 
-  PathObstacle *AddPathObstacle(const PathObstacle &path_obstacle);
+  Obstacle *AddObstacle(const Obstacle &obstacle);
 
-  const IndexedList<std::string, PathObstacle> &path_obstacles() const;
+  const IndexedList<std::string, Obstacle> &obstacles() const;
 
   bool AddLateralDecision(const std::string &tag, const std::string &object_id,
                           const ObjectDecisionType &decision);
@@ -56,11 +50,14 @@ class PathDecision {
                                const std::string &object_id,
                                const ObjectDecisionType &decision);
 
-  const PathObstacle *Find(const std::string &object_id) const;
+  const Obstacle *Find(const std::string &object_id) const;
 
-  PathObstacle *Find(const std::string &object_id);
+  const perception::PerceptionObstacle *FindPerceptionObstacle(
+      const std::string &perception_obstacle_id) const;
 
-  void SetStBoundary(const std::string &id, const StBoundary &boundary);
+  Obstacle *Find(const std::string &object_id);
+
+  void SetSTBoundary(const std::string &id, const STBoundary &boundary);
   void EraseStBoundaries();
   MainStop main_stop() const { return main_stop_; }
   double stop_reference_line_s() const { return stop_reference_line_s_; }
@@ -69,13 +66,10 @@ class PathDecision {
                          const SLBoundary &adc_sl_boundary);
 
  private:
-  std::mutex obstacle_mutex_;
-  IndexedList<std::string, PathObstacle> path_obstacles_;
+  IndexedList<std::string, Obstacle> obstacles_;
   MainStop main_stop_;
   double stop_reference_line_s_ = std::numeric_limits<double>::max();
 };
 
 }  // namespace planning
 }  // namespace apollo
-
-#endif  // MODULES_PLANNING_COMMON_PATH_DECISION_H_

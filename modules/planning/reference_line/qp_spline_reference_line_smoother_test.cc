@@ -49,7 +49,7 @@ class QpSplineReferenceLineSmootherTest : public ::testing::Test {
     const auto& points = lane_info_ptr->points();
     const auto& headings = lane_info_ptr->headings();
     const auto& accumulate_s = lane_info_ptr->accumulate_s();
-    for (std::size_t i = 0; i < points.size(); ++i) {
+    for (size_t i = 0; i < points.size(); ++i) {
       std::vector<hdmap::LaneWaypoint> waypoint;
       waypoint.emplace_back(lane_info_ptr, accumulate_s[i]);
       hdmap::MapPathPoint map_path_point(points[i], headings[i], waypoint);
@@ -60,7 +60,7 @@ class QpSplineReferenceLineSmootherTest : public ::testing::Test {
   }
 
   const std::string map_file =
-      "modules/planning/testdata/garage_map/base_map.txt";
+      "/apollo/modules/planning/testdata/garage_map/base_map.txt";
 
   hdmap::HDMap hdmap_;
   common::math::Vec2d vehicle_position_;
@@ -72,7 +72,7 @@ class QpSplineReferenceLineSmootherTest : public ::testing::Test {
 
 TEST_F(QpSplineReferenceLineSmootherTest, smooth) {
   ReferenceLine smoothed_reference_line;
-  EXPECT_FLOAT_EQ(153.87421, reference_line_->Length());
+  EXPECT_DOUBLE_EQ(153.87421245682503, reference_line_->Length());
   std::vector<AnchorPoint> anchor_points;
   const double interval = 10.0;
   int num_of_anchors =
@@ -85,8 +85,7 @@ TEST_F(QpSplineReferenceLineSmootherTest, smooth) {
     auto& last_anchor = anchor_points.back();
     auto ref_point = reference_line_->GetReferencePoint(s);
     last_anchor.path_point = ref_point.ToPathPoint(s);
-    // TODO(zhangliangliang): change the langitudianl and lateral direction in
-    // code
+    // TODO(All): change the longitudinal and lateral directions in code
     last_anchor.lateral_bound = 2.0;
     last_anchor.longitudinal_bound = 0.2;
   }
@@ -95,8 +94,16 @@ TEST_F(QpSplineReferenceLineSmootherTest, smooth) {
   anchor_points.back().longitudinal_bound = 1e-6;
   anchor_points.back().lateral_bound = 1e-6;
   smoother_->SetAnchorPoints(anchor_points);
+
+  auto start = std::chrono::system_clock::now();
+
   EXPECT_TRUE(smoother_->Smooth(*reference_line_, &smoothed_reference_line));
-  EXPECT_NEAR(152.0, smoothed_reference_line.Length(), 1.0);
+
+  auto end = std::chrono::system_clock::now();
+  std::chrono::duration<double> diff = end - start;
+  std::cout << "Time to solver is " << diff.count() << " s\n";
+
+  EXPECT_NEAR(152.5409, smoothed_reference_line.Length(), 1.0e-2);
 }
 
 }  // namespace planning

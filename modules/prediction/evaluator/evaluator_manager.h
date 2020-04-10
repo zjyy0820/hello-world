@@ -19,17 +19,17 @@
  * @brief Use evaluator manager to manage all evaluators
  */
 
-#ifndef MODULES_PREDICTION_EVALUATOR_EVALUATOR_MANAGER_H_
-#define MODULES_PREDICTION_EVALUATOR_EVALUATOR_MANAGER_H_
+#pragma once
 
+#include <list>
 #include <map>
 #include <memory>
+#include <unordered_map>
+#include <vector>
 
-#include "modules/perception/proto/perception_obstacle.pb.h"
-#include "modules/prediction/proto/prediction_conf.pb.h"
-
-#include "modules/common/macro.h"
+#include "cyber/common/macros.h"
 #include "modules/prediction/evaluator/evaluator.h"
+#include "modules/prediction/proto/prediction_conf.pb.h"
 
 /**
  * @namespace apollo::prediction
@@ -59,11 +59,23 @@ class EvaluatorManager {
 
   /**
    * @brief Run evaluators
-   * @param Perception obstacles
    */
-  void Run(const perception::PerceptionObstacles& perception_obstacles);
+  void Run(ObstaclesContainer* obstacles_container);
+
+  void EvaluateObstacle(Obstacle* obstacle,
+                        ObstaclesContainer* obstacles_container,
+                        std::vector<Obstacle*> dynamic_env);
+
+  void EvaluateObstacle(Obstacle* obstacle,
+                        ObstaclesContainer* obstacles_container);
 
  private:
+  void BuildObstacleIdHistoryMap(
+      ObstaclesContainer* obstacles_container,
+      size_t max_num_frame);
+
+  void DumpCurrentFrameEnv(ObstaclesContainer* obstacles_container);
+
   /**
    * @brief Register an evaluator by type
    * @param Evaluator type
@@ -87,18 +99,33 @@ class EvaluatorManager {
   std::map<ObstacleConf::EvaluatorType, std::unique_ptr<Evaluator>> evaluators_;
 
   ObstacleConf::EvaluatorType vehicle_on_lane_evaluator_ =
-      ObstacleConf::MLP_EVALUATOR;
+      ObstacleConf::CRUISE_MLP_EVALUATOR;
+
+  ObstacleConf::EvaluatorType vehicle_on_lane_caution_evaluator_ =
+      ObstacleConf::CRUISE_MLP_EVALUATOR;
+
+  ObstacleConf::EvaluatorType vehicle_in_junction_evaluator_ =
+      ObstacleConf::JUNCTION_MLP_EVALUATOR;
+
+  ObstacleConf::EvaluatorType vehicle_in_junction_caution_evaluator_ =
+      ObstacleConf::JUNCTION_MAP_EVALUATOR;
+
+  ObstacleConf::EvaluatorType vehicle_default_caution_evaluator_ =
+      ObstacleConf::SEMANTIC_LSTM_EVALUATOR;
 
   ObstacleConf::EvaluatorType cyclist_on_lane_evaluator_ =
-      ObstacleConf::MLP_EVALUATOR;
+      ObstacleConf::CYCLIST_KEEP_LANE_EVALUATOR;
+
+  ObstacleConf::EvaluatorType pedestrian_evaluator_ =
+      ObstacleConf::PEDESTRIAN_INTERACTION_EVALUATOR;
 
   ObstacleConf::EvaluatorType default_on_lane_evaluator_ =
       ObstacleConf::MLP_EVALUATOR;
+
+  std::unordered_map<int, ObstacleHistory> obstacle_id_history_map_;
 
   DECLARE_SINGLETON(EvaluatorManager)
 };
 
 }  // namespace prediction
 }  // namespace apollo
-
-#endif  // MODULES_PREDICTION_EVALUATOR_EVALUATOR_MANAGER_H_

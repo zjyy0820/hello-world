@@ -1,4 +1,4 @@
-# How to Launch and Run Apollo 
+# How to Launch and Run Apollo
 First check and make sure you are in development docker container before you proceed. Now you will need to build from the source. If you want to run the entire system, make sure you have an
 nVidia GPU and that you have installed the Linux nVidia drivers.
 You could still proceed with the next few steps even if you are missing the Linux nVidia drivers, as the system will run but with the CUDA-based perception and other modules.
@@ -55,18 +55,21 @@ From the dropdown box selet "Navigation" mode.
 ![Navigation Mode](images/dreamview_2_5_setup_profile.png)
 
 
-### Replay demo rosbag
+### Replay demo record
 
-To see if the system works, use the demo 'bag' which feeds the system.
+To see if the system works, use the demo 'record' which feeds the system.
 
 ```
-# get rosbag note that the command download is required
-python ./docs/demo_guide/rosbag_helper.py demo_2.5.bag
+# You need to download the demo record using the following commands
+cd docs/demo_guide/
+python3 rosbag_helper.py demo_3.5.record
 
-# You can now replay this demo "bag" in a loop with the '-l' flag
-rosbag play -l demo_2.5.bag
+# You can now replay this demo "record" in a loop with the '-l' flag
+cyber_recorder play -f docs/demo_guide/demo_3.5.record -l
 ```
 
 Dreamview should show a running vehicle now. (The following image might be different due to changes in frontend.)
 
 ![Dreamview with Trajectory](images/dv_trajectory_2.5.png)
+
+Congratulations! You have successfully built out Apollo!! If you do have the necessary Hardware setup, please go back to our [Readme](https://github.com/ApolloAuto/apollo/blob/master/README.md) for additional guidelines.

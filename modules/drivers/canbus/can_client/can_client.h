@@ -19,8 +19,7 @@
  * @brief Defines the CanFrame struct and CanClient interface.
  */
 
-#ifndef MODULES_DRIVERS_CANBUS_CAN_CLIENT_CAN_CLIENT_H_
-#define MODULES_DRIVERS_CANBUS_CAN_CLIENT_CAN_CLIENT_H_
+#pragma once
 
 #include <cstdint>
 #include <cstring>
@@ -28,7 +27,7 @@
 #include <string>
 #include <vector>
 
-#include "modules/common/log.h"
+#include "cyber/common/log.h"
 #include "modules/common/proto/error_code.pb.h"
 #include "modules/drivers/canbus/common/byte.h"
 #include "modules/drivers/canbus/proto/can_card_parameter.pb.h"
@@ -168,5 +167,3 @@ class CanClient {
 }  // namespace canbus
 }  // namespace drivers
 }  // namespace apollo
-
-#endif  // MODULES_DRIVERS_CANBUS_CAN_CLIENT_CAN_CLIENT_H_

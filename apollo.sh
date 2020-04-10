@@ -20,12 +20,7 @@
 #                   Utils
 #=================================================
 
-function source_apollo_base() {
-  DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-  cd "${DIR}"
-
-  source "${DIR}/scripts/apollo_base.sh"
-}
+DISABLED_CYBER_MODULES="except //cyber/record:record_file_integration_test"
 
 function apollo_check_system_config() {
   # check docker environment
@@ -61,20 +56,14 @@ function apollo_check_system_config() {
 function check_machine_arch() {
   # the machine type, currently support x86_64, aarch64
   MACHINE_ARCH=$(uname -m)
-
-  # Generate WORKSPACE file based on marchine architecture
-  if [ "$MACHINE_ARCH" == 'x86_64' ]; then
-    sed "s/MACHINE_ARCH/x86_64/g" WORKSPACE.in > WORKSPACE
-  elif [ "$MACHINE_ARCH" == 'aarch64' ]; then
-    sed "s/MACHINE_ARCH/aarch64/g" WORKSPACE.in > WORKSPACE
-  else
+  if [ "${MACHINE_ARCH}" != "x86_64" ] && [ "${MACHINE_ARCH}" != "aarch64" ]; then
     fail "Unknown machine architecture $MACHINE_ARCH"
     exit 1
   fi
 
   #setup vtk folder name for different systems.
   VTK_VERSION=$(find /usr/include/ -type d  -name "vtk-*" | tail -n1 | cut -d '-' -f 2)
-  sed -i "s/VTK_VERSION/${VTK_VERSION}/g" WORKSPACE
+  sed "s/VTK_VERSION/${VTK_VERSION}/g" WORKSPACE.in > WORKSPACE
 }
 
 function check_esd_files() {
@@ -92,12 +81,34 @@ function check_esd_files() {
 }
 
 function generate_build_targets() {
-  if [ -z $NOT_BUILD_PERCEPTION ] ; then
-    BUILD_TARGETS=`bazel query //...`
-  else
-    info 'Skip building perception module!'
-    BUILD_TARGETS=`bazel query //... except //modules/perception/... except //modules/calibration/lidar_ex_checker/...`
-  fi
+  COMMON_TARGETS="//cyber/... union //modules/common/kv_db/... union //modules/dreamview/... $DISABLED_CYBER_MODULES"
+  case $BUILD_FILTER in
+  cyber)
+    BUILD_TARGETS=`bazel query //cyber/... union //modules/tools/visualizer/...`
+    ;;
+  drivers)
+    BUILD_TARGETS=`bazel query //cyber/... union //modules/tools/visualizer/... union //modules/drivers/... except //modules/drivers/tools/... except //modules/drivers/canbus/... except //modules/drivers/video/...`
+    ;;
+  control)
+    BUILD_TARGETS=`bazel query $COMMON_TARGETS union //modules/control/... `
+    ;;
+  planning)
+    BUILD_TARGETS=`bazel query $COMMON_TARGETS union //modules/routing/... union //modules/planning/...`
+    ;;
+  prediction)
+    BUILD_TARGETS=`bazel query $COMMON_TARGETS union //modules/routing/... union //modules/prediction/...`
+    ;;
+  pnc)
+    BUILD_TARGETS=`bazel query $COMMON_TARGETS union //modules/routing/... union //modules/prediction/... union //modules/planning/... union //modules/control/...`
+    ;;
+  no_perception)
+    BUILD_TARGETS=`bazel query //modules/... except //modules/perception/... union //cyber/...`
+    ;;
+  *)
+#    BUILD_TARGETS=`bazel query //modules/... union //cyber/...`
+    # FIXME(all): temporarily disable modules doesn't compile in 18.04
+    BUILD_TARGETS=`bazel query //modules/... union //cyber/... except //modules/tools/visualizer/... except //modules/v2x/... except //modules/map/tools/map_datachecker/... $DISABLE_CYBER_MODULES`
+  esac
 
   if [ $? -ne 0 ]; then
     fail 'Build failed!'
@@ -116,17 +127,25 @@ function generate_build_targets() {
 #=================================================
 
 function build() {
+  if [ "${USE_GPU}" = "1" ] ; then
+    echo -e "${YELLOW}Running build under GPU mode. GPU is required to run the build.${NO_COLOR}"
+  else
+    echo -e "${YELLOW}Running build under CPU mode. No GPU is required to run the build.${NO_COLOR}"
+  fi
   info "Start building, please wait ..."
+
   generate_build_targets
   info "Building on $MACHINE_ARCH..."
 
   MACHINE_ARCH=$(uname -m)
-  JOB_ARG=""
+  JOB_ARG="--jobs=$(nproc) --ram_utilization_factor 80"
   if [ "$MACHINE_ARCH" == 'aarch64' ]; then
     JOB_ARG="--jobs=3"
   fi
-  echo "$BUILD_TARGETS" | xargs bazel build $JOB_ARG $DEFINES -c $@
-  if [ $? -ne 0 ]; then
+  info "Building with $JOB_ARG for $MACHINE_ARCH"
+
+  bazel build $JOB_ARG $DEFINES -c $@ $BUILD_TARGETS
+  if [ ${PIPESTATUS[0]} -ne 0 ]; then
     fail 'Build failed!'
   fi
 
@@ -134,9 +153,18 @@ function build() {
   build_py_proto
 
   # Clear KV DB and update commit_id after compiling.
-  rm -fr data/kv_db
-  python modules/tools/common/kv_db.py put \
-      "apollo:data:commit_id" "$(git rev-parse HEAD)"
+  if [ "$BUILD_FILTER" == 'cyber' ] || [ "$BUILD_FILTER" == 'drivers' ]; then
+    info "Skipping revision recording"
+  else
+    bazel build $JOB_ARG $DEFINES -c $@ $BUILD_TARGETS
+    if [ ${PIPESTATUS[0]} -ne 0 ]; then
+      fail 'Build failed!'
+    fi
+    rm -fr data/kv_db*
+    REVISION=$(get_revision)
+    ./bazel-bin/modules/common/kv_db/kv_db_tool --op=put \
+        --key="apollo:data:commit_id" --value="$REVISION"
+  fi
 
   if [ -d /apollo-simulator ] && [ -e /apollo-simulator/build.sh ]; then
     cd /apollo-simulator && bash build.sh build
@@ -146,23 +174,78 @@ function build() {
   fi
   if [ $? -eq 0 ]; then
     success 'Build passed!'
+  else
+    fail 'Build failed'
   fi
 }
 
+function cibuild_extended() {
+  info "Building framework ..."
+
+  cd /apollo
+  info "Building modules ..."
+
+  JOB_ARG="--jobs=12"
+  if [ "$MACHINE_ARCH" == 'aarch64' ]; then
+    JOB_ARG="--jobs=3"
+  fi
+
+  info "Building with $JOB_ARG for $MACHINE_ARCH"
+
+  # FIXME(all): temporarily disable modules doesn't compile in 18.04
+  BUILD_TARGETS=`
+    bazel query //cyber/... \
+    union //modules/perception/... \
+    union //modules/dreamview/... \
+    union //modules/drivers/radar/conti_radar/... \
+    union //modules/drivers/radar/racobit_radar/... \
+    union //modules/drivers/radar/ultrasonic_radar/... \
+    union //modules/drivers/gnss/... \
+    union //modules/drivers/velodyne/... \
+    union //modules/drivers/camera/... \
+    union //modules/guardian/... \
+    union //modules/localization/... \
+    union //modules/map/... \
+    union //modules/third_party_perception/... \
+    except //modules/map/tools/map_datachecker/...
+    `
+
+  bazel build $JOB_ARG $DEFINES $@ $BUILD_TARGETS
+
+  if [ $? -eq 0 ]; then
+    success 'Build passed!'
+  else
+    fail 'Build failed!'
+  fi
+}
 function cibuild() {
-  echo "Start building, please wait ..."
-  generate_build_targets
-  echo "Building on $MACHINE_ARCH..."
+  info "Building framework ..."
+  cd /apollo
+
+  info "Building modules ..."
+
+  JOB_ARG="--jobs=12"
+  if [ "$MACHINE_ARCH" == 'aarch64' ]; then
+    JOB_ARG="--jobs=3"
+  fi
+
+  info "Building with $JOB_ARG for $MACHINE_ARCH"
   BUILD_TARGETS="
-  //modules/control
-  //modules/dreamview
-  //modules/localization
-  //modules/perception
-  //modules/planning
-  //modules/prediction
-  //modules/routing
-  "
-  bazel build $DEFINES $@ $BUILD_TARGETS
+    //modules/canbus/...
+    //modules/common/...
+    //modules/control/...
+    //modules/planning/...
+    //modules/prediction/...
+    //modules/routing/...
+    //modules/transform/..."
+
+  # The data module is lightweight and rarely changed. If it fails, it's
+  # most-likely an environment mess. So we try `bazel clean` and then initial
+  # the building process.
+  bazel build $JOB_ARG $DEFINES $@ "//modules/data/..." || bazel clean
+
+  bazel build $JOB_ARG $DEFINES $@ $BUILD_TARGETS
+
   if [ $? -eq 0 ]; then
     success 'Build passed!'
   else
@@ -179,14 +262,17 @@ function apollo_build_opt() {
 }
 
 function build_py_proto() {
+  # TODO(xiaoxq): Retire this as we are using bazel to compile protos into bazel-genfiles.
   if [ -d "./py_proto" ];then
     rm -rf py_proto
   fi
   mkdir py_proto
-  PROTOC='./bazel-out/host/bin/external/com_google_protobuf/protoc'
-  find modules/ -name "*.proto" \
+  find modules/ cyber/ -name "*.proto" \
       | grep -v node_modules \
-      | xargs ${PROTOC} --python_out=py_proto
+      | xargs protoc --python_out=py_proto
+  find modules/ cyber/ -name "*_service.proto" \
+      | grep -v node_modules \
+      | xargs python -m grpc_tools.protoc --proto_path=. --python_out=py_proto --grpc_python_out=py_proto
   find py_proto/* -type d -exec touch "{}/__init__.py" \;
 }
 
@@ -219,39 +305,83 @@ function release() {
   APOLLO_RELEASE_DIR="${RELEASE_DIR}/apollo"
   mkdir -p "${APOLLO_RELEASE_DIR}"
 
-  # Find binaries and convert from //path:target to path/target
-  BINARIES=$(bazel query "kind(cc_binary, //...)" | sed 's/^\/\///' | sed 's/:/\//')
-  # Copy binaries to release dir.
-  for BIN in ${BINARIES}; do
-    SRC_PATH="bazel-bin/${BIN}"
-    DST_PATH="${APOLLO_RELEASE_DIR}/${BIN}"
-    if [ -e "${SRC_PATH}" ]; then
-      mkdir -p "$(dirname "${DST_PATH}")"
-      cp "${SRC_PATH}" "${DST_PATH}"
-    fi
+  # cp built dynamic libraries
+  LIBS=$(find bazel-out/* -name "*.so" )
+  for LIB in ${LIBS}; do
+    cp -a --parent ${LIB} ${APOLLO_RELEASE_DIR}
+  done
+  mkdir ${APOLLO_RELEASE_DIR}/bazel-bin
+  mv ${APOLLO_RELEASE_DIR}/bazel-out/local-opt/bin/* ${APOLLO_RELEASE_DIR}/bazel-bin/
+  rm -rf ${APOLLO_RELEASE_DIR}/bazel-out
+
+  # reset softlinks
+  cd ${APOLLO_RELEASE_DIR}/bazel-bin
+  LIST=("_solib_k8")
+  for DIR in "${LIST[@]}"; do
+    LINKS=$(find ${DIR}/* -name "*.so" -type l | sed '/.*@.*/d')
+    for LINK in $LINKS; do
+      LIB=$(echo $LINK | sed 's/_S/\//g' | sed 's/_U/_/g')
+      if [[ $LIB == *"_solib_k8/lib"* ]]; then
+        LIB="/apollo/bazel-bin/$(echo $LIB | awk -F "_solib_k8/lib" '{print $NF}')"
+      elif [[ $LIB == *"___"* ]]; then
+        LIB="/apollo/bazel-bin/$(echo $LIB | awk -F "___" '{print $NF}')"
+      else
+        LIB="/apollo/bazel-bin/$(echo $LIB | awk -F "apollo/" '{print $NF}')"
+      fi
+      ln -sf $LIB $LINK
+    done
+  done
+  cd -
+
+  # setup cyber binaries and convert from //path:target to path/target
+  CYBERBIN=$(bazel query "kind(cc_binary, //cyber/... //modules/tools/visualizer/...)" | sed 's/^\/\///' | sed 's/:/\//' | sed '/.*.so$/d')
+  for BIN in ${CYBERBIN}; do
+    cp -P --parent "bazel-bin/${BIN}" ${APOLLO_RELEASE_DIR}
+  done
+  cp --parent "cyber/setup.bash" "${APOLLO_RELEASE_DIR}"
+  cp --parent -a "cyber/tools/cyber_launch" "${APOLLO_RELEASE_DIR}"
+  cp --parent -a "cyber/tools/cyber_tools_auto_complete.bash" "${APOLLO_RELEASE_DIR}"
+  cp --parent -a "cyber/python" "${APOLLO_RELEASE_DIR}"
+
+
+  # setup tools
+  TOOLSBIN=$(bazel query "kind(cc_binary, //modules/tools/...)" | sed 's/^\/\///' | sed 's/:/\//' | sed '/.*.so$/d')
+  for BIN in ${TOOLSBIN}; do
+    cp -P --parent "bazel-bin/${BIN}" ${APOLLO_RELEASE_DIR}
+  done
+  TOOLSPY=$(find modules/tools/* -name "*.py")
+  for PY in ${TOOLSPY}; do
+    cp -P --parent "${PY}" "${APOLLO_RELEASE_DIR}/bazel-bin"
   done
 
-  # modules data and conf
-  CONFS=$(find modules/ -name "conf")
-  DATAS=$(find modules/ -name "data")
-  OTHER=("modules/tools"
-         "modules/perception/model")
+  # modules data, conf and dag
+  CONFS=$(find modules/ cyber/ -name "conf")
+  DATAS=$(find modules/ -name "data" | grep -v "testdata")
+  DAGS=$(find modules/ -name "dag")
+  LAUNCHS=$(find modules/ -name "launch")
+  PARAMS=$(find modules/ -name "params" | grep -v "testdata")
+
   rm -rf test/*
-  for conf in $CONFS; do
-    mkdir -p $APOLLO_RELEASE_DIR/$conf
-    rsync -a $conf/* $APOLLO_RELEASE_DIR/$conf
+  for CONF in $CONFS; do
+    cp -P --parent -a "${CONF}" "${APOLLO_RELEASE_DIR}"
   done
-  for data in $DATAS; do
-    mkdir -p $APOLLO_RELEASE_DIR/$data
-    if [ $data != "modules/map/data" ]; then
-      rsync -a $data/* $APOLLO_RELEASE_DIR/$data
+  for DATA in $DATAS; do
+    if [[ $DATA != *"map"* ]]; then
+        cp -P --parent -a "${DATA}" "${APOLLO_RELEASE_DIR}"
     fi
   done
-  # Other
-  for path in "${OTHER[@]}"; do
-    mkdir -p $APOLLO_RELEASE_DIR/$path
-    rsync -a $path/* $APOLLO_RELEASE_DIR/$path
+  for DAG in $DAGS; do
+    cp -P --parent -a "${DAG}" "${APOLLO_RELEASE_DIR}"
   done
+  for LAUNCH in $LAUNCHS; do
+    cp -P --parent -a "${LAUNCH}" "${APOLLO_RELEASE_DIR}"
+  done
+  for PARAM in $PARAMS; do
+    cp -P --parent -a "${PARAM}" "${APOLLO_RELEASE_DIR}"
+  done
+  # perception model
+  MODEL="modules/perception/model"
+  cp -P --parent -a "${MODEL}" "${APOLLO_RELEASE_DIR}"
 
   # dreamview frontend
   cp -a modules/dreamview/frontend $APOLLO_RELEASE_DIR/modules/dreamview
@@ -262,6 +392,10 @@ function release() {
   # scripts
   cp -r scripts ${APOLLO_RELEASE_DIR}
 
+  # manual traffic light tool
+  mkdir -p ${APOLLO_RELEASE_DIR}/modules/tools
+  cp -r modules/tools/manual_traffic_light ${APOLLO_RELEASE_DIR}/modules/tools
+
   # remove mounted models
   rm -rf ${APOLLO_RELEASE_DIR}/modules/perception/model/yolo_camera_detector/
 
@@ -271,10 +405,11 @@ function release() {
   if $USE_ESD_CAN; then
     warn_proprietary_sw
   fi
-  cp -r third_party/can_card_library/*/lib/* $LIB_DIR
-  cp -r bazel-genfiles/external $LIB_DIR
+  THIRDLIBS=$(find third_party/* -name "*.so*")
+  for LIB in ${THIRDLIBS}; do
+    cp -a "${LIB}" $LIB_DIR
+  done
   cp -r py_proto/modules $LIB_DIR
-  cp modules/perception/cuda_util/cmake_build/libcuda_util.so $LIB_DIR
 
   # doc
   cp LICENSE "${APOLLO_RELEASE_DIR}"
@@ -282,7 +417,8 @@ function release() {
 
   # release info
   META="${APOLLO_RELEASE_DIR}/meta.ini"
-  echo "git_commit: $(git rev-parse HEAD)" >> $META
+  echo "git_commit: $(get_revision)" >> $META
+  echo "git_branch: $(get_branch)" >> $META
   echo "car_type: LINCOLN.MKZ" >> $META
   echo "arch: ${MACHINE_ARCH}" >> $META
 }
@@ -297,21 +433,18 @@ function gen_coverage() {
 
   COV_DIR=data/cov
   rm -rf $COV_DIR
-  files=$(find bazel-out/local-dbg/bin/modules/ -iname "*.gcda" -o -iname "*.gcno" | grep -v external)
+  files=$(find bazel-out/local-dbg/bin/ -iname "*.gcda" -o -iname "*.gcno" | grep -v external | grep -v third_party)
   for f in $files; do
-    target="$COV_DIR/objs/modules/${f##*modules}"
+    if [ "$f" != "${f##*cyber}" ]; then
+      target="$COV_DIR/objs/cyber${f##*cyber}"
+    else
+      target="$COV_DIR/objs/modules${f##*modules}"
+    fi
     mkdir -p "$(dirname "$target")"
     cp "$f" "$target"
   done
 
-  files=$(find bazel-out/local-opt/bin/modules/ -iname "*.gcda" -o -iname "*.gcno" | grep -v external)
-  for f in $files; do
-    target="$COV_DIR/objs/modules/${f##*modules}"
-    mkdir -p "$(dirname "$target")"
-    cp "$f" "$target"
-  done
-
-  lcov --rc lcov_branch_coverage=1 --capture --directory "$COV_DIR/objs" --output-file "$COV_DIR/conv.info"
+  lcov --rc lcov_branch_coverage=1 --base-directory "/apollo/bazel-apollo" --capture --directory "$COV_DIR/objs" --output-file "$COV_DIR/conv.info"
   if [ $? -ne 0 ]; then
     fail 'lcov failed!'
   fi
@@ -327,12 +460,16 @@ function gen_coverage() {
 }
 
 function run_test() {
+  JOB_ARG="--jobs=$(nproc) --ram_utilization_factor 80"
+
   generate_build_targets
   if [ "$USE_GPU" == "1" ]; then
-    echo -e "${RED}Need GPU to run the tests.${NO_COLOR}"
-    echo "$BUILD_TARGETS" | xargs bazel test $DEFINES --config=unit_test -c dbg --test_verbose_timeout_warnings $@
+    echo -e "${YELLOW}Running tests under GPU mode. GPU is required to run the tests.${NO_COLOR}"
+    bazel test $DEFINES $JOB_ARG --config=unit_test -c dbg --test_verbose_timeout_warnings $@ $BUILD_TARGETS
   else
-    echo "$BUILD_TARGETS" | grep -v "cnn_segmentation_test" | grep -v "yolo_camera_detector_test" | xargs bazel test $DEFINES --config=unit_test -c dbg --test_verbose_timeout_warnings $@
+    echo -e "${YELLOW}Running tests under CPU mode. No GPU is required to run the tests.${NO_COLOR}"
+    BUILD_TARGETS="`echo "$BUILD_TARGETS" | grep -v "cnn_segmentation_test\|yolo_camera_detector_test\|unity_recognize_test\|perception_traffic_light_rectify_test\|cuda_util_test"`"
+    bazel test $DEFINES $JOB_ARG --config=unit_test -c dbg --test_verbose_timeout_warnings $@ $BUILD_TARGETS
   fi
   if [ $? -ne 0 ]; then
     fail 'Test failed!'
@@ -345,15 +482,80 @@ function run_test() {
   fi
 }
 
-function citest() {
+function citest_basic() {
+  set -e
+
+  info "Building framework ..."
+  cd /apollo
+  source cyber/setup.bash
+
+  # FIXME(all): temporarily disable modules doesn't compile in 18.04
+#   BUILD_TARGETS="
+#    `bazel query //modules/... union //cyber/...`
+#  "
+  BUILD_TARGETS=`bazel query //modules/... union //cyber/... except //modules/tools/visualizer/... except //modules/v2x/... except //modules/drivers/video/tools/decode_video/... except //modules/map/tools/map_datachecker/... `
+
+  JOB_ARG="--jobs=12 --ram_utilization_factor 80"
+
+  BUILD_TARGETS="`echo "$BUILD_TARGETS" | grep "modules\/" | grep "test" \
+          | grep -v "modules\/planning" \
+          | grep -v "modules\/prediction" \
+          | grep -v "modules\/control" \
+          | grep -v "modules\/common" \
+          | grep -v "can_client" \
+          | grep -v "blob_test" \
+          | grep -v "pyramid_map" \
+          | grep -v "ndt_lidar_locator_test" \
+          | grep -v "syncedmem_test" | grep -v "blob_test" \
+          | grep -v "perception_inference_operators_test" \
+          | grep -v "cuda_util_test" \
+          | grep -v "modules\/perception"`"
+
+  bazel test $DEFINES $JOB_ARG --config=unit_test -c dbg --test_verbose_timeout_warnings $@ $BUILD_TARGETS
+
+  if [ $? -eq 0 ]; then
+    success 'Test passed!'
+    return 0
+  else
+    fail 'Test failed!'
+    return 1
+  fi
+}
+
+function citest_extended() {
+  set -e
+
+  info "Building framework ..."
+  cd /apollo
+  source cyber/setup.bash
+
   BUILD_TARGETS="
-  //modules/planning/integration_tests:garage_test
-  //modules/planning/integration_tests:sunnyvale_loop_test
-  //modules/control/integration_tests:simple_control_test
-  //modules/prediction/container/obstacles:obstacle_test
-  //modules/dreamview/backend/simulation_world:simulation_world_service_test
+    `bazel query //modules/planning/... union //modules/common/... union //cyber/... $DISABLED_CYBER_MODULES`
+    `bazel query //modules/prediction/... union //modules/control/...`
   "
-  bazel test $DEFINES --config=unit_test --test_verbose_timeout_warnings $@ $BUILD_TARGETS
+
+  JOB_ARG="--jobs=12 --ram_utilization_factor 80"
+
+  BUILD_TARGETS="`echo "$BUILD_TARGETS" | grep "test"`"
+
+  bazel test $DEFINES $JOB_ARG --config=unit_test -c dbg --test_verbose_timeout_warnings $@ $BUILD_TARGETS
+
+  if [ $? -eq 0 ]; then
+    success 'Test passed!'
+    return 0
+  else
+    fail 'Test failed!'
+    return 1
+  fi
+}
+
+function citest() {
+  info "Building framework ..."
+  cd /apollo
+  source cyber/setup.bash
+
+  citest_basic
+  citest_extended
   if [ $? -eq 0 ]; then
     success 'Test passed!'
     return 0
@@ -364,8 +566,8 @@ function citest() {
 }
 
 function run_cpp_lint() {
-  generate_build_targets
-  echo "$BUILD_TARGETS" | xargs bazel test --config=cpplint -c dbg
+  BUILD_TARGETS="`bazel query //modules/... except //modules/tools/visualizer/... union //cyber/...`"
+  bazel test --config=cpplint -c dbg $BUILD_TARGETS
 }
 
 function run_bash_lint() {
@@ -375,7 +577,8 @@ function run_bash_lint() {
 
 function run_lint() {
   # Add cpplint rule to BUILD files that do not contain it.
-  for file in $(find modules -name BUILD |  grep -v gnss/third_party | \
+  for file in $(find cyber modules -name BUILD | \
+    grep -v gnss/third_party | grep -v modules/teleop/encoder/nvenc_sdk6 | \
     xargs grep -l -E 'cc_library|cc_test|cc_binary' | xargs grep -L 'cpplint()')
   do
     sed -i '1i\load("//tools:cpplint.bzl", "cpplint")\n' $file
@@ -392,7 +595,16 @@ function run_lint() {
 }
 
 function clean() {
+  # Remove bazel cache.
   bazel clean --async
+
+  # Remove bazel cache in associated directories
+  if [ -d /apollo-simulator ]; then
+    cd /apollo-simulator && bazel clean --async
+  fi
+
+  # Remove cmake cache.
+  rm -fr framework/build
 }
 
 function buildify() {
@@ -419,132 +631,49 @@ function gen_doc() {
 }
 
 function version() {
+  rev=$(get_revision)
+  if [ "$rev" = "unknown" ];then
+    echo "Version: $rev"
+    return
+  fi
   commit=$(git log -1 --pretty=%H)
   date=$(git log -1 --pretty=%cd)
   echo "Commit: ${commit}"
   echo "Date: ${date}"
 }
 
-function build_velodyne() {
-  CURRENT_PATH=$(pwd)
-  if [ -d "${ROS_ROOT}" ]; then
-    ROS_PATH="${ROS_ROOT}/../.."
+function get_revision() {
+  git rev-parse --is-inside-work-tree &> /dev/null
+  if [ $? = 0 ];then
+    REVISION=$(git rev-parse HEAD)
   else
-    warning "ROS not found. Run apolllo.sh build first."
-    exit 1
+    warning "Could not get the version number, maybe this is not a git work tree." >&2
+    REVISION="unknown"
   fi
-
-  source "${ROS_PATH}/setup.bash"
-
-  cd modules
-  catkin_make_isolated --install --source drivers/velodyne \
-    --install-space "${ROS_PATH}" -DCMAKE_BUILD_TYPE=Release \
-    --cmake-args --no-warn-unused-cli
-  find "${ROS_PATH}" -name "*.pyc" -print0 | xargs -0 rm -rf
-  cd -
-
-  rm -rf modules/.catkin_workspace
-  rm -rf modules/build_isolated/
-  rm -rf modules/devel_isolated/
+  echo "$REVISION"
 }
 
-function build_velodyne_vls128() {
-  CURRENT_PATH=$(pwd)
-  if [ -d "${ROS_ROOT}" ]; then
-    ROS_PATH="${ROS_ROOT}/../.."
+function get_branch() {
+  git branch &> /dev/null
+  if [ $? = 0 ];then
+    BRANCH=$(git rev-parse --abbrev-ref HEAD)
   else
-    warning "ROS not found. Run apolllo.sh build first."
-    exit 1
+    warning "Could not get the branch name, maybe this is not a git work tree." >&2
+    BRANCH="unknown"
   fi
-
-  source "${ROS_PATH}/setup.bash"
-
-  cd modules
-  catkin_make_isolated --install --source drivers/velodyne_vls \
-    --install-space "${ROS_PATH}" -DCMAKE_BUILD_TYPE=Release \
-    --cmake-args --no-warn-unused-cli
-  find "${ROS_PATH}" -name "*.pyc" -print0 | xargs -0 rm -rf
-  cd -
-
-  rm -rf modules/.catkin_workspace
-  rm -rf modules/build_isolated/
-  rm -rf modules/devel_isolated/
-}
-
-
-
-function build_lslidar() {
-  CURRENT_PATH=$(pwd)
-  if [ -d "${ROS_ROOT}" ]; then
-    ROS_PATH="${ROS_ROOT}/../.."
-  else
-    warning "ROS not found. Run apolllo.sh build first."
-    exit 1
-  fi
-
-  source "${ROS_PATH}/setup.bash"
-
-  cd modules
-  catkin_make_isolated --install --source drivers/lslidar_apollo \
-    --install-space "${ROS_PATH}" -DCMAKE_BUILD_TYPE=Release \
-    --cmake-args --no-warn-unused-cli
-  find "${ROS_PATH}" -name "*.pyc" -print0 | xargs -0 rm -rf
-  cd -
-
-  rm -rf modules/.catkin_workspace
-  rm -rf modules/build_isolated/
-  rm -rf modules/devel_isolated/
-}
-
-function build_rslidar() {
-  CURRENT_PATH=$(pwd)
-  if [ -d "${ROS_ROOT}" ]; then
-    ROS_PATH="${ROS_ROOT}/../.."
-  else
-    warning "ROS not found. Run apolllo.sh build first."
-    exit 1
-  fi
-
-  source "${ROS_PATH}/setup.bash"
-
-  cd modules
-  catkin_make_isolated --install --source drivers/rslidar \
-    --install-space "${ROS_PATH}" -DCMAKE_BUILD_TYPE=Release \
-    --cmake-args --no-warn-unused-cli
-  find "${ROS_PATH}" -name "*.pyc" -print0 | xargs -0 rm -rf
-  cd -
-
-  rm -rf modules/.catkin_workspace
-  rm -rf modules/build_isolated/
-  rm -rf modules/devel_isolated/
-}
-
-
-function build_usbcam() {
-  CURRENT_PATH=$(pwd)
-  if [ -d "${ROS_ROOT}" ]; then
-    ROS_PATH="${ROS_ROOT}/../.."
-  else
-    warning "ROS not found. Run apolllo.sh build first."
-    exit 1
-  fi
-
-  source "${ROS_PATH}/setup.bash"
-
-  cd modules
-  catkin_make_isolated --install --source drivers/usb_cam \
-    --install-space "${ROS_PATH}" -DCMAKE_BUILD_TYPE=Release \
-    --cmake-args --no-warn-unused-cli
-  find "${ROS_PATH}" -name "*.pyc" -print0 | xargs -0 rm -rf
-  cd -
-
-  rm -rf modules/.catkin_workspace
-  rm -rf modules/build_isolated/
-  rm -rf modules/devel_isolated/
+  echo "$BRANCH"
 }
 
 function config() {
   ${APOLLO_ROOT_DIR}/scripts/configurator.sh
+}
+
+function set_use_gpu() {
+  if [ "${USE_GPU}" = "1" ] ; then
+    DEFINES="${DEFINES} --define USE_GPU=true"
+  else
+    DEFINES="${DEFINES} --cxxopt=-DCPU_ONLY"
+  fi
 }
 
 function print_usage() {
@@ -559,15 +688,17 @@ function print_usage() {
   echo -e "\n${RED}Options${NONE}:
   ${BLUE}build${NONE}: run build only
   ${BLUE}build_opt${NONE}: build optimized binary for the code
+  ${BLUE}build_cpu${NONE}: dbg build with CPU
   ${BLUE}build_gpu${NONE}: run build only with Caffe GPU mode support
-  ${BLUE}build_velodyne${NONE}: build velodyne driver
-  ${BLUE}build_velodyne_vls128${NONE}: build velodyne vls-128 driver
-  ${BLUE}build_lslidar${NONE}: build lslidar driver
-  ${BLUE}build_rslidar${NONE}: build rslidar driver
-  ${BLUE}build_usbcam${NONE}: build usb camera driver
   ${BLUE}build_opt_gpu${NONE}: build optimized binary with Caffe GPU mode support
   ${BLUE}build_fe${NONE}: compile frontend javascript code, this requires all the node_modules to be installed already
-  ${BLUE}build_no_perception [dbg|opt]${NONE}: run build build skip building perception module, useful when some perception dependencies are not satisified, e.g., CUDA, CUDNN, LIDAR, etc.
+  ${BLUE}build_cyber [dbg|opt]${NONE}: build Cyber RT only
+  ${BLUE}build_drivers [dbg|opt]${NONE}: build drivers only
+  ${BLUE}build_planning${NONE}: compile planning and its dependencies.
+  ${BLUE}build_control${NONE}: compile control and its dependencies.
+  ${BLUE}build_prediction${NONE}: compile prediction and its dependencies.
+  ${BLUE}build_pnc${NONE}: compile pnc and its dependencies.
+  ${BLUE}build_no_perception [dbg|opt]${NONE}: run build, skip building perception module, useful when some perception dependencies are not satisfied, e.g., CUDA, CUDNN, LIDAR, etc.
   ${BLUE}build_prof${NONE}: build for gprof support.
   ${BLUE}buildify${NONE}: fix style of BUILD files
   ${BLUE}check${NONE}: run build/lint/test, please make sure it passes before checking in new code
@@ -584,12 +715,16 @@ function print_usage() {
 }
 
 function main() {
-  source_apollo_base
+  cd "$( dirname "${BASH_SOURCE[0]}" )"
+  source scripts/apollo_base.sh
+
   check_machine_arch
   apollo_check_system_config
   check_esd_files
 
   DEFINES="--define ARCH=${MACHINE_ARCH} --define CAN_CARD=${CAN_CARD} --cxxopt=-DUSE_ESD_CAN=${USE_ESD_CAN}"
+  # Enable bazel's feature to compute md5 checksums in parallel
+  DEFINES="${DEFINES} --experimental_multi_threaded_digest"
 
   if [ ${MACHINE_ARCH} == "x86_64" ]; then
     DEFINES="${DEFINES} --copt=-mavx2"
@@ -605,6 +740,10 @@ function main() {
       check $@
       ;;
     build)
+      set_use_gpu
+      apollo_build_dbg $@
+      ;;
+    build_cpu)
       DEFINES="${DEFINES} --cxxopt=-DCPU_ONLY"
       apollo_build_dbg $@
       ;;
@@ -614,29 +753,81 @@ function main() {
       ;;
     build_no_perception)
       DEFINES="${DEFINES} --cxxopt=-DCPU_ONLY"
-      NOT_BUILD_PERCEPTION=true
+      BUILD_FILTER="no_perception"
       if [ "$1" == "opt" ]; then
         shift
         apollo_build_opt $@
-      elif [ "$1" == "dbg" ]; then
+      else
         shift
         apollo_build_dbg $@
       fi
+      ;;
+    clean_cyber)
+      export LD_PRELOAD=
+      clean
+      ;;
+    build_cyber)
+      export LD_PRELOAD=
+      BUILD_FILTER="cyber"
+      if [ "$1" == "opt" ]; then
+        shift
+        apollo_build_opt $@
+      else
+        shift
+        apollo_build_dbg $@
+      fi
+      ;;
+    build_drivers)
+      export LD_PRELOAD=
+      BUILD_FILTER="drivers"
+      if [ "$1" == "opt" ]; then
+        shift
+        apollo_build_opt $@
+      else
+        shift
+        apollo_build_dbg $@
+      fi
+      ;;
+    build_control)
+      BUILD_FILTER="control"
+      apollo_build_dbg $@
+      ;;
+    build_planning)
+      BUILD_FILTER="planning"
+      apollo_build_dbg $@
+      ;;
+    build_prediction)
+      BUILD_FILTER="prediction"
+      apollo_build_dbg $@
+      ;;
+    build_pnc)
+      BUILD_FILTER="pnc"
+      apollo_build_dbg $@
       ;;
     cibuild)
       DEFINES="${DEFINES} --cxxopt=-DCPU_ONLY"
       cibuild $@
       ;;
-    build_opt)
+    cibuild_extended)
       DEFINES="${DEFINES} --cxxopt=-DCPU_ONLY"
+      cibuild_extended $@
+      ;;
+    build_opt)
+      DEFINES="${DEFINES} --cxxopt=-DCPU_ONLY --copt=-fpic"
       apollo_build_opt $@
       ;;
     build_gpu)
-      DEFINES="${DEFINES} --cxxopt=-DUSE_CAFFE_GPU"
+      set_use_gpu
       apollo_build_dbg $@
       ;;
     build_opt_gpu)
-      DEFINES="${DEFINES} --cxxopt=-DUSE_CAFFE_GPU"
+      set_use_gpu
+      DEFINES="${DEFINES} --copt=-fpic"
+      apollo_build_opt $@
+      ;;
+    build_teleop)
+      set_use_gpu
+      DEFINES="${DEFINES} --copt=-fpic --define WITH_TELEOP=1 --cxxopt=-DTELEOP"
       apollo_build_opt $@
       ;;
     build_fe)
@@ -648,21 +839,6 @@ function main() {
     build_py)
       build_py_proto
       ;;
-    build_velodyne)
-      build_velodyne
-      ;;
-    build_velodyne_vls128)
-      build_velodyne_vls128
-      ;;
-    build_lslidar)
-      build_lslidar
-      ;;
-    build_rslidar)
-      build_rslidar
-      ;;
-    build_usbcam)
-      build_usbcam
-      ;;
     config)
       config
       ;;
@@ -673,6 +849,10 @@ function main() {
       run_lint
       ;;
     test)
+      set_use_gpu
+      run_test $@
+      ;;
+    test_cpu)
       DEFINES="${DEFINES} --cxxopt=-DCPU_ONLY"
       run_test $@
       ;;
@@ -680,9 +860,16 @@ function main() {
       DEFINES="${DEFINES} --cxxopt=-DCPU_ONLY"
       citest $@
       ;;
+    citest_basic)
+      DEFINES="${DEFINES} --cxxopt=-DCPU_ONLY"
+      citest_basic $@
+      ;;
+    citest_extended)
+      DEFINES="${DEFINES} --cxxopt=-DCPU_ONLY"
+      citest_extended $@
+      ;;
     test_gpu)
-      DEFINES="${DEFINES} --cxxopt=-DUSE_CAFFE_GPU"
-      USE_GPU="1"
+      set_use_gpu
       run_test $@
       ;;
     release)

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 ###############################################################################
 # Copyright 2017 The Apollo Authors. All Rights Reserved.
@@ -54,7 +54,7 @@ class PathDecider:
                 left_dist = lat_dist
             else:
                 right_dist = lat_dist
-        print left_dist, right_dist
+        print(left_dist, right_dist)
         return final_path
 
     def get(self, perception, routing, adv):
@@ -96,7 +96,7 @@ class PathDecider:
                                                                  right_nudgable)
                 smoothed_nudge_dist = self._smooth_init_y(nudge_dist)
                 if smoothed_nudge_dist != 0:
-                    print smoothed_nudge_dist
+                    print(smoothed_nudge_dist)
                 routing_path.shift(smoothed_nudge_dist)
             return routing_path
 
@@ -150,23 +150,18 @@ if __name__ == "__main__":
     from provider_routing import RoutingProvider
     from provider_mobileye import MobileyeProvider
 
-
     def localization_callback(localization_pb):
         ad_vehicle.update_localization(localization_pb)
-
 
     def routing_callback(routing_str):
         routing.update(routing_str)
 
-
     def chassis_callback(chassis_pb):
         ad_vehicle.update_chassis(chassis_pb)
-
 
     def mobileye_callback(mobileye_pb):
         mobileye.update(mobileye_pb)
         mobileye.process_lane_markers()
-
 
     def update(frame):
         if not ad_vehicle.is_ready():
@@ -192,7 +187,6 @@ if __name__ == "__main__":
         final_path.set_ydata(fpath_y)
         # ax.autoscale_view()
         # ax.relim()
-
 
     ad_vehicle = ADVehicle()
     routing = RoutingProvider()

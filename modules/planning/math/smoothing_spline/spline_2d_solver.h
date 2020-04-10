@@ -18,12 +18,8 @@
  * @file spline_2d_solver.h
  **/
 
-#ifndef MODULES_PLANNING_SMOOTHING_SPLINE_SPLINE_2D_SOLVER_H_
-#define MODULES_PLANNING_SMOOTHING_SPLINE_SPLINE_2D_SOLVER_H_
+#pragma once
 
-#include <qpOASES.hpp>
-
-#include <memory>
 #include <vector>
 
 #include "modules/common/math/qp_solver/qp_solver.h"
@@ -36,33 +32,32 @@ namespace planning {
 
 class Spline2dSolver {
  public:
-  Spline2dSolver(const std::vector<double>& t_knots, const uint32_t order);
+  Spline2dSolver(const std::vector<double>& t_knots, const uint32_t order)
+      : spline_(t_knots, order),
+        kernel_(t_knots, order),
+        constraint_(t_knots, order) {}
 
-  void Reset(const std::vector<double>& t_knots, const uint32_t order);
+  virtual ~Spline2dSolver() = default;
+
+  virtual void Reset(const std::vector<double>& t_knots,
+                     const uint32_t order) = 0;
 
   // customize setup
-  Spline2dConstraint* mutable_constraint();
-  Spline2dKernel* mutable_kernel();
-  Spline2d* mutable_spline();
+  virtual Spline2dConstraint* mutable_constraint() = 0;
+  virtual Spline2dKernel* mutable_kernel() = 0;
+  virtual Spline2d* mutable_spline() = 0;
 
   // solve
-  bool Solve();
+  virtual bool Solve() = 0;
 
   // extract
-  const Spline2d& spline() const;
+  virtual const Spline2d& spline() const = 0;
 
- private:
+ protected:
   Spline2d spline_;
   Spline2dKernel kernel_;
   Spline2dConstraint constraint_;
-  std::unique_ptr<::qpOASES::SQProblem> sqp_solver_;
-
-  int last_num_constraint_ = 0;
-  int last_num_param_ = 0;
-  bool last_problem_success_ = false;
 };
 
 }  // namespace planning
 }  // namespace apollo
-
-#endif  // MODULES_PLANNING_SMOOTHING_SPLINE_SPLINE_2D_SOLVER_H_

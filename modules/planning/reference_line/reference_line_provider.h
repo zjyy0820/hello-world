@@ -20,19 +20,16 @@
  * @brief Declaration of the class ReferenceLineProvider.
  */
 
-#ifndef MODULES_PLANNING_REFERENCE_LINE_REFERENCE_LINE_PROVIDER_H_
-#define MODULES_PLANNING_REFERENCE_LINE_REFERENCE_LINE_PROVIDER_H_
+#pragma once
 
-#include <condition_variable>
 #include <list>
 #include <memory>
-#include <mutex>
 #include <queue>
 #include <string>
-#include <thread>
-#include <unordered_map>
 #include <unordered_set>
 #include <vector>
+
+#include "cyber/cyber.h"
 
 #include "modules/common/vehicle_state/proto/vehicle_state.pb.h"
 #include "modules/map/relative_map/proto/navigation.pb.h"
@@ -43,6 +40,7 @@
 #include "modules/map/pnc_map/pnc_map.h"
 #include "modules/planning/common/indexed_queue.h"
 #include "modules/planning/math/smoothing_spline/spline_2d_solver.h"
+#include "modules/planning/reference_line/discrete_points_reference_line_smoother.h"
 #include "modules/planning/reference_line/qp_spline_reference_line_smoother.h"
 #include "modules/planning/reference_line/reference_line.h"
 #include "modules/planning/reference_line/spiral_reference_line_smoother.h"
@@ -61,12 +59,15 @@ namespace planning {
  */
 class ReferenceLineProvider {
  public:
+  ReferenceLineProvider() = default;
+  explicit ReferenceLineProvider(
+      const hdmap::HDMap* base_map,
+      const std::shared_ptr<relative_map::MapMsg>& relative_map = nullptr);
+
   /**
    * @brief Default destructor.
    */
   ~ReferenceLineProvider();
-
-  explicit ReferenceLineProvider(const hdmap::HDMap* base_map);
 
   bool UpdateRoutingResponse(const routing::RoutingResponse& routing);
 
@@ -83,7 +84,7 @@ class ReferenceLineProvider {
 
   std::vector<routing::LaneWaypoint> FutureRouteWaypoints();
 
-  static double LookForwardDistance(const common::VehicleState& state);
+  bool UpdatedReferenceLine() { return is_reference_line_updated_.load(); }
 
  private:
   /**
@@ -108,8 +109,6 @@ class ReferenceLineProvider {
   void PrioritzeChangeLane(std::list<hdmap::RouteSegments>* route_segments);
 
   bool CreateRouteSegments(const common::VehicleState& vehicle_state,
-                           const double look_forward_distance,
-                           const double look_backward_distance,
                            std::list<hdmap::RouteSegments>* segments);
 
   bool IsReferenceLineSmoothValid(const ReferenceLine& raw,
@@ -140,8 +139,7 @@ class ReferenceLineProvider {
                              double s) const;
 
   bool GetReferenceLinesFromRelativeMap(
-      const relative_map::MapMsg& relative_map,
-      std::list<ReferenceLine>* reference_line,
+      std::list<ReferenceLine>* reference_lines,
       std::list<hdmap::RouteSegments>* segments);
 
   /**
@@ -153,16 +151,21 @@ class ReferenceLineProvider {
       const std::unordered_set<std::string>& navigation_lane_ids,
       hdmap::LaneWaypoint* waypoint);
 
+  bool Shrink(const common::SLPoint& sl, ReferenceLine* ref,
+              hdmap::RouteSegments* segments);
+
  private:
   bool is_initialized_ = false;
-  bool is_stop_ = false;
-  std::unique_ptr<std::thread> thread_;
+  std::atomic<bool> is_stop_{false};
 
   std::unique_ptr<ReferenceLineSmoother> smoother_;
   ReferenceLineSmootherConfig smoother_config_;
 
   std::mutex pnc_map_mutex_;
   std::unique_ptr<hdmap::PncMap> pnc_map_;
+
+  // Used in Navigation mode
+  std::shared_ptr<relative_map::MapMsg> relative_map_;
 
   std::mutex vehicle_state_mutex_;
   common::VehicleState vehicle_state_;
@@ -178,9 +181,11 @@ class ReferenceLineProvider {
 
   std::queue<std::list<ReferenceLine>> reference_line_history_;
   std::queue<std::list<hdmap::RouteSegments>> route_segments_history_;
+
+  std::future<void> task_future_;
+
+  std::atomic<bool> is_reference_line_updated_{true};
 };
 
 }  // namespace planning
 }  // namespace apollo
-
-#endif  // MODULES_PLANNING_REFERENCE_LINE_REFERENCE_LINE_PROVIDER_H_

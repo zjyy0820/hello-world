@@ -7,6 +7,7 @@ supervisor
 
 # Google infras.
 glog
+grpcio-tools == 1.2.0
 protobuf == 3.1
 python-gflags
 
@@ -18,10 +19,14 @@ simplejson
 
 # ROS env.
 PyYAML
-catkin_pkg
-rospkg
 
 # Python tools
-plyvel == 0.9
 pyproj
 shapely
+
+# Data format
+h5py
+utm
+
+# Audio
+pyalsaaudio

@@ -4,12 +4,9 @@ package(default_visibility = ["//visibility:public"])
 
 cc_library(
     name = "task",
-    srcs = [
-        "task.cc",
-    ],
-    hdrs = [
-        "task.h",
-    ],
+    srcs = ["task.cc"],
+    hdrs = ["task.h"],
+    copts = ["-DMODULE_NAME=\\\"planning\\\""],
     deps = [
         "//modules/common/status",
         "//modules/planning/common:frame",
@@ -21,43 +18,37 @@ cc_library(
 )
 
 cc_library(
-    name = "path_optimizer",
-    srcs = [
-        "path_optimizer.cc",
-    ],
-    hdrs = [
-        "path_optimizer.h",
-    ],
-    deps = [
-        ":task",
-        "//modules/common/status",
-        "//modules/planning/common:path_decision",
-        "//modules/planning/common:reference_line_info",
-        "//modules/planning/common/path:path_data",
-        "//modules/planning/common/speed:speed_data",
-        "@eigen",
-    ],
-)
-
-cc_library(
-    name = "speed_optimizer",
-    srcs = [
-        "speed_optimizer.cc",
-    ],
-    hdrs = [
-        "speed_optimizer.h",
+    name = "task_factory",
+    srcs = ["task_factory.cc"],
+    hdrs = ["task_factory.h"],
+    copts = [
+        "-DMODULE_NAME=\\\"planning\\\"",
+        "-fopenmp",
     ],
     deps = [
         ":task",
-        "//modules/common/status",
-        "//modules/planning/common:path_decision",
-        "//modules/planning/common:planning_gflags",
-        "//modules/planning/common:reference_line_info",
-        "//modules/planning/common:speed_limit",
-        "//modules/planning/common/path:path_data",
-        "//modules/planning/common/speed:speed_data",
-        "//modules/planning/tasks/st_graph:st_graph_data",
-        "@eigen",
+        "//modules/planning/proto:planning_config_proto",
+        "//modules/planning/tasks/deciders/creep_decider",
+        "//modules/planning/tasks/deciders/lane_change_decider",
+        "//modules/planning/tasks/deciders/open_space_decider:open_space_fallback_decider",
+        "//modules/planning/tasks/deciders/open_space_decider:open_space_pre_stop_decider",
+        "//modules/planning/tasks/deciders/open_space_decider:open_space_roi_decider",
+        "//modules/planning/tasks/deciders/path_assessment_decider",
+        "//modules/planning/tasks/deciders/path_bounds_decider",
+        "//modules/planning/tasks/deciders/path_decider",
+        "//modules/planning/tasks/deciders/path_lane_borrow_decider",
+        "//modules/planning/tasks/deciders/path_reuse_decider",
+        "//modules/planning/tasks/deciders/rss_decider",
+        "//modules/planning/tasks/deciders/rule_based_stop_decider",
+        "//modules/planning/tasks/deciders/speed_bounds_decider",
+        "//modules/planning/tasks/deciders/speed_decider",
+        "//modules/planning/tasks/deciders/st_bounds_decider",
+        "//modules/planning/tasks/optimizers/open_space_trajectory_generation:open_space_trajectory_provider",
+        "//modules/planning/tasks/optimizers/open_space_trajectory_partition",
+        "//modules/planning/tasks/optimizers/path_time_heuristic:path_time_heuristic_optimizer",
+        "//modules/planning/tasks/optimizers/piecewise_jerk_path:piecewise_jerk_path_optimizer",
+        "//modules/planning/tasks/optimizers/piecewise_jerk_speed:piecewise_jerk_speed_nonlinear_optimizer",
+        "//modules/planning/tasks/optimizers/piecewise_jerk_speed:piecewise_jerk_speed_optimizer",
     ],
 )
 

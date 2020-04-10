@@ -1,5 +1,8 @@
 header {
-  module_name: "planning"
+  timestamp_sec: 1515787931.3446462
+  lidar_timestamp: 0
+  camera_timestamp: 0
+  radar_timestamp: 0
 }
 is_replan: true
 gear: GEAR_DRIVE
@@ -9,24 +12,14 @@ decision {
       reason_code: STOP_REASON_STOP_SIGN
       reason: "stop by SS_1017"
       stop_point {
-        x: 586395.26653516036
-        y: 4140150.3965474572
+        x: 586395.24501439068
+        y: 4140150.420841597
       }
-      stop_heading: -1.5497981028320533
+      stop_heading: -1.5813726415328468
       change_lane_type: FORWARD
     }
   }
   object_decision {
-    decision {
-      id: "14469"
-      perception_id: 14469
-      object_decision {
-        nudge {
-          type: LEFT_NUDGE
-          distance_l: 0.5
-        }
-      }
-    }
     decision {
       id: "SS_1017"
       perception_id: -911148558
@@ -35,11 +28,11 @@ decision {
           reason_code: STOP_REASON_STOP_SIGN
           distance_s: -1
           stop_point {
-            x: 586395.26653516036
-            y: 4140150.3965474572
+            x: 586395.24501439068
+            y: 4140150.420841597
             z: 0
           }
-          stop_heading: -1.5497981028320533
+          stop_heading: -1.5813726415328468
         }
       }
     }
@@ -55,7 +48,10 @@ routing_header {
 }
 right_of_way_status: UNPROTECTED
 lane_id {
-  id: "10679a_1_-1"
+  id: "2972_1_-1"
+}
+lane_id {
+  id: "2974_1_-1"
 }
 lane_id {
   id: "2975_1_-1"
@@ -89,4 +85,42 @@ lane_id {
 }
 engage_advice {
   advice: READY_TO_ENGAGE
+}
+trajectory_type: NORMAL
+replan_reason: "replan for no previous trajectory."
+target_lane_id {
+  id: "2972_1_-1"
+}
+target_lane_id {
+  id: "2974_1_-1"
+}
+target_lane_id {
+  id: "2975_1_-1"
+}
+target_lane_id {
+  id: "11181_1_-1"
+}
+target_lane_id {
+  id: "11180_1_-1"
+}
+target_lane_id {
+  id: "812_1_-1"
+}
+target_lane_id {
+  id: "204_1_-1"
+}
+target_lane_id {
+  id: "11042_1_-1"
+}
+target_lane_id {
+  id: "11041_1_-1"
+}
+target_lane_id {
+  id: "1697a_1_-1"
+}
+target_lane_id {
+  id: "368_1_-1"
+}
+target_lane_id {
+  id: "449_1_-1"
 }

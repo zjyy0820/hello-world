@@ -19,7 +19,7 @@ cd "${DIR}/.."
 source "${DIR}/apollo_base.sh"
 
 GNSS_LOC_TOPIC="/apollo/localization/msf_gnss"
-LIDAR_LOC_TOPIC="/apollo/localization/msf_lidar" 
+LIDAR_LOC_TOPIC="/apollo/localization/msf_lidar"
 FUSION_LOC_TOPIC="/apollo/localization/pose"
 ODOMETRY_LOC_TOPIC="/apollo/sensor/gnss/odometry"
 CLOUD_TOPIC="/apollo/sensor/velodyne64/compensator/PointCloud2"
@@ -32,7 +32,7 @@ ODOMETRY_LOC_FILE="odometry_loc.txt"
 function data_exporter() {
   local BAG_FILE=$1
   local OUT_FOLDER=$2
-  $APOLLO_BIN_PREFIX/modules/localization/msf/local_tool/data_extraction/monitor_data_exporter \
+  $APOLLO_BIN_PREFIX/modules/localization/msf/local_tool/data_extraction/cyber_record_parser \
     --bag_file $BAG_FILE \
     --out_folder $OUT_FOLDER \
     --cloud_topic $CLOUD_TOPIC \
@@ -65,9 +65,10 @@ function compare_poses() {
 }
 
 cd $IN_FOLDER
-for item in $(ls -l *.bag | awk '{print $9}')
+for item in $(ls -l *record.* | awk '{print $9}')
 do
-  DIR_NAME=$(echo $item | cut -d . -f 1)
+  SEGMENTS=$(echo $item | awk -F'.' '{print NF}')
+  DIR_NAME=$(echo $item | cut -d . -f ${SEGMENTS})
   if [ -d "${DIR_NAME}" ]; then
     rm -r ${DIR_NAME}
   fi
@@ -79,21 +80,21 @@ done
 rm -rf compare_fusion_odometry_all.txt
 touch compare_fusion_odometry_all.txt
 for item in  $(find . -name "compare_fusion_odometry.txt")
-do 
+do
   cat $item >> compare_fusion_odometry_all.txt
 done
 
 rm -rf compare_lidar_odometry_all.txt
 touch compare_lidar_odometry_all.txt
 for item in  $(find . -name "compare_lidar_odometry.txt")
-do 
+do
   cat $item >> compare_lidar_odometry_all.txt
 done
 
 rm -rf compare_gnss_odometry_all.txt
 touch compare_gnss_odometry_all.txt
 for item in  $(find . -name "compare_gnss_odometry.txt")
-do 
+do
   cat $item >> compare_gnss_odometry_all.txt
 done
 

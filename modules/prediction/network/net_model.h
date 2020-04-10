@@ -14,19 +14,14 @@
  * limitations under the License.
  *****************************************************************************/
 
+#pragma once
+
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "Eigen/Dense"
-
-#include "modules/prediction/proto/network_model.pb.h"
-
 #include "modules/prediction/network/net_layer.h"
-#include "modules/prediction/network/net_util.h"
-
-#ifndef MODULES_PREDICTION_NETWORK_NET_MODEL_H_
-#define MODULES_PREDICTION_NETWORK_NET_MODEL_H_
+#include "modules/prediction/proto/network_model.pb.h"
 
 /**
  * @namespace apollo::prediction::network
@@ -120,5 +115,3 @@ class NetModel {
 }  // namespace network
 }  // namespace prediction
 }  // namespace apollo
-
-#endif  // MODULES_PREDICTION_NETWORK_NET_MODEL_H_

@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright 2017 The Apollo Authors. All Rights Reserved.
+ * Copyright 2019 The Apollo Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,7 @@
  * @file %(car_type_lower)s_vehicle_factory.h
  */
 
-#ifndef MODULES_CANBUS_VEHICLE_%(car_type_upper)s_VEHICLE_FACTORY_H_
-#define MODULES_CANBUS_VEHICLE_%(car_type_upper)s_VEHICLE_FACTORY_H_
+#pragma once
 
 #include <memory>
 
@@ -58,11 +57,11 @@ class %(car_type_cap)sVehicleFactory : public AbstractVehicleFactory {
    * @brief create %(car_type_lower)s message manager
    * @returns a unique_ptr that points to the created message manager
    */
-  std::unique_ptr<MessageManager<::apollo::canbus::ChassisDetail>> 
+  std::unique_ptr<MessageManager<::apollo::canbus::ChassisDetail>>
   CreateMessageManager() override;
 };
 
 }  // namespace canbus
 }  // namespace apollo
 
-#endif  // MODULES_CANBUS_VEHICLE_%(car_type_upper)s_VEHICLE_FACTORY_H_
+

@@ -19,29 +19,46 @@
 #include <thread>
 #include <vector>
 
-#include "ros/ros.h"
 #include "third_party/json/json.hpp"
 
-#include "modules/common/adapters/adapter_manager.h"
-#include "modules/common/adapters/proto/adapter_config.pb.h"
-#include "modules/common/log.h"
+#include "cyber/common/file.h"
+#include "cyber/common/log.h"
+#include "cyber/cyber.h"
+#include "cyber/time/rate.h"
+#include "modules/common/adapters/adapter_gflags.h"
+#include "modules/common/util/message_util.h"
+#include "modules/map/relative_map/common/relative_map_gflags.h"
 #include "modules/map/relative_map/proto/navigation.pb.h"
+#include "modules/map/relative_map/proto/navigator_config.pb.h"
 
-using apollo::common::adapter::AdapterConfig;
-using apollo::common::adapter::AdapterManager;
-using apollo::common::adapter::AdapterManagerConfig;
+using apollo::cyber::Rate;
 using apollo::relative_map::NavigationInfo;
 using apollo::relative_map::NavigationPath;
+using apollo::relative_map::NavigatorConfig;
 using nlohmann::json;
 
 bool ParseNavigationLineFileNames(
     int argc, char** argv, std::vector<std::string>* navigation_line_filenames);
 bool GetNavigationPathFromFile(const std::string& filename,
+                               const NavigatorConfig& navigator_config,
                                NavigationPath* navigation_path);
+void CheckConfig(const apollo::relative_map::NavigatorConfig& navigator_config);
 
 int main(int argc, char** argv) {
-  google::InitGoogleLogging(argv[0]);
+  google::ParseCommandLineFlags(&argc, &argv, true);
+  // Init the cyber framework
+  apollo::cyber::Init(argv[0]);
   FLAGS_alsologtostderr = true;
+
+  NavigatorConfig navigator_config;
+  AINFO << "The navigator configuration filename is: "
+        << FLAGS_navigator_config_filename;
+  if (!apollo::cyber::common::GetProtoFromFile(FLAGS_navigator_config_filename,
+                                               &navigator_config)) {
+    AERROR << "Failed to parse " << FLAGS_navigator_config_filename;
+    return -1;
+  }
+  CheckConfig(navigator_config);
 
   std::vector<std::string> navigation_line_filenames;
   if (!ParseNavigationLineFileNames(argc, argv, &navigation_line_filenames)) {
@@ -55,26 +72,19 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  ros::init(argc, argv, "navigator_offline", ros::init_options::AnonymousName);
-
-  AdapterManagerConfig config;
-  config.set_is_ros(true);
-  auto* sub_config = config.add_config();
-  sub_config->set_mode(AdapterConfig::PUBLISH_ONLY);
-  sub_config->set_type(AdapterConfig::NAVIGATION);
-
-  AdapterManager::Init(config);
-  ADEBUG << "AdapterManager is initialized.";
+  ADEBUG << "The flag \"navigator_down_sample\" is: "
+         << navigator_config.enable_navigator_downsample();
 
   NavigationInfo navigation_info;
   int i = 0;
   for (const std::string& filename : navigation_line_filenames) {
     auto* navigation_path = navigation_info.add_navigation_path();
-    if (!GetNavigationPathFromFile(filename, navigation_path)) {
+    if (!GetNavigationPathFromFile(filename, navigator_config,
+                                   navigation_path)) {
       AWARN << "Failed to load file: " << filename;
       continue;
     }
-    AINFO << "Processing " + filename;
+    AINFO << "The file: " << filename + " is processed ";
     navigation_path->set_path_priority(i);
     navigation_path->mutable_path()->set_name("Navigation path " + i);
     ++i;
@@ -84,24 +94,26 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  if (ros::ok()) {
-    AdapterManager::FillNavigationHeader("relative_map", &navigation_info);
-    AdapterManager::PublishNavigation(navigation_info);
+  std::shared_ptr<apollo::cyber::Node> node(
+      apollo::cyber::CreateNode("navigation_info"));
+  auto writer = node->CreateWriter<apollo::relative_map::NavigationInfo>(
+      FLAGS_navigation_topic);
+
+  // In theory, the message only needs to be sent once. Considering the problems
+  // such as the network delay, We send it several times to ensure that the data
+  // is sent successfully.
+  Rate rate(1.0);
+  static constexpr int kTransNum = 3;
+  int trans_num = 0;
+  while (apollo::cyber::OK()) {
+    if (trans_num > kTransNum) {
+      break;
+    }
+    apollo::common::util::FillHeader(node->Name(), &navigation_info);
+    writer->Write(navigation_info);
     ADEBUG << "Sending navigation info:" << navigation_info.DebugString();
-
-    // Wait for the subscriber's callback function to process this topic.
-    // Otherwise, an error message similar to the following will appear:
-    // [ERROR] [1530582989.030754209]: Failed to parse message: boost: mutex
-    // lock failed in pthread_mutex_lock: Invalid argument
-    ros::spinOnce();
-
-    // Sleep for one second to prevent the publishing node from being destroyed
-    // prematurely.
-    ros::Rate r(1);  // 1 hz
-    r.sleep();
-  } else {
-    AERROR << "ROS status is wrong.";
-    return -1;
+    rate.Sleep();
+    ++trans_num;
   }
 
   return 0;
@@ -129,6 +141,7 @@ bool ParseNavigationLineFileNames(
 }
 
 bool GetNavigationPathFromFile(const std::string& filename,
+                               const NavigatorConfig& navigator_config,
                                NavigationPath* navigation_path) {
   CHECK_NOTNULL(navigation_path);
 
@@ -138,21 +151,65 @@ bool GetNavigationPathFromFile(const std::string& filename,
     return false;
   }
   std::string line_str;
+  double last_sampled_s = std::numeric_limits<double>::min();
+  double current_sampled_s = 0.0;
+  double diff_s = 0.0;
+  double current_kappa = 0.0;
+  int original_points_num = 0;
+  int down_sampled_points_num = 0;
+  const auto& sample_param = navigator_config.sample_param();
   while (std::getline(ifs, line_str)) {
     try {
       auto json_obj = json::parse(line_str);
-      auto* point = navigation_path->mutable_path()->add_path_point();
-      point->set_x(json_obj["x"]);
-      point->set_y(json_obj["y"]);
-      point->set_s(json_obj["s"]);
-      point->set_theta(json_obj["theta"]);
-      point->set_kappa(json_obj["kappa"]);
-      point->set_dkappa(json_obj["dkappa"]);
-      ADEBUG << "x: " << json_obj["x"] << ", y: " << json_obj["y"];
+      current_sampled_s = json_obj["s"];
+      current_kappa = json_obj["kappa"];
+      diff_s = std::fabs(current_sampled_s - last_sampled_s);
+      bool not_down_sampling =
+          navigator_config.enable_navigator_downsample()
+              ? diff_s >= sample_param.straight_sample_interval() ||
+                    (diff_s >= sample_param.small_kappa_sample_interval() &&
+                     std::fabs(current_kappa) > sample_param.small_kappa()) ||
+                    (diff_s >= sample_param.middle_kappa_sample_interval() &&
+                     std::fabs(current_kappa) > sample_param.middle_kappa()) ||
+                    (diff_s >= sample_param.large_kappa_sample_interval() &&
+                     std::fabs(current_kappa) > sample_param.large_kappa())
+              : true;
+      // Add a condition: !navigation_path->has_path() to keep the first point
+      // when down_sampling
+      if (not_down_sampling || !navigation_path->has_path()) {
+        last_sampled_s = current_sampled_s;
+        auto* point = navigation_path->mutable_path()->add_path_point();
+        point->set_x(json_obj["x"]);
+        point->set_y(json_obj["y"]);
+        point->set_s(current_sampled_s);
+        point->set_theta(json_obj["theta"]);
+        point->set_kappa(current_kappa);
+        point->set_dkappa(json_obj["dkappa"]);
+        ++down_sampled_points_num;
+        ADEBUG << "down_sample_x: " << json_obj["x"]
+               << ", down_sample_y: " << json_obj["y"];
+      }
+      ++original_points_num;
     } catch (const std::exception& e) {
       AERROR << "Failed to parse JSON data: " << e.what();
       return false;
     }
   }
+  AINFO << "The number of original points is: " << original_points_num
+        << " and the number of down sampled points is: "
+        << down_sampled_points_num << " in the file: " << filename;
   return true;
+}
+
+void CheckConfig(
+    const apollo::relative_map::NavigatorConfig& navigator_config) {
+  ACHECK(navigator_config.has_sample_param());
+  const auto& sample_param = navigator_config.sample_param();
+  ACHECK(sample_param.has_straight_sample_interval());
+  ACHECK(sample_param.has_small_kappa_sample_interval());
+  ACHECK(sample_param.has_middle_kappa_sample_interval());
+  ACHECK(sample_param.has_large_kappa_sample_interval());
+  ACHECK(sample_param.has_small_kappa());
+  ACHECK(sample_param.has_middle_kappa());
+  ACHECK(sample_param.has_large_kappa());
 }

@@ -16,17 +16,8 @@
 
 #include "modules/prediction/predictor/single_lane/single_lane_predictor.h"
 
-#include <string>
-#include <vector>
-
-#include "gtest/gtest.h"
-
-#include "modules/common/util/file.h"
-#include "modules/map/hdmap/hdmap.h"
-#include "modules/perception/proto/perception_obstacle.pb.h"
+#include "cyber/common/file.h"
 #include "modules/prediction/common/kml_map_based_test.h"
-#include "modules/prediction/common/prediction_gflags.h"
-#include "modules/prediction/container/obstacles/obstacle.h"
 #include "modules/prediction/container/obstacles/obstacles_container.h"
 #include "modules/prediction/evaluator/vehicle/cost_evaluator.h"
 
@@ -36,9 +27,9 @@ namespace prediction {
 class SingleLanePredictorTest : public KMLMapBasedTest {
  public:
   virtual void SetUp() {
-    std::string file =
+    const std::string file =
         "modules/prediction/testdata/single_perception_vehicle_onlane.pb.txt";
-    apollo::common::util::GetProtoFromFile(file, &perception_obstacles_);
+    cyber::common::GetProtoFromFile(file, &perception_obstacles_);
   }
 
  protected:
@@ -54,12 +45,14 @@ TEST_F(SingleLanePredictorTest, OnLaneCase) {
   CostEvaluator cost_evaluator;
   ObstaclesContainer container;
   container.Insert(perception_obstacles_);
+  container.BuildLaneGraph();
+  ADCTrajectoryContainer adc_trajectory_container;
   Obstacle* obstacle_ptr = container.GetObstacle(1);
-  EXPECT_TRUE(obstacle_ptr != nullptr);
-  cost_evaluator.Evaluate(obstacle_ptr);
+  EXPECT_NE(obstacle_ptr, nullptr);
+  cost_evaluator.Evaluate(obstacle_ptr, &container);
   SingleLanePredictor predictor;
-  predictor.Predict(obstacle_ptr);
-  EXPECT_EQ(predictor.NumOfTrajectories(), 2);
+  predictor.Predict(&adc_trajectory_container, obstacle_ptr, &container);
+  EXPECT_EQ(predictor.NumOfTrajectories(*obstacle_ptr), 2);
 }
 
 }  // namespace prediction

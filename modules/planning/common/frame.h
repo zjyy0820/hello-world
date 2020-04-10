@@ -18,30 +18,33 @@
  * @file
  **/
 
-#ifndef MODULES_PLANNING_COMMON_FRAME_H_
-#define MODULES_PLANNING_COMMON_FRAME_H_
+#pragma once
 
-#include <cstdint>
 #include <list>
-#include <memory>
+#include <map>
 #include <string>
+#include <tuple>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "modules/common/proto/geometry.pb.h"
 #include "modules/common/vehicle_state/proto/vehicle_state.pb.h"
 #include "modules/localization/proto/pose.pb.h"
+#include "modules/planning/proto/pad_msg.pb.h"
 #include "modules/planning/proto/planning.pb.h"
 #include "modules/planning/proto/planning_config.pb.h"
 #include "modules/planning/proto/planning_internal.pb.h"
 #include "modules/prediction/proto/prediction_obstacle.pb.h"
 #include "modules/routing/proto/routing.pb.h"
 
+#include "modules/common/math/vec2d.h"
 #include "modules/common/monitor_log/monitor_log_buffer.h"
 #include "modules/common/status/status.h"
-#include "modules/planning/common/change_lane_decider.h"
 #include "modules/planning/common/indexed_queue.h"
-#include "modules/planning/common/lag_prediction.h"
+#include "modules/planning/common/local_view.h"
 #include "modules/planning/common/obstacle.h"
+#include "modules/planning/common/open_space_info.h"
 #include "modules/planning/common/reference_line_info.h"
 #include "modules/planning/common/trajectory/publishable_trajectory.h"
 #include "modules/planning/reference_line/reference_line_provider.h"
@@ -57,14 +60,27 @@ namespace planning {
 
 class Frame {
  public:
-  explicit Frame(uint32_t sequence_num,
-                 const common::TrajectoryPoint &planning_start_point,
-                 const double start_time,
-                 const common::VehicleState &vehicle_state,
-                 ReferenceLineProvider *reference_line_provider);
+  explicit Frame(uint32_t sequence_num);
+
+  Frame(uint32_t sequence_num, const LocalView &local_view,
+        const common::TrajectoryPoint &planning_start_point,
+        const common::VehicleState &vehicle_state,
+        ReferenceLineProvider *reference_line_provider);
+
+  Frame(uint32_t sequence_num, const LocalView &local_view,
+        const common::TrajectoryPoint &planning_start_point,
+        const common::VehicleState &vehicle_state);
+
+  virtual ~Frame() = default;
 
   const common::TrajectoryPoint &PlanningStartPoint() const;
-  common::Status Init();
+
+  common::Status Init(
+      const std::list<ReferenceLine> &reference_lines,
+      const std::list<hdmap::RouteSegments> &segments,
+      const std::vector<routing::LaneWaypoint> &future_route_waypoints);
+
+  common::Status InitForOpenSpace();
 
   uint32_t SequenceNum() const;
 
@@ -74,11 +90,16 @@ class Frame {
 
   void RecordInputDebug(planning_internal::Debug *debug);
 
-  std::list<ReferenceLineInfo> &reference_line_info();
+  const std::list<ReferenceLineInfo> &reference_line_info() const;
+  std::list<ReferenceLineInfo> *mutable_reference_line_info();
 
   Obstacle *Find(const std::string &id);
 
   const ReferenceLineInfo *FindDriveReferenceLineInfo();
+
+  const ReferenceLineInfo *FindTargetReferenceLineInfo();
+
+  const ReferenceLineInfo *FindFailedReferenceLineInfo();
 
   const ReferenceLineInfo *DriveReferenceLineInfo() const;
 
@@ -105,19 +126,61 @@ class Frame {
       const double planning_start_time,
       prediction::PredictionObstacles *prediction_obstacles);
 
-  ADCTrajectory *mutable_trajectory() { return &trajectory_; }
+  void set_current_frame_planned_trajectory(
+      ADCTrajectory current_frame_planned_trajectory) {
+    current_frame_planned_trajectory_ =
+        std::move(current_frame_planned_trajectory);
+  }
 
-  const ADCTrajectory &trajectory() const { return trajectory_; }
+  const ADCTrajectory &current_frame_planned_trajectory() const {
+    return current_frame_planned_trajectory_;
+  }
+
+  void set_current_frame_planned_path(
+      DiscretizedPath current_frame_planned_path) {
+    current_frame_planned_path_ = std::move(current_frame_planned_path);
+  }
+
+  const DiscretizedPath &current_frame_planned_path() const {
+    return current_frame_planned_path_;
+  }
 
   const bool is_near_destination() const { return is_near_destination_; }
 
+  /**
+   * @brief Adjust reference line priority according to actual road conditions
+   * @id_to_priority lane id and reference line priority mapping relationship
+   */
+  void UpdateReferenceLinePriority(
+      const std::map<std::string, uint32_t> &id_to_priority);
+
+  const LocalView &local_view() const { return local_view_; }
+
+  ThreadSafeIndexedObstacles *GetObstacleList() { return &obstacles_; }
+
+  const OpenSpaceInfo &open_space_info() const { return open_space_info_; }
+
+  OpenSpaceInfo *mutable_open_space_info() { return &open_space_info_; }
+
+  perception::TrafficLight GetSignal(const std::string &traffic_light_id) const;
+
+  const DrivingAction &GetPadMsgDrivingAction() const {
+    return pad_msg_driving_action_;
+  }
+
+  std::list<ReferenceLineInfo>* mutable_reference_line_infos() {
+    return &reference_line_info_;
+  }
+
  private:
-  bool CreateReferenceLineInfo();
+  common::Status InitFrameData();
+
+  bool CreateReferenceLineInfo(const std::list<ReferenceLine> &reference_lines,
+                               const std::list<hdmap::RouteSegments> &segments);
 
   /**
    * Find an obstacle that collides with ADC (Autonomous Driving Car) if
-   * such
-   * obstacle exists.
+   * such obstacle exists.
    * @return pointer to the obstacle if such obstacle exists, otherwise
    * @return false if no colliding obstacle.
    */
@@ -131,13 +194,19 @@ class Frame {
 
   void AddObstacle(const Obstacle &obstacle);
 
+  void ReadTrafficLights();
+
+  void ReadPadMsgDrivingAction();
+  void ResetPadMsgDrivingAction();
+
  private:
   uint32_t sequence_num_ = 0;
+  LocalView local_view_;
   const hdmap::HDMap *hdmap_ = nullptr;
   common::TrajectoryPoint planning_start_point_;
-  const double start_time_;
   common::VehicleState vehicle_state_;
   std::list<ReferenceLineInfo> reference_line_info_;
+
   bool is_near_destination_ = false;
 
   /**
@@ -145,21 +214,33 @@ class Frame {
    **/
   const ReferenceLineInfo *drive_reference_line_info_ = nullptr;
 
-  prediction::PredictionObstacles prediction_;
   ThreadSafeIndexedObstacles obstacles_;
-  ChangeLaneDecider change_lane_decider_;
-  ADCTrajectory trajectory_;  // last published trajectory
-  std::unique_ptr<LagPrediction> lag_predictor_;
-  ReferenceLineProvider *reference_line_provider_ = nullptr;
-  apollo::common::monitor::MonitorLogger monitor_logger_;
+  std::unordered_map<std::string, const perception::TrafficLight *>
+      traffic_lights_;
+
+  // current frame published trajectory
+  ADCTrajectory current_frame_planned_trajectory_;
+
+  // current frame path for future possible speed fallback
+  DiscretizedPath current_frame_planned_path_;
+
+  const ReferenceLineProvider *reference_line_provider_ = nullptr;
+
+  OpenSpaceInfo open_space_info_;
+
+  std::vector<routing::LaneWaypoint> future_route_waypoints_;
+
+  common::monitor::MonitorLogBuffer monitor_logger_buffer_;
+
+  std::tuple<bool, double, double, double> pull_over_info_;
+
+  static DrivingAction pad_msg_driving_action_;
 };
 
 class FrameHistory : public IndexedQueue<uint32_t, Frame> {
  private:
-  DECLARE_SINGLETON(FrameHistory);
+  DECLARE_SINGLETON(FrameHistory)
 };
 
 }  // namespace planning
 }  // namespace apollo
-
-#endif  // MODULES_PLANNING_COMMON_FRAME_H_

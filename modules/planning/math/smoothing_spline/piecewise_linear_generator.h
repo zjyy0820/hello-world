@@ -19,13 +19,9 @@
  * @brief: The definition of PiecewiseLinearGenerator class
  **/
 
-#ifndef MODULES_PLANNING_MATH_SMOOTHING_SPLINE_PIECEWISE_LINEAR_GENERATOR_H_
-#define MODULES_PLANNING_MATH_SMOOTHING_SPLINE_PIECEWISE_LINEAR_GENERATOR_H_
+#pragma once
 
 #include <memory>
-#include <vector>
-
-#include "Eigen/Core"
 
 #include "modules/common/math/qp_solver/qp_solver.h"
 #include "modules/planning/math/smoothing_spline/piecewise_linear_constraint.h"
@@ -64,5 +60,3 @@ class PiecewiseLinearGenerator {
 
 }  // namespace planning
 }  // namespace apollo
-
-#endif  // MODULES_PLANNING_MATH_SMOOTHING_SPLINE_PIECEWISE_LINEAR_GENERATOR_H_

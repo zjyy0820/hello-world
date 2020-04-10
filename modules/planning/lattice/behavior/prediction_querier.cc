@@ -20,8 +20,6 @@
 
 #include "modules/planning/lattice/behavior/prediction_querier.h"
 
-#include <string>
-
 #include "modules/common/math/linear_interpolation.h"
 #include "modules/common/math/path_matcher.h"
 
@@ -33,8 +31,8 @@ PredictionQuerier::PredictionQuerier(
     const std::shared_ptr<std::vector<common::PathPoint>>& ptr_reference_line)
     : ptr_reference_line_(ptr_reference_line) {
   for (const auto ptr_obstacle : obstacles) {
-    if (id_obstacle_map_.find(ptr_obstacle->Id()) == id_obstacle_map_.end()) {
-      id_obstacle_map_[ptr_obstacle->Id()] = ptr_obstacle;
+    if (common::util::InsertIfNotPresent(&id_obstacle_map_, ptr_obstacle->Id(),
+                                         ptr_obstacle)) {
       obstacles_.push_back(ptr_obstacle);
     } else {
       AWARN << "Duplicated obstacle found [" << ptr_obstacle->Id() << "]";
@@ -48,7 +46,7 @@ std::vector<const Obstacle*> PredictionQuerier::GetObstacles() const {
 
 double PredictionQuerier::ProjectVelocityAlongReferenceLine(
     const std::string& obstacle_id, const double s, const double t) const {
-  CHECK(id_obstacle_map_.find(obstacle_id) != id_obstacle_map_.end());
+  ACHECK(id_obstacle_map_.find(obstacle_id) != id_obstacle_map_.end());
 
   const auto& trajectory = id_obstacle_map_.at(obstacle_id)->Trajectory();
   int num_traj_point = trajectory.trajectory_point_size();
@@ -61,10 +59,12 @@ double PredictionQuerier::ProjectVelocityAlongReferenceLine(
     return 0.0;
   }
 
-  auto matched_it = std::lower_bound(trajectory.trajectory_point().begin(),
-      trajectory.trajectory_point().end(), t,
-      [](const common::TrajectoryPoint& p, const double t)
-      { return p.relative_time() < t; });
+  auto matched_it =
+      std::lower_bound(trajectory.trajectory_point().begin(),
+                       trajectory.trajectory_point().end(), t,
+                       [](const common::TrajectoryPoint& p, const double t) {
+                         return p.relative_time() < t;
+                       });
 
   double v = matched_it->v();
   double theta = matched_it->path_point().theta();

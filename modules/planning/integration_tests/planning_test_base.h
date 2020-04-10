@@ -15,28 +15,20 @@
  *****************************************************************************/
 
 #include <map>
+#include <memory>
 #include <string>
-#include <vector>
 
 #include "gtest/gtest.h"
 
-#include "modules/planning/proto/dp_poly_path_config.pb.h"
-#include "modules/planning/proto/dp_st_speed_config.pb.h"
 #include "modules/planning/proto/traffic_rule_config.pb.h"
 
-#include "modules/common/adapters/adapter_gflags.h"
-#include "modules/common/adapters/adapter_manager.h"
-#include "modules/common/configs/config_gflags.h"
-#include "modules/common/log.h"
-#include "modules/common/util/file.h"
-
-#define private public
-#include "modules/planning/planning.h"
+#define protected public
+// TODO(all) #include "modules/planning/navi_planning.h"
+#include "modules/planning/on_lane_planning.h"
+#include "modules/planning/planning_base.h"
 
 namespace apollo {
 namespace planning {
-
-using common::adapter::AdapterManager;
 
 #define RUN_GOLDEN_TEST(sub_case_num)                                      \
   {                                                                        \
@@ -60,6 +52,7 @@ using common::adapter::AdapterManager;
 
 #define TMAIN                                            \
   int main(int argc, char** argv) {                      \
+    ::apollo::cyber::Init("planning_test");              \
     ::testing::InitGoogleTest(&argc, argv);              \
     ::google::ParseCommandLineFlags(&argc, &argv, true); \
     return RUN_ALL_TESTS();                              \
@@ -78,10 +71,10 @@ DECLARE_string(test_previous_planning_file);
 
 class PlanningTestBase : public ::testing::Test {
  public:
+  virtual ~PlanningTestBase() = default;
+
   static void SetUpTestCase();
-
   virtual void SetUp();
-
   void UpdateData();
 
   /**
@@ -97,12 +90,15 @@ class PlanningTestBase : public ::testing::Test {
 
  protected:
   void TrimPlanning(ADCTrajectory* origin, bool no_trajectory_point);
-  bool SetUpAdapters();
+  bool FeedTestData();
   bool IsValidTrajectory(const ADCTrajectory& trajectory);
 
-  Planning planning_;
+ protected:
+  std::unique_ptr<PlanningBase> planning_ = nullptr;
   std::map<TrafficRuleConfig::RuleId, bool> rule_enabled_;
   ADCTrajectory adc_trajectory_;
+  LocalView local_view_;
+  PlanningConfig config_;
 };
 
 }  // namespace planning

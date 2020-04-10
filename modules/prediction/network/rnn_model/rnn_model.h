@@ -14,15 +14,12 @@
  * limitations under the License.
  *****************************************************************************/
 
+#pragma once
+
 #include <vector>
 
-#include "Eigen/Dense"
-
-#include "modules/common/macro.h"
+#include "cyber/common/macros.h"
 #include "modules/prediction/network/net_model.h"
-
-#ifndef MODULES_PREDICTION_NETWORK_RNN_MODEL_RNN_MODEL_H_
-#define MODULES_PREDICTION_NETWORK_RNN_MODEL_RNN_MODEL_H_
 
 /**
  * @namespace apollo::prediction::network
@@ -66,11 +63,9 @@ class RnnModel : public NetModel {
    */
   void ResetState() const override;
 
-  DECLARE_SINGLETON(RnnModel);
+  DECLARE_SINGLETON(RnnModel)
 };
 
 }  // namespace network
 }  // namespace prediction
 }  // namespace apollo
-
-#endif  // MODULES_PREDICTION_NETWORK_RNN_MODEL_RNN_MODEL_H_

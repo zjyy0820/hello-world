@@ -17,40 +17,32 @@
 ###############################################################################
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+DREAMVIEW_URL="http://localhost:8888"
 
 cd "${DIR}/.."
+
+# Make sure supervisord has correct coredump file limit.
+ulimit -c unlimited
 
 source "${DIR}/apollo_base.sh"
 
 function start() {
-    # Setup supervisord.
-    if [ "$HOSTNAME" == "in_release_docker" ]; then
-        supervisord -c /apollo/modules/tools/supervisord/release.conf >& /tmp/supervisord.start.log
-        echo "Started supervisord with release conf"
-    else
-        supervisord -c /apollo/modules/tools/supervisord/dev.conf >& /tmp/supervisord.start.log
-        echo "Started supervisord with dev conf"
-    fi
-
-    # Start roscore.
-    bash scripts/roscore.sh start
-    # Start monitor.
-    supervisorctl start monitor > /dev/null
-    # Start dreamview.
-    bash scripts/voice_detector.sh start
-    supervisorctl start dreamview
-    supervisorctl status dreamview | grep RUNNING > /dev/null
+    ./scripts/monitor.sh start
+    ./scripts/dreamview.sh start
     if [ $? -eq 0 ]; then
-        echo "Dreamview is running at http://localhost:8888"
+        sleep 2  # wait for some time before starting to check
+        http_status="$(curl -o /dev/null -I -L -s -w '%{http_code}' ${DREAMVIEW_URL})"
+        if [ $http_status -eq 200 ]; then
+            echo "Dreamview is running at" $DREAMVIEW_URL
+        else
+            echo "Failed to start Dreamview. Please check /apollo/data/log or /apollo/data/core for more information"
+        fi
     fi
 }
 
 function stop() {
-    # Stop modules in reverse order of the starting procedure.
-    supervisorctl stop dreamview
-    bash scripts/voice_detector.sh stop
-    supervisorctl stop monitor
-    source scripts/roscore.sh stop
+    ./scripts/dreamview.sh stop
+    ./scripts/monitor.sh stop
 }
 
 case $1 in

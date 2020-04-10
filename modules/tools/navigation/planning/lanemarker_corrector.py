@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 ###############################################################################
 # Copyright 2017 The Apollo Authors. All Rights Reserved.
@@ -26,4 +26,3 @@ class LaneMarkerCorrector:
 
     def correct(self, position, heading, routing_segment):
         return self.left_marker, self.right_marker
-

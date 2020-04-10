@@ -22,8 +22,8 @@
 #include <map>
 #include <vector>
 
+#include "cyber/common/log.h"
 #include "modules/common/configs/config_gflags.h"
-#include "modules/common/log.h"
 
 #include "modules/third_party_perception/common/third_party_perception_gflags.h"
 #include "modules/third_party_perception/common/third_party_perception_util.h"
@@ -38,15 +38,14 @@ namespace third_party_perception {
 namespace conversion {
 
 using apollo::canbus::Chassis;
-using apollo::drivers::ContiRadar;
 using apollo::drivers::DelphiESR;
 using apollo::drivers::Mobileye;
 using apollo::localization::LocalizationEstimate;
 using apollo::perception::PerceptionObstacle;
 using apollo::perception::PerceptionObstacles;
-using apollo::perception::Point;
+using Point = apollo::common::Point3D;
 
-std::map<std::int32_t, ::apollo::hdmap::LaneBoundaryType_Type>
+std::map<std::int32_t, apollo::hdmap::LaneBoundaryType_Type>
     lane_conversion_map = {{0, apollo::hdmap::LaneBoundaryType::DOTTED_YELLOW},
                            {1, apollo::hdmap::LaneBoundaryType::SOLID_YELLOW},
                            {2, apollo::hdmap::LaneBoundaryType::UNKNOWN},
@@ -179,7 +178,8 @@ PerceptionObstacles MobileyeToPerceptionObstacles(
     } else {
       path_c1 = obstacles.lane_marker().right_lane_marker().c1_heading_angle();
       path_c2 = obstacles.lane_marker().right_lane_marker().c2_curvature();
-      path_c3 = obstacles.lane_marker().right_lane_marker().c2_curvature();
+      path_c3 =
+          obstacles.lane_marker().right_lane_marker().c3_curvature_derivative();
     }
 
     if (!FLAGS_use_navigation_mode) {
@@ -375,12 +375,23 @@ RadarObstacles DelphiToRadarObstacles(
       motionpowers(64);
   for (const auto& esr_trackmotionpower_540 :
        delphi_esr.esr_trackmotionpower_540()) {
+    if (!esr_trackmotionpower_540.has_can_tx_track_can_id_group()) {
+      AERROR << "ESR track motion power 540 does not have "
+                "can_tx_track_can_id_group()";
+      continue;
+    }
     const int can_tx_track_can_id_group =
         esr_trackmotionpower_540.can_tx_track_can_id_group();
-    for (int index = 0; index < (can_tx_track_can_id_group < 9 ? 7 : 1);
+    const int can_tx_track_motion_power_size =
+        esr_trackmotionpower_540.can_tx_track_motion_power_size();
+    for (int index = 0; index < (can_tx_track_can_id_group < 9 ? 7 : 1) &&
+                        index < can_tx_track_motion_power_size;
          ++index) {
-      motionpowers[can_tx_track_can_id_group * 7 + index].CopyFrom(
-          esr_trackmotionpower_540.can_tx_track_motion_power(index));
+      std::size_t motion_powers_index = can_tx_track_can_id_group * 7 + index;
+      if (motion_powers_index < motionpowers.size()) {
+        motionpowers[motion_powers_index].CopyFrom(
+            esr_trackmotionpower_540.can_tx_track_motion_power(index));
+      }
     }
   }
 
@@ -389,12 +400,14 @@ RadarObstacles DelphiToRadarObstacles(
   const auto adc_quaternion = localization.pose().orientation();
   const double adc_theta = GetAngleFromQuaternion(adc_quaternion);
 
-  for (int index = 0; index < delphi_esr.esr_track01_500_size(); ++index) {
+  for (int index = 0; index < delphi_esr.esr_track01_500_size() &&
+                      index < static_cast<int>(motionpowers.size());
+       ++index) {
     const auto& data_500 = delphi_esr.esr_track01_500(index);
 
     // ignore invalid target
     if (data_500.can_tx_track_status() ==
-        ::apollo::drivers::Esr_track01_500::CAN_TX_TRACK_STATUS_NO_TARGET) {
+        apollo::drivers::Esr_track01_500::CAN_TX_TRACK_STATUS_NO_TARGET) {
       continue;
     }
 

@@ -16,19 +16,10 @@
 
 #include "modules/prediction/predictor/free_move/free_move_predictor.h"
 
-#include <string>
-#include <vector>
-
-#include "gtest/gtest.h"
-
-#include "modules/common/util/file.h"
-#include "modules/map/hdmap/hdmap.h"
-#include "modules/perception/proto/perception_obstacle.pb.h"
+#include "cyber/common/file.h"
 #include "modules/prediction/common/kml_map_based_test.h"
 #include "modules/prediction/common/prediction_gflags.h"
-#include "modules/prediction/container/obstacles/obstacle.h"
 #include "modules/prediction/container/obstacles/obstacles_container.h"
-#include "modules/prediction/proto/prediction_obstacle.pb.h"
 
 namespace apollo {
 namespace prediction {
@@ -36,7 +27,7 @@ namespace prediction {
 class FreeMovePredictorTest : public KMLMapBasedTest {
  public:
   FreeMovePredictorTest() {
-    CHECK(apollo::common::util::GetProtoFromFile(
+    ACHECK(cyber::common::GetProtoFromFile(
         "modules/prediction/testdata/single_perception_vehicle_offlane.pb.txt",
         &perception_obstacles_));
     FLAGS_p_var = 0.1;
@@ -55,18 +46,13 @@ TEST_F(FreeMovePredictorTest, General) {
       perception_obstacles_.perception_obstacle(0);
   EXPECT_EQ(perception_obstacle.id(), 15);
   ObstaclesContainer container;
+  ADCTrajectoryContainer adc_trajectory_container;
   container.Insert(perception_obstacles_);
   Obstacle* obstacle_ptr = container.GetObstacle(15);
-  EXPECT_TRUE(obstacle_ptr != nullptr);
+  EXPECT_NE(obstacle_ptr, nullptr);
   FreeMovePredictor predictor;
-  predictor.Predict(obstacle_ptr);
-  const std::vector<Trajectory>& trajectories = predictor.trajectories();
-  EXPECT_EQ(trajectories.size(), 1);
-  EXPECT_EQ(trajectories[0].trajectory_point_size(), 80);
-  EXPECT_NEAR(trajectories[0].trajectory_point(9).path_point().x(), -432.459,
-              0.001);
-  EXPECT_NEAR(trajectories[0].trajectory_point(9).path_point().y(), -156.451,
-              0.001);
+  predictor.Predict(&adc_trajectory_container, obstacle_ptr, &container);
+  EXPECT_EQ(predictor.NumOfTrajectories(*obstacle_ptr), 1);
 }
 
 TEST_F(FreeMovePredictorTest, Pedestrian) {
@@ -75,13 +61,12 @@ TEST_F(FreeMovePredictorTest, Pedestrian) {
   apollo::perception::PerceptionObstacle perception_obstacle =
       perception_obstacles_.perception_obstacle(0);
   ObstaclesContainer container;
+  ADCTrajectoryContainer adc_trajectory_container;
   container.Insert(perception_obstacles_);
   Obstacle* obstacle_ptr = container.GetObstacle(15);
   FreeMovePredictor predictor;
-  predictor.Predict(obstacle_ptr);
-  const std::vector<Trajectory>& trajectories = predictor.trajectories();
-  EXPECT_EQ(trajectories.size(), 1);
-  EXPECT_EQ(trajectories[0].trajectory_point_size(), 100);
+  predictor.Predict(&adc_trajectory_container, obstacle_ptr, &container);
+  EXPECT_EQ(predictor.NumOfTrajectories(*obstacle_ptr), 1);
 }
 
 }  // namespace prediction

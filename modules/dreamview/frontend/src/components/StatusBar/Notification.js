@@ -8,7 +8,7 @@ import errorIcon from "assets/images/icons/error.png";
 @observer
 export default class Notification extends React.Component {
     render() {
-        const { monitor } = this.props;
+        const { monitor, showPlanningRSSInfo } = this.props;
 
         if (!monitor.hasActiveNotification) {
             return null;
@@ -19,13 +19,15 @@ export default class Notification extends React.Component {
         }
 
         const item = monitor.items[0];
+
         const levelClass = (item.logLevel === "ERROR" ||
                             item.logLevel === "FATAL") ?
                            "alert" : "warn";
         const icon = levelClass === "alert" ? errorIcon : warnIcon;
 
         return (
-            <div className={`notification-${levelClass}`}>
+            <div className={`notification-${levelClass}`}
+                style={{ right: showPlanningRSSInfo ? '500px' : '260px' }}>
                 <img src={icon} className="icon" />
                 <span className={classNames("text", levelClass)}>
                     {item.msg}

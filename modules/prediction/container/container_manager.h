@@ -19,16 +19,15 @@
  * @brief Use container manager to manage all containers
  */
 
-#ifndef MODULES_PREDICTION_CONTAINER_CONTAINER_MANAGER_H_
-#define MODULES_PREDICTION_CONTAINER_CONTAINER_MANAGER_H_
+#pragma once
 
-#include <map>
 #include <memory>
-#include <string>
+#include <unordered_map>
+
+#include "cyber/common/macros.h"
+#include "gtest/gtest.h"
 
 #include "modules/common/adapters/proto/adapter_config.pb.h"
-
-#include "modules/common/macro.h"
 #include "modules/prediction/container/container.h"
 
 /**
@@ -51,12 +50,21 @@ class ContainerManager {
    * @param Type of the container
    * @return Pointer to the container given the name
    */
-  Container *GetContainer(
-      const common::adapter::AdapterConfig::MessageType &type);
+  template <typename T>
+  T *GetContainer(const common::adapter::AdapterConfig::MessageType &type) {
+    auto key_type = static_cast<int>(type);
+    if (containers_.find(key_type) != containers_.end()) {
+      return static_cast<T *>(containers_[key_type].get());
+    }
+    return nullptr;
+  }
+
+  FRIEND_TEST(FeatureExtractorTest, junction);
+  FRIEND_TEST(ScenarioManagerTest, run);
 
  private:
   /**
-   * @breif Register a container
+   * @brief Register a container
    * @param Container type
    */
   void RegisterContainer(
@@ -76,9 +84,7 @@ class ContainerManager {
   void RegisterContainers();
 
  private:
-  std::map<common::adapter::AdapterConfig::MessageType,
-           std::unique_ptr<Container>>
-      containers_;
+  std::unordered_map<int, std::unique_ptr<Container>> containers_;
 
   common::adapter::AdapterManagerConfig config_;
 
@@ -87,5 +93,3 @@ class ContainerManager {
 
 }  // namespace prediction
 }  // namespace apollo
-
-#endif  // MODULES_PREDICTION_CONTAINER_CONTAINER_MANAGER_H_

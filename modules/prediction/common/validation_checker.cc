@@ -16,24 +16,21 @@
 
 #include "modules/prediction/common/validation_checker.h"
 
-#include <algorithm>
-#include <cmath>
-
+#include "modules/common/math/math_utils.h"
 #include "modules/prediction/common/prediction_gflags.h"
 
 namespace apollo {
 namespace prediction {
 
-using ::apollo::common::PathPoint;
-using ::apollo::common::TrajectoryPoint;
+using common::TrajectoryPoint;
 
-double ValidationChecker::ProbabilityByCentripedalAcceleration(
+double ValidationChecker::ProbabilityByCentripetalAcceleration(
     const LaneSequence& lane_sequence, const double speed) {
   double centripetal_acc_cost_sum = 0.0;
   double centripetal_acc_cost_sqr_sum = 0.0;
   for (int i = 0; i < lane_sequence.path_point_size(); ++i) {
-    const PathPoint& path_point = lane_sequence.path_point(i);
-    double centripetal_acc = speed * speed * path_point.kappa();
+    const auto& path_point = lane_sequence.path_point(i);
+    double centripetal_acc = speed * speed * std::fabs(path_point.kappa());
     double centripetal_acc_cost =
         centripetal_acc / FLAGS_centripedal_acc_threshold;
     centripetal_acc_cost_sum += centripetal_acc_cost;
@@ -44,28 +41,25 @@ double ValidationChecker::ProbabilityByCentripedalAcceleration(
   return std::exp(-FLAGS_centripetal_acc_coeff * mean_cost);
 }
 
-bool ValidationChecker::ValidCentripedalAcceleration(
+bool ValidationChecker::ValidCentripetalAcceleration(
     const std::vector<TrajectoryPoint>& trajectory_points) {
-  std::size_t num_point = trajectory_points.size();
-  if (num_point < 2) {
-    return true;
-  }
-  double max_centripedal_acc = 0.0;
-  for (std::size_t i = 0; i + 1 < num_point; ++i) {
-    const auto& first_point = trajectory_points[i];
-    const auto& second_point = trajectory_points[i + 1];
-    double theta_diff = std::abs(second_point.path_point().theta() -
-                                 first_point.path_point().theta());
-    double time_diff =
-        std::abs(second_point.relative_time() - first_point.relative_time());
+  for (size_t i = 0; i + 1 < trajectory_points.size(); ++i) {
+    const auto& p0 = trajectory_points[i];
+    const auto& p1 = trajectory_points[i + 1];
+    double time_diff = std::abs(p1.relative_time() - p0.relative_time());
     if (time_diff < FLAGS_double_precision) {
       continue;
     }
-    double v = (first_point.v() + second_point.v()) / 2.0;
-    double centripedal_acc = v * theta_diff / time_diff;
-    max_centripedal_acc = std::max(max_centripedal_acc, centripedal_acc);
+
+    double theta_diff = std::abs(common::math::NormalizeAngle(
+        p1.path_point().theta() - p0.path_point().theta()));
+    double v = (p0.v() + p1.v()) * 0.5;
+    double angular_a = v * theta_diff / time_diff;
+    if (angular_a > FLAGS_centripedal_acc_threshold) {
+      return false;
+    }
   }
-  return max_centripedal_acc < FLAGS_centripedal_acc_threshold;
+  return true;
 }
 
 bool ValidationChecker::ValidTrajectoryPoint(

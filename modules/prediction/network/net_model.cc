@@ -16,10 +16,9 @@
 
 #include "modules/prediction/network/net_model.h"
 
-#include <sstream>
 #include <utility>
 
-#include "modules/common/log.h"
+#include "cyber/common/log.h"
 
 namespace apollo {
 namespace prediction {
@@ -56,17 +55,17 @@ bool NetModel::LoadModel(const NetParameter& net_parameter) {
         layer = std::unique_ptr<Layer>(new Concatenate());
         break;
       default:
-        AERROR << "Fail to load layer: " << layer_pb.type().c_str();
+        AERROR << "Failed to load layer: " << layer_pb.type().c_str();
         break;
     }
     if (!layer->Load(layer_pb)) {
-      AERROR << "Fail to load " << i << "-layer: " << layer_pb.name().c_str();
+      AERROR << "Failed to load " << i << "-layer: " << layer_pb.name().c_str();
       return false;
     }
     layers_.push_back(std::move(layer));
   }
   ok_ = true;
-  AINFO << "Success to load model!";
+  AINFO << "Success in loading the model!";
   ADEBUG << "Its Performance:" << PerformanceString().c_str();
   return true;
 }

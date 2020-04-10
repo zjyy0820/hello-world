@@ -20,18 +20,18 @@
 #include "modules/planning/reference_line/qp_spline_reference_line_smoother.h"
 
 #include <algorithm>
-#include <limits>
-#include <string>
 #include <utility>
 
 #include "modules/common/proto/pnc_point.pb.h"
 
-#include "modules/common/log.h"
+#include "cyber/common/log.h"
 #include "modules/common/math/vec2d.h"
-#include "modules/common/util/file.h"
+#include "modules/common/time/time.h"
 #include "modules/common/util/util.h"
 #include "modules/planning/common/planning_gflags.h"
 #include "modules/planning/math/curve_math.h"
+#include "modules/planning/math/smoothing_spline/active_set_spline_2d_solver.h"
+#include "modules/planning/math/smoothing_spline/osqp_spline_2d_solver.h"
 
 namespace apollo {
 namespace planning {
@@ -39,8 +39,13 @@ namespace planning {
 QpSplineReferenceLineSmoother::QpSplineReferenceLineSmoother(
     const ReferenceLineSmootherConfig& config)
     : ReferenceLineSmoother(config) {
-  spline_solver_.reset(
-      new Spline2dSolver(t_knots_, config.qp_spline().spline_order()));
+  if (FLAGS_use_osqp_optimizer_for_reference_line) {
+    spline_solver_.reset(
+        new OsqpSpline2dSolver(t_knots_, config.qp_spline().spline_order()));
+  } else {
+    spline_solver_.reset(new ActiveSetSpline2dSolver(
+        t_knots_, config.qp_spline().spline_order()));
+  }
 }
 
 void QpSplineReferenceLineSmoother::Clear() { t_knots_.clear(); }
@@ -67,9 +72,15 @@ bool QpSplineReferenceLineSmoother::Smooth(
     return false;
   }
 
+  auto start = std::chrono::system_clock::now();
   if (!Solve()) {
     AERROR << "Solve spline smoother problem failed";
   }
+  auto end = std::chrono::system_clock::now();
+
+  std::chrono::duration<double> diff = end - start;
+  ADEBUG << "QpSplineReferenceLineSmoother solve time is "
+         << diff.count() * 1000.0 << " ms.";
 
   // mapping spline to reference line point
   const double start_t = t_knots_.front();
@@ -170,7 +181,9 @@ bool QpSplineReferenceLineSmoother::AddConstraint() {
   }
 
   // the heading of the first point should be identical to the anchor point.
-  if (!spline_constraint->AddPointAngleConstraint(evaluated_t.front(),
+
+  if (FLAGS_enable_reference_line_stitching &&
+      !spline_constraint->AddPointAngleConstraint(evaluated_t.front(),
                                                   headings.front())) {
     AERROR << "Add 2d point angle constraint failed.";
     return false;

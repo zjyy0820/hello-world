@@ -26,7 +26,7 @@ function calibrate_camera_camera() {
 
   # check if the module has started
   NUM_PROCESSES="$(pgrep -c -f "${MODULE}")"
-  
+
   if [ "${NUM_PROCESSES}" -eq 0 ]; then
     echo "Start to calibrate Camera-Camera extrinsics, Ctrl+C to exit."
     eval "${APOLLO_ROOT_DIR}/modules/calibration/${MODULE}/${MODULE} \
@@ -42,7 +42,7 @@ function calibrate_lidar_camera() {
 
   # check if the module has started
   NUM_PROCESSES="$(pgrep -c -f "${MODULE}")"
-  
+
   if [ "${NUM_PROCESSES}" -eq 0 ]; then
     echo "Start to calibrate LiDAR-Camera extrinsics, Ctrl+C to exit."
     eval "${APOLLO_ROOT_DIR}/modules/calibration/${MODULE}/${MODULE} \
@@ -57,7 +57,7 @@ function calibrate_radar_camera() {
 
   # check if the module has started
   NUM_PROCESSES="$(pgrep -c -f "${MODULE}")"
-  
+
   if [ "${NUM_PROCESSES}" -eq 0 ]; then
     echo "Start to calibrate Radar-Camera extrinsics, Ctrl+C to exit."
     eval "${APOLLO_ROOT_DIR}/modules/calibration/${MODULE}/${MODULE} \
@@ -72,12 +72,27 @@ function visualize_radar_lidar() {
 
   # check if the module has started
   NUM_PROCESSES="$(pgrep -c -f "${MODULE}")"
-  
+
   if [ "${NUM_PROCESSES}" -eq 0 ]; then
     echo "Visualize Radar and LiDAR data, Ctrl+C to exit."
     eval "${APOLLO_ROOT_DIR}/modules/calibration/${MODULE}/${MODULE} \
       --flagfile=${APOLLO_ROOT_DIR}/modules/calibration/${MODULE}/conf/${MODULE}.conf \
       2>&1 |tee ${LOG}"
+  fi
+}
+
+function calibrate_imu_vehicle() {
+  LOG="${APOLLO_ROOT_DIR}/data/log/imu_car_calibrator.out"
+  MODULE="imu_car_calibrator"
+
+  # check if the module has started
+  NUM_PROCESSES="$(pgrep -c -f "${MODULE}")"
+
+  if [ "${NUM_PROCESSES}" -eq 0 ]; then
+    echo "Start to calibrate Imu-Vehicle extrinsics, Ctrl+C to exit."
+    eval "${APOLLO_ROOT_DIR}/modules/calibration/${MODULE}/${MODULE} \
+      --flagfile=${APOLLO_ROOT_DIR}/modules/calibration/${MODULE}/conf/${MODULE}.conf \
+      2>&1 | tee ${LOG}"
   fi
 }
 
@@ -87,6 +102,7 @@ case $1 in
     calibrate_lidar_camera
     calibrate_radar_camera
     visualize_radar_lidar
+    calibrate_imu_vehicle
     ;;
   camera_camera)
     calibrate_camera_camera
@@ -100,10 +116,14 @@ case $1 in
   visualize)
     visualize_radar_lidar
     ;;
+  imu_vehicle)
+    calibrate_imu_vehicle
+    ;;
   *)
     calibrate_camera_camera
     calibrate_lidar_camera
     calibrate_radar_camera
     visualize_radar_lidar
+    calibrate_imu_vehicle
     ;;
 esac

@@ -17,15 +17,11 @@
  * @file
  */
 
-#ifndef MODULES_PREDICTION_PREDICTOR_SINGLE_LANE_SINGLE_LANE_PREDICTOR_H_
-#define MODULES_PREDICTION_PREDICTOR_SINGLE_LANE_SINGLE_LANE_PREDICTOR_H_
+#pragma once
 
-#include <string>
 #include <vector>
 
-#include "modules/common/proto/pnc_point.pb.h"
 #include "modules/prediction/predictor/sequence/sequence_predictor.h"
-#include "modules/prediction/proto/lane_graph.pb.h"
 
 namespace apollo {
 namespace prediction {
@@ -35,7 +31,7 @@ class SingleLanePredictor : public SequencePredictor {
   /**
    * @brief Constructor
    */
-  SingleLanePredictor() = default;
+  SingleLanePredictor();
 
   /**
    * @brief Destructor
@@ -44,9 +40,14 @@ class SingleLanePredictor : public SequencePredictor {
 
   /**
    * @brief Make prediction
+   * @param ADC trajectory container
    * @param Obstacle pointer
+   * @param Obstacles container
+   * @return If predicted successfully
    */
-  void Predict(Obstacle* obstacle) override;
+  bool Predict(const ADCTrajectoryContainer* adc_trajectory_container,
+               Obstacle* obstacle,
+               ObstaclesContainer* obstacles_container) override;
 
  protected:
   /**
@@ -65,5 +66,3 @@ class SingleLanePredictor : public SequencePredictor {
 
 }  // namespace prediction
 }  // namespace apollo
-
-#endif  // MODULES_PREDICTION_PREDICTOR_SINGLE_LANE_SINGLE_LANE_PREDICTOR_H_

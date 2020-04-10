@@ -15,16 +15,15 @@
  *****************************************************************************/
 #include "modules/dreamview/backend/hmi/vehicle_manager.h"
 
+#include "absl/strings/str_cat.h"
+#include "cyber/common/file.h"
 #include "gflags/gflags.h"
 #include "gtest/gtest.h"
-#include "modules/common/util/file.h"
-#include "modules/common/util/string_util.h"
 
 DECLARE_string(vehicle_data_config_filename);
 
 namespace apollo {
 namespace dreamview {
-using apollo::common::util::StrCat;
 
 static const char kTestVehicle[] =
     "modules/dreamview/backend/hmi/testdata/vehicle";
@@ -36,22 +35,22 @@ class VehicleManagerTest : public ::testing::Test {
     // According to this config file, vehicle_data.pb.txt will be copied to
     // kTargetDir.
     FLAGS_vehicle_data_config_filename =
-        StrCat(kTestVehicle, "/vehicle_data.pb.txt");
+        absl::StrCat(kTestVehicle, "/vehicle_data.pb.txt");
   }
 };
 
 TEST_F(VehicleManagerTest, Failure) {
-  EXPECT_FALSE(VehicleManager::instance()->UseVehicle("/somewhere/bad"));
+  EXPECT_FALSE(VehicleManager::Instance()->UseVehicle("/somewhere/bad"));
 }
 
 TEST_F(VehicleManagerTest, Success) {
-  ASSERT_TRUE(apollo::common::util::EnsureDirectory(kTargetDir));
+  ASSERT_TRUE(cyber::common::EnsureDirectory(kTargetDir));
 
-  EXPECT_TRUE(VehicleManager::instance()->UseVehicle(kTestVehicle));
-  EXPECT_TRUE(apollo::common::util::PathExists(
-      StrCat(kTargetDir, "/vehicle_data.pb.txt")));
+  EXPECT_TRUE(VehicleManager::Instance()->UseVehicle(kTestVehicle));
+  EXPECT_TRUE(cyber::common::PathExists(
+      absl::StrCat(kTargetDir, "/vehicle_data.pb.txt")));
 
-  ASSERT_TRUE(apollo::common::util::RemoveAllFiles(kTargetDir));
+  ASSERT_TRUE(cyber::common::RemoveAllFiles(kTargetDir));
 }
 
 }  // namespace dreamview

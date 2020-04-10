@@ -14,8 +14,7 @@
  * limitations under the License.
  *****************************************************************************/
 
-#ifndef MODULES_DREAMVIEW_BACKEND_SIM_CONTROL_SIM_CONTROL_INTERFACE_H_
-#define MODULES_DREAMVIEW_BACKEND_SIM_CONTROL_SIM_CONTROL_INTERFACE_H_
+#pragma once
 
 /**
  * @namespace apollo::dreamview
@@ -61,5 +60,3 @@ class SimControlInterface {
 
 }  // namespace dreamview
 }  // namespace apollo
-
-#endif /* MODULES_DREAMVIEW_BACKEND_SIM_CONTROL_SIM_CONTROL_INTERFACE_H_ */

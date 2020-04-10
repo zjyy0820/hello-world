@@ -20,7 +20,7 @@
 
 #include "modules/planning/math/polynomial_xd.h"
 
-#include "modules/common/log.h"
+#include "cyber/common/log.h"
 
 namespace apollo {
 namespace planning {
@@ -32,13 +32,15 @@ PolynomialXd::PolynomialXd(const std::uint32_t order)
 
 PolynomialXd::PolynomialXd(const std::vector<double>& params)
     : params_(params) {
-  CHECK(!params.empty());
+  ACHECK(!params.empty());
 }
 
-std::uint32_t PolynomialXd::order() const { return params_.size() - 1; }
+std::uint32_t PolynomialXd::order() const {
+  return static_cast<std::uint32_t>(params_.size()) - 1;
+}
 
 void PolynomialXd::SetParams(const std::vector<double>& params) {
-  CHECK(!params.empty());
+  ACHECK(!params.empty());
   params_ = params;
 }
 

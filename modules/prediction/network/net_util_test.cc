@@ -14,13 +14,9 @@
  * limitations under the License.
  *****************************************************************************/
 
-#include <functional>
-#include <string>
-#include "Eigen/Dense"
-#include "gtest/gtest.h"
-
 #include "modules/prediction/network/net_util.h"
-#include "modules/prediction/proto/network_layers.pb.h"
+
+#include "gtest/gtest.h"
 
 namespace apollo {
 namespace prediction {

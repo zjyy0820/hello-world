@@ -14,21 +14,21 @@
  * limitations under the License.
  *****************************************************************************/
 
-#include <errno.h>
 #include <fcntl.h>
 #include <linux/netlink.h>
 #include <linux/serial.h>
-#include <string.h>
 #include <sys/ioctl.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <termios.h>
-#include <time.h>
 #include <unistd.h>
+#include <cerrno>
+#include <cstring>
+#include <ctime>
 #include <thread>
 
-#include "ros/include/ros/ros.h"
+#include "cyber/cyber.h"
 
 #include "modules/drivers/gnss/stream/stream.h"
 
@@ -214,7 +214,7 @@ bool SerialStream::configure_port(int fd) {
   ::tcsetattr(fd, TCSANOW, &options);
 
   // Update byte_time_ based on the new settings.
-  uint32_t bit_time_us = 1e6 / 115200;
+  uint32_t bit_time_us = static_cast<uint32_t>(1e6 / 115200);
   byte_time_us_ = bit_time_us * (1 + bytesize_ + parity_ + stopbits_);
   return true;
 }
@@ -248,7 +248,7 @@ void SerialStream::close(void) {
 }
 
 bool SerialStream::Disconnect() {
-  if (is_open_ == false) {
+  if (!is_open_) {
     // not open
     return false;
   }

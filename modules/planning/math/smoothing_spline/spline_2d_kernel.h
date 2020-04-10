@@ -18,10 +18,10 @@
  * @file spline_2d_kernel.h
  **/
 
-#ifndef MODULES_PLANNING_SMOOTHING_SPLINE_2D_KERNEL_H_
-#define MODULES_PLANNING_SMOOTHING_SPLINE_2D_KERNEL_H_
+#pragma once
 
 #include <vector>
+
 #include "Eigen/Core"
 
 #include "modules/common/math/vec2d.h"
@@ -44,7 +44,7 @@ class Spline2dKernel {
   Eigen::MatrixXd* mutable_kernel_matrix();
   Eigen::MatrixXd* mutable_offset();
 
-  const Eigen::MatrixXd kernel_matrix() const;
+  Eigen::MatrixXd kernel_matrix() const;
   const Eigen::MatrixXd offset() const;
 
   // build-in kernel methods
@@ -66,9 +66,8 @@ class Spline2dKernel {
   Eigen::MatrixXd offset_;
   std::vector<double> t_knots_;
   uint32_t spline_order_;
-  uint32_t total_params_;
+  size_t total_params_;
 };
 
 }  // namespace planning
 }  // namespace apollo
-#endif  // MODULES_PLANNING_SMOOTHING_SPLINE_2D_KERNEL_H_

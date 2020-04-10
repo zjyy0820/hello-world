@@ -16,15 +16,16 @@
 
 #include "modules/prediction/container/pose/pose_container.h"
 
-#include "modules/common/log.h"
+#include "cyber/common/log.h"
 #include "modules/common/math/quaternion.h"
+#include "modules/prediction/common/prediction_gflags.h"
 
 namespace apollo {
 namespace prediction {
 
 using apollo::localization::LocalizationEstimate;
 using apollo::perception::PerceptionObstacle;
-using apollo::perception::Point;
+using Point = apollo::common::Point3D;
 
 void PoseContainer::Insert(const ::google::protobuf::Message& message) {
   localization::LocalizationEstimate localization;
@@ -55,7 +56,7 @@ void PoseContainer::Update(
   }
   obstacle_ptr_->Clear();
 
-  obstacle_ptr_->set_id(ID);
+  obstacle_ptr_->set_id(FLAGS_ego_vehicle_id);
   Point position;
   position.set_x(localization.pose().position().x());
   position.set_y(localization.pose().position().y());
@@ -72,7 +73,7 @@ void PoseContainer::Update(
     double qx = localization.pose().orientation().qx();
     double qy = localization.pose().orientation().qy();
     double qz = localization.pose().orientation().qz();
-    theta = ::apollo::common::math::QuaternionToHeading(qw, qx, qy, qz);
+    theta = common::math::QuaternionToHeading(qw, qx, qy, qz);
   }
   obstacle_ptr_->set_theta(theta);
 
@@ -96,7 +97,7 @@ double PoseContainer::GetTimestamp() {
   }
 }
 
-PerceptionObstacle* PoseContainer::ToPerceptionObstacle() {
+const PerceptionObstacle* PoseContainer::ToPerceptionObstacle() {
   return obstacle_ptr_.get();
 }
 

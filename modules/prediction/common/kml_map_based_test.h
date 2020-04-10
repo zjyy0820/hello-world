@@ -14,8 +14,7 @@
  * limitations under the License.
  *****************************************************************************/
 
-#ifndef MODULES_PREDICTION_COMMON_KML_MAP_BASED_TEST_H_
-#define MODULES_PREDICTION_COMMON_KML_MAP_BASED_TEST_H_
+#pragma once
 
 #include "gtest/gtest.h"
 
@@ -34,5 +33,3 @@ class KMLMapBasedTest : public ::testing::Test {
 
 }  // namespace prediction
 }  // namespace apollo
-
-#endif  // MODULES_PREDICTION_COMMON_KML_MAP_BASED_TEST_H_

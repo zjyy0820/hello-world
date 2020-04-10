@@ -16,15 +16,14 @@
 
 // This defines an stream interface for communication via USB, Ethernet, etc.
 
-#ifndef MODULES_DRIVERS_GNSS_STREAM_H_
-#define MODULES_DRIVERS_GNSS_STREAM_H_
+#pragma once
 
-#include <stdint.h>
+#include <cstdint>
 #include <string>
 #include <vector>
-#include "ros/include/ros/ros.h"
 
-#include "modules/common/log.h"
+#include "cyber/cyber.h"
+
 #include "modules/drivers/gnss/util/macros.h"
 
 namespace apollo {
@@ -81,7 +80,7 @@ class Stream {
       write(login_data_[i]);
       AINFO << "Login: " << login_data_[i];
       // sleep a little to avoid overrun of the slow serial interface.
-      ros::Duration(0.5).sleep();
+      cyber::Duration(0.5).Sleep();
     }
   }
 
@@ -109,5 +108,3 @@ class Stream {
 }  // namespace gnss
 }  // namespace drivers
 }  // namespace apollo
-
-#endif  // MODULES_DRIVERS_GNSS_STREAM_H_

@@ -18,8 +18,7 @@
  * @file quintic_polynomial_curve1d.h
  **/
 
-#ifndef MODULES_PLANNING_MATH_CURVE1D_QUINTIC_POLYNOMIAL_CURVE1D_H_
-#define MODULES_PLANNING_MATH_CURVE1D_QUINTIC_POLYNOMIAL_CURVE1D_H_
+#pragma once
 
 #include <array>
 #include <string>
@@ -45,12 +44,23 @@ class QuinticPolynomialCurve1d : public PolynomialCurve1d {
 
   QuinticPolynomialCurve1d(const QuinticPolynomialCurve1d& other);
 
+  void SetParam(const double x0, const double dx0, const double ddx0,
+                const double x1, const double dx1, const double ddx1,
+                const double param);
+
+  void IntegratedFromQuarticCurve(const PolynomialCurve1d& other,
+                                  const double init_value);
+
   virtual ~QuinticPolynomialCurve1d() = default;
 
   double Evaluate(const std::uint32_t order, const double p) const override;
 
-  double ParamLength() const { return param_; }
+  double ParamLength() const override { return param_; }
   std::string ToString() const override;
+
+  double Coef(const size_t order) const override;
+
+  size_t Order() const override { return 5; }
 
  protected:
   void ComputeCoefficients(const double x0, const double dx0, const double ddx0,
@@ -65,5 +75,3 @@ class QuinticPolynomialCurve1d : public PolynomialCurve1d {
 
 }  // namespace planning
 }  // namespace apollo
-
-#endif  // MODULES_PLANNING_MATH_CURVE1D_QUINTIC_POLYNOMIAL_CURVE1D_H_

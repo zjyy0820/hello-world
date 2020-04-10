@@ -20,31 +20,36 @@
 #include <string>
 #include <utility>
 
-#include "modules/common/log.h"
 #include "modules/prediction/common/prediction_gflags.h"
-#include "modules/prediction/common/prediction_map.h"
-#include "modules/prediction/common/prediction_util.h"
 #include "modules/prediction/common/validation_checker.h"
+#include "modules/prediction/proto/prediction_conf.pb.h"
 
 namespace apollo {
 namespace prediction {
 
-using apollo::common::PathPoint;
-using apollo::common::TrajectoryPoint;
-using apollo::common::math::KalmanFilter;
-using apollo::hdmap::LaneInfo;
+using common::PathPoint;
+using common::TrajectoryPoint;
+using hdmap::LaneInfo;
 
-void LaneSequencePredictor::Predict(Obstacle* obstacle) {
+LaneSequencePredictor::LaneSequencePredictor() {
+  predictor_type_ = ObstacleConf::LANE_SEQUENCE_PREDICTOR;
+}
+
+bool LaneSequencePredictor::Predict(
+    const ADCTrajectoryContainer* adc_trajectory_container, Obstacle* obstacle,
+    ObstaclesContainer* obstacles_container) {
   Clear();
 
   CHECK_NOTNULL(obstacle);
   CHECK_GT(obstacle->history_size(), 0);
 
+  obstacle->SetPredictorType(predictor_type_);
+
   const Feature& feature = obstacle->latest_feature();
 
   if (!feature.has_lane() || !feature.lane().has_lane_graph()) {
     AERROR << "Obstacle [" << obstacle->id() << " has no lane graph.";
-    return;
+    return false;
   }
 
   std::string lane_id = "";
@@ -53,11 +58,14 @@ void LaneSequencePredictor::Predict(Obstacle* obstacle) {
   }
   int num_lane_sequence = feature.lane().lane_graph().lane_sequence_size();
   std::vector<bool> enable_lane_sequence(num_lane_sequence, true);
-  FilterLaneSequences(feature, lane_id, &enable_lane_sequence);
+  Obstacle* ego_vehicle_ptr =
+      obstacles_container->GetObstacle(FLAGS_ego_vehicle_id);
+  FilterLaneSequences(feature, lane_id, ego_vehicle_ptr,
+                      adc_trajectory_container, &enable_lane_sequence);
 
   for (int i = 0; i < num_lane_sequence; ++i) {
     const LaneSequence& sequence = feature.lane().lane_graph().lane_sequence(i);
-    if (sequence.lane_segment_size() <= 0) {
+    if (sequence.lane_segment().empty()) {
       AERROR << "Empty lane segments.";
       continue;
     }
@@ -74,26 +82,39 @@ void LaneSequencePredictor::Predict(Obstacle* obstacle) {
            << "] with probability [" << sequence.probability() << "].";
 
     std::vector<TrajectoryPoint> points;
-    DrawLaneSequenceTrajectoryPoints(*obstacle, sequence,
-                                     FLAGS_prediction_duration,
-                                     FLAGS_prediction_period, &points);
+    bool is_about_to_stop = false;
+    double acceleration = 0.0;
+    if (sequence.has_stop_sign()) {
+      double stop_distance =
+          sequence.stop_sign().lane_sequence_s() - sequence.lane_s();
+      is_about_to_stop = SupposedToStop(feature, stop_distance, &acceleration);
+    }
+
+    if (is_about_to_stop) {
+      DrawConstantAccelerationTrajectory(
+          *obstacle, sequence, FLAGS_prediction_trajectory_time_length,
+          FLAGS_prediction_trajectory_time_resolution, acceleration, &points);
+    } else {
+      DrawLaneSequenceTrajectoryPoints(
+          *obstacle, sequence, FLAGS_prediction_trajectory_time_length,
+          FLAGS_prediction_trajectory_time_resolution, &points);
+    }
 
     if (points.empty()) {
       continue;
     }
 
     if (FLAGS_enable_trajectory_validation_check &&
-        !ValidationChecker::ValidCentripedalAcceleration(points)) {
+        !ValidationChecker::ValidCentripetalAcceleration(points)) {
       continue;
     }
 
     Trajectory trajectory = GenerateTrajectory(points);
     trajectory.set_probability(sequence.probability());
-    trajectories_.push_back(std::move(trajectory));
+    obstacle->mutable_latest_feature()->add_predicted_trajectory()->CopyFrom(
+        trajectory);
   }
-
-  ADEBUG << "Obstacle [" << obstacle->id() << "] has total "
-         << trajectories_.size() << " trajectories.";
+  return true;
 }
 
 void LaneSequencePredictor::DrawLaneSequenceTrajectoryPoints(
@@ -120,6 +141,10 @@ void LaneSequencePredictor::DrawLaneSequenceTrajectoryPoints(
   if (!PredictionMap::GetProjection(position, lane_info, &lane_s, &lane_l)) {
     AERROR << "Failed in getting lane s and lane l";
     return;
+  }
+  double approach_rate = FLAGS_go_approach_rate;
+  if (!lane_sequence.vehicle_on_lane()) {
+    approach_rate = FLAGS_cutin_approach_rate;
   }
   size_t total_num = static_cast<size_t>(total_time / period);
   for (size_t i = 0; i < total_num; ++i) {
@@ -154,7 +179,7 @@ void LaneSequencePredictor::DrawLaneSequenceTrajectoryPoints(
       lane_id = lane_sequence.lane_segment(lane_segment_index).lane_id();
     }
 
-    lane_l *= FLAGS_go_approach_rate;
+    lane_l *= approach_rate;
   }
 }
 
