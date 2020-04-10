@@ -21,15 +21,15 @@ set -e
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-# Install Miniconda2.
-CONDA_PATH=/usr/local/miniconda2
-wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
-bash Miniconda2-latest-Linux-x86_64.sh -b -p ${CONDA_PATH}
+# Install Miniconda3.
+CONDA_PATH="/usr/local/miniconda"
 
-# Init python 2.7 environment.
-${CONDA_PATH}/bin/conda env update -f py27_conda.yml
+INSTALLER="Miniconda3-latest-Linux-x86_64.sh"
+wget "https://repo.continuum.io/miniconda/${INSTALLER}"
+bash "${INSTALLER}" -b -p "${CONDA_PATH}"
 
+# Init python envs.
+"${CONDA_PATH}/bin/conda" env update -f py27_conda.yaml
 
 # Clean up.
-rm -f Miniconda2-latest-Linux-x86_64.sh
-
+rm -f "${INSTALLER}"
