@@ -21,8 +21,9 @@
 
 #include <algorithm>
 #include <limits>
+#include <utility>
 
-#include "cyber/common/log.h"
+#include "modules/common/log.h"
 #include "modules/common/math/linear_interpolation.h"
 
 namespace apollo {
@@ -30,24 +31,42 @@ namespace planning {
 
 using apollo::common::FrenetFramePoint;
 
-FrenetFramePath::FrenetFramePath(std::vector<FrenetFramePoint> points)
-    : std::vector<FrenetFramePoint>(std::move(points)) {}
+FrenetFramePath::FrenetFramePath(
+    const std::vector<FrenetFramePoint>& sl_points) {
+  points_ = sl_points;
+}
+
+void FrenetFramePath::set_points(const std::vector<FrenetFramePoint>& points) {
+  points_ = points;
+}
+
+const std::vector<FrenetFramePoint>& FrenetFramePath::points() const {
+  return points_;
+}
 
 double FrenetFramePath::Length() const {
-  if (empty()) {
+  if (points_.empty()) {
     return 0.0;
   }
-  return back().s() - front().s();
+  return points_.back().s() - points_.front().s();
+}
+
+std::uint32_t FrenetFramePath::NumOfPoints() const { return points_.size(); }
+
+const FrenetFramePoint& FrenetFramePath::PointAt(
+    const std::uint32_t index) const {
+  CHECK_LT(index, points_.size());
+  return points_[index];
 }
 
 FrenetFramePoint FrenetFramePath::GetNearestPoint(const SLBoundary& sl) const {
-  auto it_lower =
-      std::lower_bound(begin(), end(), sl.start_s(), LowerBoundComparator);
-  if (it_lower == end()) {
-    return back();
+  auto it_lower = std::lower_bound(points_.begin(), points_.end(), sl.start_s(),
+                                   LowerBoundComparator);
+  if (it_lower == points_.end()) {
+    return points_.back();
   }
-  auto it_upper =
-      std::upper_bound(it_lower, end(), sl.end_s(), UpperBoundComparator);
+  auto it_upper = std::upper_bound(it_lower, points_.end(), sl.end_s(),
+                                   UpperBoundComparator);
   double min_dist = std::numeric_limits<double>::max();
   auto min_it = it_upper;
   for (auto it = it_lower; it != it_upper; ++it) {
@@ -71,12 +90,13 @@ FrenetFramePoint FrenetFramePath::GetNearestPoint(const SLBoundary& sl) const {
 }
 
 FrenetFramePoint FrenetFramePath::EvaluateByS(const double s) const {
-  CHECK_GT(size(), 1);
-  auto it_lower = std::lower_bound(begin(), end(), s, LowerBoundComparator);
-  if (it_lower == begin()) {
-    return front();
-  } else if (it_lower == end()) {
-    return back();
+  CHECK_GT(points_.size(), 1);
+  auto it_lower =
+      std::lower_bound(points_.begin(), points_.end(), s, LowerBoundComparator);
+  if (it_lower == points_.begin()) {
+    return points_.front();
+  } else if (it_lower == points_.end()) {
+    return points_.back();
   }
   const auto& p0 = *(it_lower - 1);
   const auto s0 = p0.s();
@@ -90,6 +110,8 @@ FrenetFramePoint FrenetFramePath::EvaluateByS(const double s) const {
   p.set_ddl(common::math::lerp(p0.ddl(), s0, p1.ddl(), s1, s));
   return p;
 }
+
+void FrenetFramePath::Clear() { points_.clear(); }
 
 }  // namespace planning
 }  // namespace apollo

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 ###############################################################################
 # Copyright 2017 The Apollo Authors. All Rights Reserved.
@@ -20,79 +20,70 @@ This program can dump a rosbag into separate text files that contains the pb mes
 """
 
 import argparse
-from datetime import datetime
 import os
 import shutil
 
-from cyber_py3.record import RecordReader
-
+import rosbag
+import std_msgs
+from std_msgs.msg import String
 
 g_args = None
 
 g_delta_t = 0.5  # 1 second approximate time match region.
 
-
 def write_to_file(file_path, topic_pb):
-    """
-    write pb message to file
-    """
-    with open(file_path, 'w') as fp:
-        f.write(str(topic_pb))
+    """write pb message to file"""
+    f = file(file_path, 'w')
+    f.write(str(topic_pb))
+    f.close()
 
 
 def dump_bag(in_bag, out_dir):
-    """
-    out_bag = in_bag + routing_bag
-    """
-    reader = RecordReader(in_bag)
+    """out_bag = in_bag + routing_bag"""
+    bag = rosbag.Bag(in_bag, 'r')
     seq = 0
     global g_args
     topic_name_map = {
-        "/apollo/localization/pose": ["localization", None],
-        "/apollo/canbus/chassis": ["chassis", None],
-        "/apollo/routing_response": ["routing", None],
-        "/apollo/routing_resquest": ["routing_request", None],
-        "/apollo/perception/obstacles": ["perception", None],
-        "/apollo/prediction": ["prediction", None],
-        "/apollo/planning": ["planning", None],
-        "/apollo/control": ["control", None]
+        "/apollo/localization/pose" : ["localization", None],
+        "/apollo/canbus/chassis" : ["chassis", None],
+        "/apollo/routing_response" : ["routing", None],
+        "/apollo/routing_resquest" : ["routing_request", None],
+        "/apollo/perception/obstacles" : ["perception", None],
+        "/apollo/prediction" : ["prediction", None],
+        "/apollo/planning" : ["planning", None],
+        "/apollo/control" : ["control", None]
     }
     first_time = None
     record_num = 0
-    for channel, message, _type, _timestamp in reader.read_messages():
-        t = _timestamp
-        msg = message
+    for topic, msg, t in bag.read_messages():
         record_num += 1
         if record_num % 1000 == 0:
-            print('Processing record_num: %d' % record_num)
+            print "Processing record_num:", record_num
         if first_time is None:
             first_time = t
-        if channel not in topic_name_map:
+        if topic not in topic_name_map:
             continue
-        dt1 = datetime.utcfromtimestamp(t/1000000000)
-        dt2 = datetime.utcfromtimestamp(first_time/1000000000)
-        relative_time = (dt1 - dt2).seconds - g_args.start_time
-        print "relative_time", relative_time
+        relative_time = (t - first_time).secs - g_args.start_time
         if ((g_args.time_duration > 0) and
-                (relative_time < 0 or relative_time > g_args.time_duration)):
+            (relative_time < 0 or relative_time > g_args.time_duration)):
             continue
-        if channel == '/apollo/planning':
+        if topic == "/apollo/planning":
             seq += 1
-            topic_name_map[channel][1] = msg
-            print('Generating seq: %d' % seq)
-            for t, name_pb in topic_name_map.items():
+            topic_name_map[topic][1] = msg
+            print "Generating seq:", seq
+            for t, name_pb in topic_name_map.iteritems():
                 if name_pb[1] is None:
                     continue
                 file_path = os.path.join(out_dir,
-                                         str(seq) + "_" + name_pb[0] + ".pb.txt")
+                                        str(seq) + "_" + name_pb[0] + ".pb.txt")
                 write_to_file(file_path, name_pb[1])
-        topic_name_map[channel][1] = msg
+        topic_name_map[topic][1] = msg
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="A tool to dump the protobuf messages according to the planning message"
-        "Usage: python dump_planning.py bag_file save_directory")
+        description=
+        "A tool to dump the protobuf messages according to the planning message ")
     parser.add_argument(
         "in_rosbag", action="store", type=str, help="the input ros bag")
     parser.add_argument(

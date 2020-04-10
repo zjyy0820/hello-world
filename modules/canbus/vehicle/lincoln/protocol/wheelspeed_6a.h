@@ -19,7 +19,8 @@
  * @brief the class of Throttle63 (for lincoln vehicle)
  */
 
-#pragma once
+#ifndef MODULES_CANBUS_VEHICL_LINCOLN_PROTOCOL_WHEELSPEED_6A_H_
+#define MODULES_CANBUS_VEHICL_LINCOLN_PROTOCOL_WHEELSPEED_6A_H_
 
 #include <sys/time.h>
 
@@ -119,3 +120,5 @@ class Wheelspeed6a : public ::apollo::drivers::canbus::ProtocolData<
 }  // namespace lincoln
 }  // namespace canbus
 }  // namespace apollo
+
+#endif  // MODULES_CANBUS_VEHICL_LINCOLN_PROTOCOL_WHEELSPEED_6A_H_

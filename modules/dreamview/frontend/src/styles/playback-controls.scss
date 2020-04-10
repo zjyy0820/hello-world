@@ -1,14 +1,10 @@
 @import "media-queries";
 
-$playback-control-height: 40;
-
-:export { PLAYBACK_CONTROL_HEIGHT: $playback-control-height; }
-
 .playback-controls {
     z-index: 100;
     position: absolute;
     width: 100%;
-    height: $playback-control-height * 1px;
+    height: 40px;
     bottom: 0px;
 
     background: #1D2226;
@@ -132,6 +128,7 @@ $playback-control-height: 40;
             height: 7px;
 
             border-radius: 10px;
+            background: #2D3B50;
             -ms-touch-action: none;
             touch-action: none;
 

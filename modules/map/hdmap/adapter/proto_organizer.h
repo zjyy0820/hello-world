@@ -12,17 +12,20 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 =========================================================================*/
-#pragma once
+
+#ifndef MODULES_MAP_HDMAP_ADAPTER_PROTO_ORGANIZER_H_
+#define MODULES_MAP_HDMAP_ADAPTER_PROTO_ORGANIZER_H_
 
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
 #include "modules/common/util/util.h"
 
-#include "modules/map/hdmap/adapter/xml_parser/common_define.h"
 #include "modules/map/proto/map.pb.h"
+#include "modules/map/hdmap/adapter/xml_parser/common_define.h"
 
 namespace apollo {
 namespace hdmap {
@@ -43,7 +46,6 @@ struct ProtoData {
   std::unordered_map<std::string, PbJunction> pb_junctions;
   std::unordered_map<std::string, StopLineInternal> pb_stop_lines;
   std::unordered_map<std::string, PbParkingSpace> pb_parking_spaces;
-  std::unordered_map<std::string, PbPNCJunction> pb_pnc_junctions;
 };
 
 class ProtoOrganizer {
@@ -78,3 +80,5 @@ class ProtoOrganizer {
 }  // namespace adapter
 }  // namespace hdmap
 }  // namespace apollo
+
+#endif  // MODULES_MAP_HDMAP_ADAPTER_PROTO_ORGANIZER_H_

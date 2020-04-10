@@ -19,7 +19,7 @@ function toDrivingMode(disengageType) {
         case "DISENGAGE_CHASSIS_ERROR":
             return "CHASSIS ERROR";
         default:
-            return "UNKNOWN";
+            return "?";
     }
 }
 
@@ -39,7 +39,7 @@ export default class Meters {
     @observable speed = 0;
     @observable steeringAngle = 0;
     @observable steeringPercentage = 0;
-    @observable drivingMode = "UNKNOWN";
+    @observable drivingMode = "?";
     @observable isAutoMode = false;
     @observable turnSignal = "";
 

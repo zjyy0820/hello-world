@@ -17,7 +17,7 @@
 
 #include <algorithm>
 
-#include "cyber/common/log.h"
+#include "modules/common/log.h"
 
 namespace apollo {
 namespace control {
@@ -47,8 +47,7 @@ bool Interpolation1D::Init(const DataType& xy) {
       Eigen::SplineFitting<Eigen::Spline<double, 1>>::Interpolate(
           y.transpose(),
           // No more than cubic spline, but accept short vectors.
-          static_cast<Eigen::DenseIndex>(std::min<size_t>(x.size() - 1, 3)),
-          ScaledValues(x))));
+          std::min<int>(x.size() - 1, 3), ScaledValues(x))));
   return true;
 }
 

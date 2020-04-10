@@ -18,8 +18,8 @@
 
 #include <string>
 
-#include "cyber/common/file.h"
 #include "gtest/gtest.h"
+#include "modules/common/util/file.h"
 #include "modules/control/proto/control_conf.pb.h"
 #include "modules/control/proto/pid_conf.pb.h"
 
@@ -30,8 +30,9 @@ class PidICControllerTest : public ::testing::Test {
  public:
   virtual void SetUp() {
     std::string control_conf_file =
-        "/apollo/modules/control/testdata/conf/control_conf.pb.txt";
-    ACHECK(cyber::common::GetProtoFromFile(control_conf_file, &control_conf_));
+        "modules/control/testdata/conf/lincoln.pb.txt";
+    CHECK(common::util::GetProtoFromFile(control_conf_file,
+                                                   &control_conf_));
     lon_controller_conf_ = control_conf_.lon_controller_conf();
   }
 

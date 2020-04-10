@@ -20,7 +20,7 @@
 
 #include "modules/planning/constraint_checker/constraint_checker.h"
 
-#include "cyber/common/log.h"
+#include "modules/common/log.h"
 #include "modules/planning/common/planning_gflags.h"
 
 namespace apollo {
@@ -36,7 +36,7 @@ bool WithinRange(const T v, const T lower, const T upper) {
 ConstraintChecker::Result ConstraintChecker::ValidTrajectory(
     const DiscretizedTrajectory& trajectory) {
   const double kMaxCheckRelativeTime = FLAGS_trajectory_time_length;
-  for (const auto& p : trajectory) {
+  for (const auto& p : trajectory.trajectory_points()) {
     double t = p.relative_time();
     if (t > kMaxCheckRelativeTime) {
       break;
@@ -69,9 +69,9 @@ ConstraintChecker::Result ConstraintChecker::ValidTrajectory(
     }
   }
 
-  for (size_t i = 1; i < trajectory.NumOfPoints(); ++i) {
-    const auto& p0 = trajectory.TrajectoryPointAt(static_cast<uint32_t>(i - 1));
-    const auto& p1 = trajectory.TrajectoryPointAt(static_cast<uint32_t>(i));
+  for (std::size_t i = 1; i < trajectory.NumOfPoints(); ++i) {
+    const auto& p0 = trajectory.TrajectoryPointAt(i - 1);
+    const auto& p1 = trajectory.TrajectoryPointAt(i);
 
     if (p1.relative_time() > kMaxCheckRelativeTime) {
       break;

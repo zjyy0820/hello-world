@@ -16,8 +16,11 @@
 
 #include "modules/localization/msf/local_integ/localization_integ_impl.h"
 
-#include "cyber/common/log.h"
+#include <list>
+#include <queue>
+
 #include "modules/common/time/timer.h"
+#include "modules/common/log.h"
 #include "modules/localization/msf/common/util/frame_transform.h"
 
 namespace apollo {
@@ -31,22 +34,30 @@ LocalizationIntegImpl::LocalizationIntegImpl()
       integ_process_(new LocalizationIntegProcess()),
       gnss_process_(new LocalizationGnssProcess()),
       lidar_process_(new LocalizationLidarProcess()),
-      is_use_gnss_bestpose_(true),
-      imu_altitude_from_lidar_localization_(0.0),
+      lidar_localization_list_max_size_(10),
+      integ_localization_list_max_size_(50),
+      gnss_localization_list_max_size_(10),
+      is_use_gnss_bestpose_(true), keep_lidar_running_(false),
+      lidar_queue_max_size_(5), imu_altitude_from_lidar_localization_(0.0),
       imu_altitude_from_lidar_localization_available_(false),
-      enable_lidar_localization_(true),
+      keep_imu_running_(false), imu_queue_max_size_(200),
+      keep_gnss_running_(false), gnss_queue_max_size_(100),
+      debug_log_flag_(true), enable_lidar_localization_(true),
       gnss_antenna_extrinsic_(Eigen::Affine3d::Identity()) {}
 
 LocalizationIntegImpl::~LocalizationIntegImpl() {
+  StopThreadLoop();
+
   delete republish_process_;
   delete lidar_process_;
   delete gnss_process_;
   delete integ_process_;
 }
 
-Status LocalizationIntegImpl::Init(const LocalizationIntegParam& params) {
+Status LocalizationIntegImpl::Init(
+    const LocalizationIntegParam& params) {
   enable_lidar_localization_ = params.enable_lidar_localization;
-  if (params.enable_lidar_localization) {
+  if (params.enable_lidar_localization == true) {
     auto state = lidar_process_->Init(params);
     if (!state.ok()) {
       return state;
@@ -88,13 +99,102 @@ Status LocalizationIntegImpl::Init(const LocalizationIntegParam& params) {
         << gnss_antenna_extrinsic_.translation()(1) << " "
         << gnss_antenna_extrinsic_.translation()(2);
 
-  expert_.Init(params);
+  StartThreadLoop();
 
   return Status::OK();
 }
 
-void LocalizationIntegImpl::PcdProcess(const LidarFrame& lidar_frame) {
-  PcdProcessImpl(lidar_frame);
+void LocalizationIntegImpl::StartThreadLoop() {
+  // run process thread
+  keep_lidar_running_ = true;
+  lidar_queue_max_size_ = 5;
+  const auto &pcd_loop_func = [this] { PcdThreadLoop(); };
+  lidar_data_thread_ = std::thread(pcd_loop_func);
+
+  keep_imu_running_ = true;
+  imu_queue_max_size_ = 200;
+  const auto &imu_loop_func = [this] { ImuThreadLoop(); };
+  imu_data_thread_ = std::thread(imu_loop_func);
+
+  keep_gnss_running_ = true;
+  gnss_queue_max_size_ = 100;
+  const auto gnss_loop_func = [this] { GnssThreadLoop(); };
+  gnss_function_thread_ = std::thread(gnss_loop_func);
+
+  keep_gnss_heading_running_ = true;
+  gnss_heading_queue_max_size_ = 100;
+  const auto& gnss_heading_loop_func = [this] { GnssHeadingThreadLoop(); };
+  gnss_heading_function_thread_ = std::thread(gnss_heading_loop_func);
+}
+
+void LocalizationIntegImpl::StopThreadLoop() {
+  if (keep_lidar_running_.load()) {
+    keep_lidar_running_ = false;
+    lidar_data_signal_.notify_one();
+    lidar_data_thread_.join();
+  }
+
+  if (keep_imu_running_.load()) {
+    keep_imu_running_ = false;
+    imu_data_signal_.notify_one();
+    imu_data_thread_.join();
+  }
+
+  if (keep_gnss_running_.load()) {
+    keep_gnss_running_ = false;
+    gnss_function_signal_.notify_one();
+    gnss_function_thread_.join();
+  }
+
+  if (keep_gnss_heading_running_.load()) {
+    keep_gnss_heading_running_ = false;
+    gnss_heading_function_signal_.notify_one();
+    gnss_heading_function_thread_.join();
+  }
+}
+
+void LocalizationIntegImpl::PcdProcess(
+    const LidarFrame& lidar_frame) {
+  lidar_data_queue_mutex_.lock();
+  lidar_data_queue_.push(lidar_frame);
+  lidar_data_signal_.notify_one();
+  lidar_data_queue_mutex_.unlock();
+  return;
+}
+
+void LocalizationIntegImpl::PcdThreadLoop() {
+  AINFO << "Started pcd data process thread";
+  while (keep_lidar_running_.load()) {
+    {
+      std::unique_lock<std::mutex> lock(lidar_data_queue_mutex_);
+      size_t size = lidar_data_queue_.size();
+      while (size > lidar_queue_max_size_) {
+        lidar_data_queue_.pop();
+        --size;
+      }
+      if (lidar_data_queue_.size() == 0) {
+        lidar_data_signal_.wait(lock);
+        continue;
+      }
+    }
+
+    LidarFrame lidar_frame;
+    int waiting_num = 0;
+    {
+      std::unique_lock<std::mutex> lock(lidar_data_queue_mutex_);
+      lidar_frame = lidar_data_queue_.front();
+      lidar_data_queue_.pop();
+      waiting_num = lidar_data_queue_.size();
+    }
+
+    if (waiting_num > 2) {
+      AWARN << waiting_num
+            << " point cloud msg are waiting to process.";
+    }
+
+    PcdProcessImpl(lidar_frame);
+  }
+  AINFO << "Exited pcd data process thread";
 }
 
 void LocalizationIntegImpl::PcdProcessImpl(const LidarFrame& pcd_data) {
@@ -106,8 +206,6 @@ void LocalizationIntegImpl::PcdProcessImpl(const LidarFrame& pcd_data) {
 
   state = lidar_process_->GetResult(&lidar_localization);
 
-  expert_.AddLidarLocalization(lidar_localization);
-
   MeasureData lidar_measure;
   if (state == 2) {  // only state OK republish lidar msg
     republish_process_->LidarLocalProcess(lidar_localization, &lidar_measure);
@@ -118,12 +216,56 @@ void LocalizationIntegImpl::PcdProcessImpl(const LidarFrame& pcd_data) {
     imu_altitude_from_lidar_localization_available_ = true;
   }
 
-  lastest_lidar_localization_ =
-      LocalizationResult(LocalizationMeasureState(state), lidar_localization);
+  lidar_localization_mutex_.lock();
+  lidar_localization_list_.push_back(
+      LocalizationResult(LocalizationMeasureState(state), lidar_localization));
+  if (lidar_localization_list_.size() > lidar_localization_list_max_size_) {
+    lidar_localization_list_.pop_front();
+  }
+  lidar_localization_mutex_.unlock();
 }
 
-void LocalizationIntegImpl::RawImuProcessRfu(const ImuData& imu_data) {
-  ImuProcessImpl(imu_data);
+void LocalizationIntegImpl::RawImuProcessRfu(
+    const ImuData& imu_data) {
+  // push to imu_data_queue
+  imu_data_queue_mutex_.lock();
+  imu_data_queue_.push(imu_data);
+  imu_data_signal_.notify_one();
+  imu_data_queue_mutex_.unlock();
+}
+
+void LocalizationIntegImpl::ImuThreadLoop() {
+  AINFO << "Started imu data process thread";
+  while (keep_imu_running_.load()) {
+    {
+      std::unique_lock<std::mutex> lock(imu_data_queue_mutex_);
+      size_t size = imu_data_queue_.size();
+      while (size > imu_queue_max_size_) {
+        imu_data_queue_.pop();
+        --size;
+      }
+      if (imu_data_queue_.size() == 0) {
+        imu_data_signal_.wait(lock);
+        continue;
+      }
+    }
+
+    ImuData imu_data;
+    int waiting_num = 0;
+    {
+      std::unique_lock<std::mutex> lock(imu_data_queue_mutex_);
+      imu_data = imu_data_queue_.front();
+      imu_data_queue_.pop();
+      waiting_num = imu_data_queue_.size();
+    }
+
+    if (waiting_num > 10) {
+      AWARN << waiting_num << " imu msg are waiting to process.";
+    }
+
+    ImuProcessImpl(imu_data);
+  }
+  AINFO << "Exited imu data process thread";
 }
 
 void LocalizationIntegImpl::ImuProcessImpl(const ImuData& imu_data) {
@@ -136,23 +278,10 @@ void LocalizationIntegImpl::ImuProcessImpl(const ImuData& imu_data) {
   }
   integ_process_->RawImuProcess(imu_data);
 
-  expert_.AddImu(imu_data);
-
   // integ
   IntegState state;
   LocalizationEstimate integ_localization;
   integ_process_->GetResult(&state, &integ_localization);
-  ImuData corrected_imu;
-  integ_process_->GetCorrectedImu(&corrected_imu);
-  InertialParameter earth_param;
-  integ_process_->GetEarthParameter(&earth_param);
-  // check msf running status and set msf_status in integ_localization
-
-  LocalizationIntegStatus integ_status;
-  expert_.AddFusionLocalization(integ_localization);
-  expert_.GetFusionStatus(integ_localization.mutable_msf_status(),
-                          integ_localization.mutable_sensor_status(),
-                          &integ_status);
 
   apollo::localization::Pose* posepb_loc = integ_localization.mutable_pose();
 
@@ -162,38 +291,32 @@ void LocalizationIntegImpl::ImuProcessImpl(const ImuData& imu_data) {
   }
 
   // set linear acceleration
-  Eigen::Vector3d orig_acceleration(corrected_imu.fb[0], corrected_imu.fb[1],
-                                    corrected_imu.fb[2]);
+  Eigen::Vector3d orig_acceleration(imu_data.fb[0], imu_data.fb[1],
+                                    imu_data.fb[2]);
   const apollo::common::Quaternion& orientation =
       integ_localization.pose().orientation();
   Eigen::Quaternion<double> quaternion(orientation.qw(), orientation.qx(),
                                        orientation.qy(), orientation.qz());
   Eigen::Vector3d vec_acceleration =
-      static_cast<Eigen::Vector3d>(quaternion * orig_acceleration);
-
-  // Remove gravity.
-  vec_acceleration(2) -= earth_param.g;
+      quaternion.toRotationMatrix() * orig_acceleration;
 
   apollo::common::Point3D* linear_acceleration =
       posepb_loc->mutable_linear_acceleration();
   linear_acceleration->set_x(vec_acceleration(0));
   linear_acceleration->set_y(vec_acceleration(1));
-  linear_acceleration->set_z(vec_acceleration(2));
-
-  Eigen::Vector3d vec_acceleration_vrf =
-      quaternion.inverse() * vec_acceleration;
+  linear_acceleration->set_z(vec_acceleration(2) - 9.8);
 
   apollo::common::Point3D* linear_acceleration_vrf =
       posepb_loc->mutable_linear_acceleration_vrf();
-  linear_acceleration_vrf->set_x(vec_acceleration_vrf(0));
-  linear_acceleration_vrf->set_y(vec_acceleration_vrf(1));
-  linear_acceleration_vrf->set_z(vec_acceleration_vrf(2));
+  linear_acceleration_vrf->set_x(imu_data.fb[0]);
+  linear_acceleration_vrf->set_y(imu_data.fb[1]);
+  linear_acceleration_vrf->set_z(imu_data.fb[2]);
 
   // set angular velocity
-  Eigen::Vector3d orig_angular_velocity(
-      corrected_imu.wibb[0], corrected_imu.wibb[1], corrected_imu.wibb[2]);
-  Eigen::Vector3d vec_angular_velocity = static_cast<Eigen::Vector3d>(
-      quaternion.toRotationMatrix() * orig_angular_velocity);
+  Eigen::Vector3d orig_angular_velocity(imu_data.wibb[0], imu_data.wibb[1],
+                                        imu_data.wibb[2]);
+  Eigen::Vector3d vec_angular_velocity =
+      quaternion.toRotationMatrix() * orig_angular_velocity;
   apollo::common::Point3D* angular_velocity =
       posepb_loc->mutable_angular_velocity();
   angular_velocity->set_x(vec_angular_velocity(0));
@@ -202,13 +325,17 @@ void LocalizationIntegImpl::ImuProcessImpl(const ImuData& imu_data) {
 
   apollo::common::Point3D* angular_velocity_vrf =
       posepb_loc->mutable_angular_velocity_vrf();
-  angular_velocity_vrf->set_x(corrected_imu.wibb[0]);
-  angular_velocity_vrf->set_y(corrected_imu.wibb[1]);
-  angular_velocity_vrf->set_z(corrected_imu.wibb[2]);
+  angular_velocity_vrf->set_x(imu_data.wibb[0]);
+  angular_velocity_vrf->set_y(imu_data.wibb[1]);
+  angular_velocity_vrf->set_z(imu_data.wibb[2]);
 
-  lastest_integ_localization_ =
-      LocalizationResult(LocalizationMeasureState(static_cast<int>(state)),
-                         integ_localization, integ_status);
+  integ_localization_mutex_.lock();
+  integ_localization_list_.push_back(LocalizationResult(
+      LocalizationMeasureState(static_cast<int>(state)), integ_localization));
+  if (integ_localization_list_.size() > integ_localization_list_max_size_) {
+    integ_localization_list_.pop_front();
+  }
+  integ_localization_mutex_.unlock();
 
   InsPva integ_sins_pva;
   double covariance[9][9];
@@ -219,7 +346,8 @@ void LocalizationIntegImpl::ImuProcessImpl(const ImuData& imu_data) {
 
   if (state != IntegState::NOT_INIT) {
     // pass result of integration localization to lidar process module
-    if (enable_lidar_localization_ && state != IntegState::NOT_STABLE) {
+    if (enable_lidar_localization_
+        && state != IntegState::NOT_STABLE) {
       lidar_process_->IntegPvaProcess(integ_sins_pva);
     }
 
@@ -228,6 +356,7 @@ void LocalizationIntegImpl::ImuProcessImpl(const ImuData& imu_data) {
       gnss_process_->IntegSinsPvaProcess(integ_sins_pva, covariance);
     }
   }
+  return;
 }
 
 void LocalizationIntegImpl::RawObservationProcess(
@@ -236,7 +365,14 @@ void LocalizationIntegImpl::RawObservationProcess(
     return;
   }
 
-  RawObservationProcessImpl(raw_obs_msg);
+  // push process function to queue
+  gnss_function_queue_mutex_.lock();
+  gnss_function_queue_.push(std::function<void()>(std::bind(
+      &LocalizationIntegImpl::RawObservationProcessImpl, this, raw_obs_msg)));
+  gnss_function_signal_.notify_one();
+  gnss_function_queue_mutex_.unlock();
+
+  return;
 }
 
 void LocalizationIntegImpl::RawEphemerisProcess(
@@ -245,7 +381,14 @@ void LocalizationIntegImpl::RawEphemerisProcess(
     return;
   }
 
-  RawEphemerisProcessImpl(gnss_orbit_msg);
+  // push process function to queue
+  gnss_function_queue_mutex_.lock();
+  gnss_function_queue_.push(std::function<void()>(std::bind(
+      &LocalizationIntegImpl::RawEphemerisProcessImpl, this, gnss_orbit_msg)));
+  gnss_function_signal_.notify_one();
+  gnss_function_queue_mutex_.unlock();
+
+  return;
 }
 
 void LocalizationIntegImpl::GnssBestPoseProcess(
@@ -254,54 +397,58 @@ void LocalizationIntegImpl::GnssBestPoseProcess(
     return;
   }
 
-  GnssBestPoseProcessImpl(bestgnsspos_msg);
-}
+  // push process function to queue
+  gnss_function_queue_mutex_.lock();
+  gnss_function_queue_.push(std::function<void()>(std::bind(
+      &LocalizationIntegImpl::GnssBestPoseProcessImpl, this, bestgnsspos_msg)));
+  gnss_function_signal_.notify_one();
+  gnss_function_queue_mutex_.unlock();
 
-void LocalizationIntegImpl::RawObservationProcessImpl(
-    const drivers::gnss::EpochObservation& raw_obs_msg) {
-  gnss_process_->RawObservationProcess(raw_obs_msg);
-
-  MeasureData gnss_measure;
-  LocalizationMeasureState state = gnss_process_->GetResult(&gnss_measure);
-
-  MeasureData measure;
-  if (state == LocalizationMeasureState::OK ||
-      state == LocalizationMeasureState::VALID) {
-    republish_process_->GnssLocalProcess(gnss_measure, &measure);
-    integ_process_->MeasureDataProcess(measure);
-  }
-
-  LocalizationEstimate gnss_localization;
-  TransferGnssMeasureToLocalization(measure, &gnss_localization);
-
-  lastest_gnss_localization_ = LocalizationResult(state, gnss_localization);
-}
-
-void LocalizationIntegImpl::RawEphemerisProcessImpl(
-    const drivers::gnss::GnssEphemeris& gnss_orbit_msg) {
-  gnss_process_->RawEphemerisProcess(gnss_orbit_msg);
-}
-
-void LocalizationIntegImpl::GnssBestPoseProcessImpl(
-    const drivers::gnss::GnssBestPose& bestgnsspos_msg) {
-  MeasureData measure;
-  if (republish_process_->NovatelBestgnssposProcess(bestgnsspos_msg,
-                                                    &measure)) {
-    integ_process_->MeasureDataProcess(measure);
-
-    expert_.AddGnssBestPose(bestgnsspos_msg, measure);
-    LocalizationEstimate gnss_localization;
-    TransferGnssMeasureToLocalization(measure, &gnss_localization);
-    expert_.GetGnssStatus(gnss_localization.mutable_msf_status());
-
-    lastest_gnss_localization_ =
-        LocalizationResult(LocalizationMeasureState::OK, gnss_localization);
-  }
+  return;
 }
 
 void LocalizationIntegImpl::GnssHeadingProcess(
     const drivers::gnss::Heading& gnssheading_msg) {
-  GnssHeadingProcessImpl(gnssheading_msg);
+  gnss_heading_function_queue_mutex_.lock();
+  gnss_heading_function_queue_.push(std::function<void()>(std::bind(
+      &LocalizationIntegImpl::GnssHeadingProcessImpl, this, gnssheading_msg)));
+  gnss_heading_function_signal_.notify_one();
+  gnss_heading_function_queue_mutex_.unlock();
+  return;
+}
+
+void LocalizationIntegImpl::GnssHeadingThreadLoop() {
+  AINFO << "Started gnss process thread";
+  while (keep_gnss_heading_running_.load()) {
+    {
+      std::unique_lock<std::mutex> lock(gnss_heading_function_queue_mutex_);
+      int size = gnss_heading_function_queue_.size();
+      while (size > gnss_heading_queue_max_size_) {
+        gnss_heading_function_queue_.pop();
+        --size;
+      }
+      if (gnss_heading_function_queue_.size() == 0) {
+        gnss_heading_function_signal_.wait(lock);
+        continue;
+      }
+    }
+
+    std::function<void()> gnss_heading_func;
+    int waiting_num = 0;
+    {
+      std::unique_lock<std::mutex> lock(gnss_heading_function_queue_mutex_);
+      gnss_heading_func = gnss_heading_function_queue_.front();
+      gnss_heading_function_queue_.pop();
+      waiting_num = gnss_heading_function_queue_.size();
+    }
+
+    if (waiting_num > 2) {
+      AWARN << waiting_num << " gnss_heading function are waiting to process.";
+    }
+    gnss_heading_func();
+  }
+  AINFO << "Exited gnss_heading process thread";
+  return;
 }
 
 void LocalizationIntegImpl::GnssHeadingProcessImpl(
@@ -314,8 +461,97 @@ void LocalizationIntegImpl::GnssHeadingProcessImpl(
   }
 }
 
+void LocalizationIntegImpl::GnssThreadLoop() {
+  AINFO << "Started gnss process thread";
+  while (keep_gnss_running_.load()) {
+    {
+      std::unique_lock<std::mutex> lock(gnss_function_queue_mutex_);
+      size_t size = gnss_function_queue_.size();
+      while (size > gnss_queue_max_size_) {
+        gnss_function_queue_.pop();
+        --size;
+      }
+      if (gnss_function_queue_.size() == 0) {
+        gnss_function_signal_.wait(lock);
+        continue;
+      }
+    }
+
+    std::function<void()> gnss_func;
+    int waiting_num = 0;
+    {
+      std::unique_lock<std::mutex> lock(gnss_function_queue_mutex_);
+      gnss_func = gnss_function_queue_.front();
+      gnss_function_queue_.pop();
+      waiting_num = gnss_function_queue_.size();
+    }
+
+    if (waiting_num > 2) {
+      AWARN << waiting_num << " gnss function are waiting to process.";
+    }
+
+    gnss_func();
+  }
+  AINFO << "Exited gnss process thread";
+  return;
+}
+
+void LocalizationIntegImpl::RawObservationProcessImpl(
+    const drivers::gnss::EpochObservation& raw_obs_msg) {
+  gnss_process_->RawObservationProcess(raw_obs_msg);
+
+  MeasureData gnss_measure;
+  LocalizationMeasureState state = gnss_process_->GetResult(&gnss_measure);
+
+  MeasureData measure;
+  if (state == LocalizationMeasureState::OK
+      || state == LocalizationMeasureState::VALID) {
+    republish_process_->GnssLocalProcess(gnss_measure, &measure);
+    integ_process_->MeasureDataProcess(measure);
+  }
+
+  LocalizationEstimate gnss_localization;
+  TransferGnssMeasureToLocalization(measure, &gnss_localization);
+
+  gnss_localization_mutex_.lock();
+  gnss_localization_list_.push_back(
+      LocalizationResult(state, gnss_localization));
+  if (gnss_localization_list_.size() > gnss_localization_list_max_size_) {
+    gnss_localization_list_.pop_front();
+  }
+  gnss_localization_mutex_.unlock();
+  return;
+}
+
+void LocalizationIntegImpl::RawEphemerisProcessImpl(
+    const drivers::gnss::GnssEphemeris& gnss_orbit_msg) {
+  gnss_process_->RawEphemerisProcess(gnss_orbit_msg);
+  return;
+}
+
+void LocalizationIntegImpl::GnssBestPoseProcessImpl(
+    const drivers::gnss::GnssBestPose& bestgnsspos_msg) {
+  MeasureData measure;
+  if (republish_process_->NovatelBestgnssposProcess(
+      bestgnsspos_msg, &measure)) {
+    integ_process_->MeasureDataProcess(measure);
+
+    LocalizationEstimate gnss_localization;
+    TransferGnssMeasureToLocalization(measure, &gnss_localization);
+
+    gnss_localization_mutex_.lock();
+    gnss_localization_list_.push_back(
+        LocalizationResult(LocalizationMeasureState::OK, gnss_localization));
+    if (gnss_localization_list_.size() > gnss_localization_list_max_size_) {
+      gnss_localization_list_.pop_front();
+    }
+    gnss_localization_mutex_.unlock();
+  }
+  return;
+}
+
 void LocalizationIntegImpl::TransferGnssMeasureToLocalization(
-    const MeasureData& measure, LocalizationEstimate* localization) {
+    const MeasureData& measure, LocalizationEstimate *localization) {
   CHECK_NOTNULL(localization);
 
   apollo::common::Header* headerpb = localization->mutable_header();
@@ -326,8 +562,9 @@ void LocalizationIntegImpl::TransferGnssMeasureToLocalization(
   headerpb->set_timestamp_sec(timestamp);
 
   UTMCoor utm_xy;
-  FrameTransform::LatlonToUtmXY(measure.gnss_pos.longitude,
-                                measure.gnss_pos.latitude, &utm_xy);
+  LatlonToUtmXY(measure.gnss_pos.longitude,
+                  measure.gnss_pos.latitude,
+                  &utm_xy);
 
   apollo::common::PointENU* position = posepb->mutable_position();
   position->set_x(utm_xy.x);
@@ -360,21 +597,93 @@ void LocalizationIntegImpl::TransferGnssMeasureToLocalization(
   orientation_std_dev->set_x(-1.0);
   orientation_std_dev->set_y(-1.0);
   orientation_std_dev->set_z(-1.0);
+
+  return;
 }
 
-const LocalizationResult& LocalizationIntegImpl::GetLastestLidarLocalization()
-    const {
-  return lastest_lidar_localization_;
+void LocalizationIntegImpl::GetLastestLidarLocalization(
+    LocalizationMeasureState *state,
+    LocalizationEstimate *lidar_localization) {
+  CHECK_NOTNULL(state);
+  CHECK_NOTNULL(lidar_localization);
+
+  lidar_localization_mutex_.lock();
+  if (lidar_localization_list_.size()) {
+    *state = lidar_localization_list_.front().state();
+    *lidar_localization = lidar_localization_list_.front().localization();
+    lidar_localization_list_.clear();
+  } else {
+    *state = LocalizationMeasureState::NOT_VALID;
+  }
+  lidar_localization_mutex_.unlock();
+  return;
 }
 
-const LocalizationResult& LocalizationIntegImpl::GetLastestIntegLocalization()
-    const {
-  return lastest_integ_localization_;
+void LocalizationIntegImpl::GetLastestIntegLocalization(
+    LocalizationMeasureState *state,
+    LocalizationEstimate *integ_localization) {
+  CHECK_NOTNULL(state);
+  CHECK_NOTNULL(integ_localization);
+
+  integ_localization_mutex_.lock();
+  if (integ_localization_list_.size()) {
+    *state = integ_localization_list_.front().state();
+    *integ_localization = integ_localization_list_.front().localization();
+    integ_localization_list_.clear();
+  } else {
+    *state = LocalizationMeasureState::NOT_VALID;
+  }
+  integ_localization_mutex_.unlock();
+  return;
 }
 
-const LocalizationResult& LocalizationIntegImpl::GetLastestGnssLocalization()
-    const {
-  return lastest_gnss_localization_;
+void LocalizationIntegImpl::GetLastestGnssLocalization(
+    LocalizationMeasureState *state,
+    LocalizationEstimate *gnss_localization) {
+  CHECK_NOTNULL(state);
+  CHECK_NOTNULL(gnss_localization);
+
+  gnss_localization_mutex_.lock();
+  if (gnss_localization_list_.size()) {
+    *state = gnss_localization_list_.front().state();
+    *gnss_localization = gnss_localization_list_.front().localization();
+    gnss_localization_list_.clear();
+  } else {
+    *state = LocalizationMeasureState::NOT_VALID;
+  }
+  gnss_localization_mutex_.unlock();
+  return;
+}
+
+void LocalizationIntegImpl::GetLidarLocalizationList(
+    std::list<LocalizationResult> *results) {
+  CHECK_NOTNULL(results);
+
+  lidar_localization_mutex_.lock();
+  *results = lidar_localization_list_;
+  lidar_localization_list_.clear();
+  lidar_localization_mutex_.unlock();
+}
+
+void LocalizationIntegImpl::GetIntegLocalizationList(
+    std::list<LocalizationResult> *results) {
+  CHECK_NOTNULL(results);
+
+  integ_localization_mutex_.lock();
+  *results = integ_localization_list_;
+  integ_localization_list_.clear();
+  integ_localization_mutex_.unlock();
+}
+
+void LocalizationIntegImpl::GetGnssLocalizationList(
+    std::list<LocalizationResult> *results) {
+  CHECK_NOTNULL(results);
+
+  gnss_localization_mutex_.lock();
+  *results = gnss_localization_list_;
+  gnss_localization_list_.clear();
+  gnss_localization_mutex_.unlock();
+  return;
 }
 
 }  // namespace msf

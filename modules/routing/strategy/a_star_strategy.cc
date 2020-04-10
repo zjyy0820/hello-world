@@ -1,27 +1,30 @@
 /******************************************************************************
- * Copyright 2017 The Apollo Authors. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *****************************************************************************/
+  * Copyright 2017 The Apollo Authors. All Rights Reserved.
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+  * You may obtain a copy of the License at
+  *
+  * http://www.apache.org/licenses/LICENSE-2.0
+  *
+  * Unless required by applicable law or agreed to in writing, software
+  * distributed under the License is distributed on an "AS IS" BASIS,
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  *****************************************************************************/
 
 #include <algorithm>
 #include <cmath>
+#include <fstream>
 #include <limits>
 #include <queue>
 
+#include "modules/common/log.h"
 #include "modules/routing/common/routing_gflags.h"
 #include "modules/routing/graph/sub_topo_graph.h"
 #include "modules/routing/graph/topo_graph.h"
+#include "modules/routing/graph/topo_node.h"
 #include "modules/routing/strategy/a_star_strategy.h"
 
 namespace apollo {
@@ -216,8 +219,8 @@ double AStarStrategy::HeuristicCost(const TopoNode* src_node,
                                     const TopoNode* dest_node) {
   const auto& src_point = src_node->AnchorPoint();
   const auto& dest_point = dest_node->AnchorPoint();
-  double distance = std::fabs(src_point.x() - dest_point.x()) +
-                    std::fabs(src_point.y() - dest_point.y());
+  double distance = fabs(src_point.x() - dest_point.x()) +
+                    fabs(src_point.y() - dest_point.y());
   return distance;
 }
 
@@ -289,8 +292,8 @@ bool AStarStrategy::Search(const TopoGraph* graph,
         tentative_g_score -=
             (edge->FromNode()->Cost() + edge->ToNode()->Cost()) / 2;
       }
-      double f = tentative_g_score + HeuristicCost(to_node, dest_node);
-      if (open_set_.count(to_node) != 0 && f >= g_score_[to_node]) {
+      if (open_set_.count(to_node) != 0 &&
+          tentative_g_score >= g_score_[to_node]) {
         continue;
       }
       // if to_node is reached by forward, reset enter_s to start_s
@@ -310,9 +313,9 @@ bool AStarStrategy::Search(const TopoGraph* graph,
         enter_s_[to_node] = to_node_enter_s;
       }
 
-      g_score_[to_node] = f;
+      g_score_[to_node] = tentative_g_score;
       SearchNode next_node(to_node);
-      next_node.f = f;
+      next_node.f = tentative_g_score + HeuristicCost(to_node, dest_node);
       open_set_detail.push(next_node);
       came_from_[to_node] = from_node;
       if (open_set_.count(to_node) == 0) {

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 ###############################################################################
 # Copyright 2017 The Apollo Authors. All Rights Reserved.
@@ -16,17 +16,19 @@
 # limitations under the License.
 ###############################################################################
 
-# -*- coding:utf-8 -*-
+#-*- coding:utf-8 -*-
 
 import datetime
 import os
 import shutil
 import sys
-
 import yaml
 
 
 def gen_vehicle_controller_header(content, output_dir):
+    """
+        doc string:
+    """
     controller_header_tpl_file = "template/controller.h.tpl"
     car_type = content["car_type"]
     with open(controller_header_tpl_file, 'r') as tpl:
@@ -68,6 +70,9 @@ def gen_vehicle_controller_header(content, output_dir):
 
 
 def gen_vehicle_controller_cpp(content, output_dir):
+    """
+        doc string:
+    """
     controller_cpp_tpl_file = "template/controller.cc.tpl"
     with open(controller_cpp_tpl_file, 'r') as tpl:
         fmt = tpl.readlines()
@@ -112,6 +117,9 @@ def gen_vehicle_controller_cpp(content, output_dir):
 
 
 def gen_message_manager_header(content, output_dir):
+    """
+        doc string:
+    """
     message_manager_header_tpl_file = "template/message_manager.h.tpl"
     with open(message_manager_header_tpl_file, 'r') as tpl:
         fmt = tpl.readlines()
@@ -128,6 +136,9 @@ def gen_message_manager_header(content, output_dir):
 
 
 def gen_message_manager_cpp(content, output_dir):
+    """
+        doc string:
+    """
     message_manager_cpp_tpl_file = "template/message_manager.cc.tpl"
     with open(message_manager_cpp_tpl_file, 'r') as tpl:
         fmt = tpl.readlines()
@@ -135,6 +146,7 @@ def gen_message_manager_cpp(content, output_dir):
     message_manager_cpp_file = output_dir + (
         "%s_message_manager.cc" % car_type.lower())
     with open(message_manager_cpp_file, 'w') as cpp:
+
         FMT = "".join(fmt)
         fmt_val = {}
         fmt_val["car_type_lower"] = car_type.lower()
@@ -173,6 +185,9 @@ def gen_message_manager_cpp(content, output_dir):
 
 
 def gen_vehicle_factory_header(content, output_dir):
+    """
+        doc string:
+    """
     vehicle_factory_header_tpl_file = "template/vehicle_factory.h.tpl"
     with open(vehicle_factory_header_tpl_file, 'r') as tpl:
         fmt = tpl.readlines()
@@ -189,6 +204,9 @@ def gen_vehicle_factory_header(content, output_dir):
 
 
 def gen_vehicle_factory_cpp(content, output_dir):
+    """
+        doc string:
+    """
     vehicle_factory_cpp_tpl_file = "template/vehicle_factory.cc.tpl"
     with open(vehicle_factory_cpp_tpl_file, 'r') as tpl:
         fmt = tpl.readlines()
@@ -196,6 +214,7 @@ def gen_vehicle_factory_cpp(content, output_dir):
     vehicle_factory_cpp_file = output_dir + (
         "%s_vehicle_factory.cc" % car_type.lower())
     with open(vehicle_factory_cpp_file, 'w') as cpp:
+
         FMT = "".join(fmt)
         fmt_val = {}
         fmt_val["car_type_lower"] = car_type.lower()
@@ -205,6 +224,9 @@ def gen_vehicle_factory_cpp(content, output_dir):
 
 
 def gen_build_file(content, output_dir):
+    """
+        doc string:
+    """
     build_tpl_file = "template/controller_manager_BUILD.tpl"
     with open(build_tpl_file, 'r') as tpl:
         fmt = tpl.readlines()
@@ -218,7 +240,10 @@ def gen_build_file(content, output_dir):
 
 
 def gen_vehicle_controller_and_manager(config_file, output_dir):
-    print("Generating controller and manager")
+    """
+        doc string:
+    """
+    print "Generating controller and manager"
     with open(config_file, 'r') as fp:
         content = yaml.load(fp)
         gen_vehicle_controller_header(content, output_dir)
@@ -232,15 +257,13 @@ def gen_vehicle_controller_and_manager(config_file, output_dir):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print('Usage: python %s some_config.yml' % sys.argv[0])
-        sys.exit(0)
-
+        print "usage:\npython %s some_config.yml" % sys.argv[0]
+        sys.exit(1)
     with open(sys.argv[1], 'r') as fp:
         conf = yaml.load(fp)
     protocol_conf = conf["protocol_conf"]
 
-    output_dir = conf["output_dir"] + "vehicle/" + conf["car_type"].lower() + \
-        "/"
+    output_dir = conf["output_dir"] + "vehicle/" + conf["car_type"].lower() + "/"
     shutil.rmtree(output_dir, True)
     os.makedirs(output_dir)
     gen_vehicle_controller_and_manager(protocol_conf, output_dir)

@@ -19,14 +19,15 @@
  * @brief Defines the templated AABoxKDTree2dNode class.
  */
 
-#pragma once
+#ifndef MODULES_COMMON_MATH_AABOXKDTREE2D_H_
+#define MODULES_COMMON_MATH_AABOXKDTREE2D_H_
 
 #include <algorithm>
 #include <limits>
 #include <memory>
 #include <vector>
 
-#include "cyber/common/log.h"
+#include "modules/common/log.h"
 
 #include "modules/common/math/aabox2d.h"
 #include "modules/common/math/math_utils.h"
@@ -70,7 +71,7 @@ class AABoxKDTree2dNode {
   AABoxKDTree2dNode(const std::vector<ObjectPtr> &objects,
                     const AABoxKDTreeParams &params, int depth)
       : depth_(depth) {
-    ACHECK(!objects.empty());
+    CHECK(!objects.empty());
 
     ComputeBoundary(objects);
     ComputePartition();
@@ -131,7 +132,7 @@ class AABoxKDTree2dNode {
 
  private:
   void InitObjects(const std::vector<ObjectPtr> &objects) {
-    num_objects_ = static_cast<int>(objects.size());
+    num_objects_ = objects.size();
     objects_sorted_by_min_ = objects;
     objects_sorted_by_max_ = objects;
     std::sort(objects_sorted_by_min_.begin(), objects_sorted_by_min_.end(),
@@ -335,8 +336,8 @@ class AABoxKDTree2dNode {
     }
     mid_x_ = (min_x_ + max_x_) / 2.0;
     mid_y_ = (min_y_ + max_y_) / 2.0;
-    ACHECK(!std::isinf(max_x_) && !std::isinf(max_y_) && !std::isinf(min_x_) &&
-           !std::isinf(min_y_))
+    CHECK(!std::isinf(max_x_) && !std::isinf(max_y_) && !std::isinf(min_x_) &&
+          !std::isinf(min_y_))
         << "the provided object box size is infinity";
   }
 
@@ -417,7 +418,7 @@ class AABoxKDTree2d {
   using ObjectPtr = const ObjectType *;
 
   /**
-   * @brief Constructor which takes a vector of objects and parameters.
+   * @brief Contructor which takes a vector of objects and parameters.
    * @param params Parameters to build the KD-tree.
    */
   AABoxKDTree2d(const std::vector<ObjectType> &objects,
@@ -469,3 +470,5 @@ class AABoxKDTree2d {
 }  // namespace math
 }  // namespace common
 }  // namespace apollo
+
+#endif /* MODULES_COMMON_MATH_AABOXKDTREE2D_H_ */

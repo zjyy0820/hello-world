@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright 2018 The Apollo Authors. All Rights Reserved.
+ * Copyright 2017 The Apollo Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 #include "modules/localization/msf/local_map/lossless_map/lossless_map_config.h"
 
+#include <string>
+
 namespace apollo {
 namespace localization {
 namespace msf {
@@ -28,7 +30,7 @@ LosslessMapConfig::LosslessMapConfig(std::string map_version)
   max_intensity_value_ = 255.0;
   max_intensity_var_value_ = 1000.0;
   map_is_compression_ = true;
-  map_ground_height_offset_ = 1.7f;  // Set the initial value here.
+  map_ground_height_offset_ = 1.7;  // Set the initial value here.
 }
 
 void LosslessMapConfig::CreateXml(boost::property_tree::ptree* config) const {
@@ -39,6 +41,7 @@ void LosslessMapConfig::CreateXml(boost::property_tree::ptree* config) const {
   config->put("map.map_runtime.max_intensity_value", max_intensity_value_);
   config->put("map.map_runtime.max_intensity_var_value",
               max_intensity_var_value_);
+  return;
 }
 
 void LosslessMapConfig::LoadXml(const boost::property_tree::ptree& config) {
@@ -50,6 +53,7 @@ void LosslessMapConfig::LoadXml(const boost::property_tree::ptree& config) {
       config.get<float>("map.map_runtime.max_intensity_value");
   max_intensity_var_value_ =
       config.get<float>("map.map_runtime.max_intensity_var_value");
+  return;
 }
 
 }  // namespace msf

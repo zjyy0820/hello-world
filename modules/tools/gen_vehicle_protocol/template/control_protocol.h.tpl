@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright 2019 The Apollo Authors. All Rights Reserved.
+ * Copyright 2017 The Apollo Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,8 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef MODULES_CANBUS_VEHICLE_%(car_type_upper)s_PROTOCOL_%(protocol_name_upper)s_H_
+#define MODULES_CANBUS_VEHICLE_%(car_type_upper)s_PROTOCOL_%(protocol_name_upper)s_H_
 
 #include "modules/drivers/canbus/can_comm/protocol_data.h"
 #include "modules/canbus/proto/chassis_detail.pb.h"
@@ -48,4 +49,4 @@ class %(classname)s : public ::apollo::drivers::canbus::ProtocolData<
 }  // namespace canbus
 }  // namespace apollo
 
-
+#endif  // MODULES_CANBUS_VEHICL_%(car_type_upper)s_PROTOCOL_%(protocol_name_upper)s_H_

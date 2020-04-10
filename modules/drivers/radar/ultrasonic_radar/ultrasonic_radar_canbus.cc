@@ -14,12 +14,13 @@
  * limitations under the License.
  *****************************************************************************/
 
-#include "modules/drivers/radar/ultrasonic_radar/ultrasonic_radar_canbus.h"
+/**
+ * @file
+ */
 
-#include "cyber/common/file.h"
-#include "modules/common/util/util.h"
-#include "modules/drivers/proto/ultrasonic_radar.pb.h"
+#include "modules/drivers/radar/ultrasonic_radar/ultrasonic_radar_canbus.h"
 #include "modules/drivers/radar/ultrasonic_radar/ultrasonic_radar_message_manager.h"
+#include "modules/drivers/proto/ultrasonic_radar.pb.h"
 
 /**
  * @namespace apollo::drivers::ultrasonic_radar
@@ -29,29 +30,24 @@ namespace apollo {
 namespace drivers {
 namespace ultrasonic_radar {
 
-UltrasonicRadarCanbus::UltrasonicRadarCanbus()
-    : monitor_logger_buffer_(
-          common::monitor::MonitorMessageItem::ULTRASONIC_RADAR) {}
-
-UltrasonicRadarCanbus::~UltrasonicRadarCanbus() {
-  can_receiver_.Stop();
-  can_client_->Stop();
+std::string UltrasonicRadarCanbus::Name() const {
+  return FLAGS_canbus_driver_name;
 }
 
-std::string UltrasonicRadarCanbus::Name() const { return "ultrasonic_radar"; }
-
-apollo::common::Status UltrasonicRadarCanbus::Init(
-    const std::string& config_path,
-    const std::shared_ptr<::apollo::cyber::Writer<Ultrasonic>>& writer) {
-  if (!cyber::common::GetProtoFromFile(config_path, &ultrasonic_radar_conf_)) {
-    return OnError("Unable to load canbus conf file: " + config_path);
+apollo::common::Status UltrasonicRadarCanbus::Init() {
+  AdapterManager::Init(FLAGS_adapter_config_filename);
+  AINFO << "The adapter manager is successfully initialized.";
+  if (!::apollo::common::util::GetProtoFromFile(FLAGS_sensor_conf_file,
+                                                &ultrasonic_radar_conf_)) {
+    return OnError("Unable to load canbus conf file: " +
+                   FLAGS_sensor_conf_file);
   }
 
-  AINFO << "The canbus conf file is loaded: " << config_path;
+  AINFO << "The canbus conf file is loaded: " << FLAGS_sensor_conf_file;
   ADEBUG << "Canbus_conf:" << ultrasonic_radar_conf_.ShortDebugString();
 
   // Init can client
-  auto can_factory = CanClientFactory::Instance();
+  auto *can_factory = CanClientFactory::instance();
   can_factory->RegisterCanClients();
   can_client_ = can_factory->CreateCANClient(
       ultrasonic_radar_conf_.can_conf().can_card_parameter());
@@ -60,9 +56,10 @@ apollo::common::Status UltrasonicRadarCanbus::Init(
   }
   AINFO << "Can client is successfully created.";
 
-  sensor_message_manager_ = std::unique_ptr<UltrasonicRadarMessageManager>(
-      new UltrasonicRadarMessageManager(ultrasonic_radar_conf_.entrance_num(),
-                                        writer));
+  sensor_message_manager_ =
+      std::unique_ptr<UltrasonicRadarMessageManager>(
+          new UltrasonicRadarMessageManager(
+              ultrasonic_radar_conf_.entrance_num()));
   if (sensor_message_manager_ == nullptr) {
     return OnError("Failed to create message manager.");
   }
@@ -71,8 +68,10 @@ apollo::common::Status UltrasonicRadarCanbus::Init(
 
   bool enable_receiver_log =
       ultrasonic_radar_conf_.can_conf().enable_receiver_log();
-  if (can_receiver_.Init(can_client_.get(), sensor_message_manager_.get(),
-                         enable_receiver_log) != ErrorCode::OK) {
+  if (can_receiver_.Init(can_client_.get(),
+                         sensor_message_manager_.get(),
+                         enable_receiver_log) !=
+      ErrorCode::OK) {
     return OnError("Failed to init can receiver.");
   }
   AINFO << "The can receiver is successfully initialized.";
@@ -94,14 +93,24 @@ apollo::common::Status UltrasonicRadarCanbus::Start() {
   AINFO << "Can receiver is started.";
 
   // last step: publish monitor messages
-  monitor_logger_buffer_.INFO("Canbus is started.");
+  apollo::common::monitor::MonitorLogBuffer buffer(&monitor_logger_);
+  buffer.INFO("Canbus is started.");
 
   return Status::OK();
 }
 
+void UltrasonicRadarCanbus::Stop() {
+  can_receiver_.Stop();
+  can_client_->Stop();
+}
+
+void UltrasonicRadarCanbus::PublishSensorData() {
+}
+
 // Send the error to monitor and return it
-Status UltrasonicRadarCanbus::OnError(const std::string& error_msg) {
-  monitor_logger_buffer_.ERROR(error_msg);
+Status UltrasonicRadarCanbus::OnError(const std::string &error_msg) {
+  apollo::common::monitor::MonitorLogBuffer buffer(&monitor_logger_);
+  buffer.ERROR(error_msg);
   return Status(ErrorCode::CANBUS_ERROR, error_msg);
 }
 

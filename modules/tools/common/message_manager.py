@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 ###############################################################################
 # Copyright 2017 The Apollo Authors. All Rights Reserved.
@@ -27,16 +27,24 @@ from modules.control.proto import control_cmd_pb2
 from modules.canbus.proto import chassis_pb2
 from modules.common.proto import drive_event_pb2
 from modules.map.relative_map.proto import navigation_pb2
-from modules.guardian.proto import guardian_pb2
 
-from . import proto_utils
+import proto_utils
 
 
 class MessageType:
     def __init__(self, name, topic, msg_type):
-        self.name = name
-        self.topic = topic
-        self.msg_type = msg_type
+        self.__name = name
+        self.__topic = topic
+        self.__msg_type = msg_type
+
+    def name(self):
+        return self.__name
+
+    def topic(self):
+        return self.__topic
+
+    def msg_type(self):
+        return self.__msg_type
 
     def instance(self):
         return self.__msg_type()
@@ -56,7 +64,7 @@ topic_pb_list = [
     MessageType("chassis", "/apollo/canbus/chassis", chassis_pb2.Chassis),
     MessageType("prediction", "/apollo/prediction",
                 prediction_obstacle_pb2.PredictionObstacles),
-    MessageType("perception", "/apollo/perception/obstacles",
+    MessageType("perception", "/apollo/perception",
                 perception_obstacle_pb2.PerceptionObstacles),
     MessageType("routing_response", "/apollo/routing_response",
                 routing_pb2.RoutingResponse),
@@ -69,9 +77,8 @@ topic_pb_list = [
     MessageType("drive_event", "/apollo/drive_event",
                 drive_event_pb2.DriveEvent),
     MessageType("relative_map", "/apollo/relative_map", navigation_pb2.MapMsg),
-    MessageType("navigation", "/apollo/navigation",
+    MessageType("relative_map", "/apollo/navigation",
                 navigation_pb2.NavigationInfo),
-    MessageType("guardian", "/apollo/guardian", guardian_pb2.GuardianCommand),
 ]
 
 
@@ -81,8 +88,8 @@ class PbMessageManager:
         self.__name_dict = {}
 
         for msg in topic_pb_list:
-            self.__topic_dict[msg.topic] = msg
-            self.__name_dict[msg.name] = msg
+            self.__topic_dict[msg.topic()] = msg
+            self.__name_dict[msg.name()] = msg
 
     def topic_dict(self):
         return self.__topic_dict
@@ -115,9 +122,9 @@ class PbMessageManager:
             try:
                 message = meta_msg.parse_file(filename)
                 if message:
-                    print("identified topic %s" % topic)
+                    print "identified topic %s" % topic
                     return (meta_msg, message)
             except text_format.ParseError as e:
-                print("Tried %s, failed" % (topic))
+                print "Tried %s, failed" % (topic)
                 continue
         return (None, None)

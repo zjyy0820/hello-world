@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright 2018 The Apollo Authors. All Rights Reserved.
+ * Copyright 2017 The Apollo Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,10 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef MODULES_LOCALIZATION_MSF_LOCAL_MAP_BASE_MAP_BASE_MAP_NODE_INDEX_H
+#define MODULES_LOCALIZATION_MSF_LOCAL_MAP_BASE_MAP_BASE_MAP_NODE_INDEX_H
 
+#include <iostream>
 #include <string>
 
 #include "modules/localization/msf/local_map/base_map/base_map_config.h"
@@ -89,3 +91,5 @@ class MapNodeIndex {
 }  // namespace msf
 }  // namespace localization
 }  // namespace apollo
+
+#endif  // MODULES_LOCALIZATION_MSF_LOCAL_MAP_BASE_MAP_BASE_MAP_NODE_INDEX_H

@@ -18,7 +18,8 @@
  * @file: polynomial_xd.h
  **/
 
-#pragma once
+#ifndef MODULES_PLANNING_MATH_POLYNOMIAL_XD_H_
+#define MODULES_PLANNING_MATH_POLYNOMIAL_XD_H_
 
 #include <cinttypes>
 #include <vector>
@@ -48,3 +49,5 @@ class PolynomialXd {
 
 }  // namespace planning
 }  // namespace apollo
+
+#endif  // MODULES_PLANNING_MATH_POLYNOMIAL_XD_H_

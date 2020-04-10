@@ -19,11 +19,10 @@
  * @brief Functions to generate coefficients for digital filter.
  */
 
-#pragma once
+#ifndef MODULES_COMMON_FILTERS_DIGITAL_FILTER_COEFFICIENTS_H_
+#define MODULES_COMMON_FILTERS_DIGITAL_FILTER_COEFFICIENTS_H_
 
 #include <vector>
-
-#include "cyber/common/log.h"
 
 /**
  * @namespace apollo::common
@@ -43,19 +42,7 @@ void LpfCoefficients(const double ts, const double cutoff_freq,
                      std::vector<double> *denominators,
                      std::vector<double> *numerators);
 
-/**
- * @brief Get first order low-pass coefficients for ZOH digital filter.
- * @param ts sampling time.
- * @param settling time: time required for an output to reach and remain within
- *                       a given error band
- * @param dead time: time delay
- * @param denominators Denominator coefficients for digital filter.
- * @param numerators Numerator coefficients for digital filter.
- */
-void LpFirstOrderCoefficients(const double ts, const double settling_time,
-                              const double dead_time,
-                              std::vector<double> *denominators,
-                              std::vector<double> *numerators);
-
 }  // namespace common
 }  // namespace apollo
+
+#endif  // MODULES_COMMON_FILTERS_DIGITAL_FILTER_COEFFICIENTS_H_

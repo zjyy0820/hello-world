@@ -20,11 +20,10 @@
 //  http://www.novatel.com/assets/Documents/Manuals/om-20000129.pdf
 //  http://www.novatel.com/assets/Documents/Manuals/OM-20000144UM.pdf
 
-#pragma once
+#ifndef MODULES_DRIVERS_GNSS_NOVATEL_MESSAGES_H_
+#define MODULES_DRIVERS_GNSS_NOVATEL_MESSAGES_H_
 
-#include <cstdint>
-#include <limits>
-
+#include <stdint.h>
 #include "modules/drivers/gnss/proto/config.pb.h"
 
 namespace apollo {
@@ -57,7 +56,6 @@ enum MessageId : uint16_t {
   GPSEPHEMERIS = 7,
   RANGE = 43,
   HEADING = 971,
-  IMURATECORRIMUS = 1362,
 };
 
 // Every binary message has 32-bit CRC performed on all data including the
@@ -141,7 +139,6 @@ enum class SolutionStatus : uint32_t {
   UNAUTHORIZED = 20,  // position type is unauthorized
   INVALID_RATE =
       22,  // selected logging rate is not supported for this solution type
-  NONE = std::numeric_limits<uint32_t>::max(),
 };
 
 enum class SolutionType : uint32_t {
@@ -362,7 +359,7 @@ struct BestVel {
 };
 static_assert(sizeof(BestVel) == 44, "Incorrect size of BestVel");
 
-// IMU data corrected for gravity, the earth's rotation and estimated sensor
+// IMU data corrected for gravity, the earth’s rotation and estimated sensor
 // errors.
 struct CorrImuData {
   uint32_t gps_week;
@@ -399,7 +396,6 @@ enum class InsStatus : uint32_t {
   ALIGNMENT_COMPLETE,
   DETERMINING_ORIENTATION,
   WAITING_INITIAL_POS,
-  NONE = std::numeric_limits<uint32_t>::max(),
 };
 
 struct InsPva {
@@ -556,10 +552,6 @@ inline ImuParameter GetImuParameter(ImuType type) {
     case ImuType::UM442:
       return {6.6581059144655048e-6, 2.99127170628e-5, 20.0};
 
-    case ImuType::IAM20680:
-      // (1.0/65.5)/125.0 deg/LSB (1.0/8192.0)*9.80665/125.0 m/s/LSB
-      return {0.0001221374045, 9.57680664e-06, 125};
-
     default:
       return {0.0, 0.0, 0.0};
   }
@@ -569,3 +561,5 @@ inline ImuParameter GetImuParameter(ImuType type) {
 }  // namespace gnss
 }  // namespace drivers
 }  // namespace apollo
+
+#endif  // MODULES_DRIVERS_GNSS_NOVATEL_MESSAGES_H_

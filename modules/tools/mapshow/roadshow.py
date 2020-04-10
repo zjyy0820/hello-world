@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 ###############################################################################
 # Copyright 2017 The Apollo Authors. All Rights Reserved.
@@ -17,10 +17,14 @@
 ###############################################################################
 
 import argparse
+
 import matplotlib.pyplot as plt
-from libs.map import Map
+
+from map import Map
+from localization import Localization
 
 if __name__ == "__main__":
+
     parser = argparse.ArgumentParser(
         description="Raodshow is a tool to display road info on a map.",
         prog="roadshow.py")

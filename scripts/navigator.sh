@@ -18,25 +18,14 @@
 
 # Get the absolute path.
 i=0;
-j=0;
-for str in $@
-do
-    # The strings starting with "--" are control arguments and need to be filtered.
-    if [[ ${str} =~ ^--.* ]]; then
-        CTRL_ARGS[i++]=${str}
-        continue
-    fi
-    DIR=$(cd "$(dirname ${str} )" && pwd)
-    FILE_NAME=$(basename ${str})
-    PATH_NAME[j++]="${DIR}/${FILE_NAME}"
+for file_name in $@
+do    
+    DIR=$(cd "$(dirname ${file_name} )" && pwd)
+    FILE_NAME=$(basename ${file_name})
+    PATH_NAME[i++]="${DIR}/${FILE_NAME}"    
 done
 
-#echo "${CTRL_ARGS[@]}"
 #echo "${PATH_NAME[@]}"
-
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-cd "${DIR}/.."
-source "${DIR}/apollo_base.sh"
-${APOLLO_BIN_PREFIX}/modules/map/relative_map/tools/navigator --navigator_config_filename=/apollo/modules/map/relative_map/conf/navigator_config.pb.txt  "${CTRL_ARGS[@]}" "${PATH_NAME[@]}"
-
+cd /apollo
+./bazel-bin/modules/map/relative_map/tools/navigator "${PATH_NAME[@]}" 
 

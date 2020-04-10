@@ -15,8 +15,13 @@ limitations under the License.
 #include "modules/map/hdmap/adapter/xml_parser/util_xml_parser.h"
 
 #include <algorithm>
+#include <iomanip>
+#include <limits>
+#include <sstream>
+#include <string>
+#include <vector>
 
-#include "cyber/common/log.h"
+#include "modules/common/log.h"
 #include "modules/map/hdmap/adapter/coordinate_convert_tool.h"
 
 namespace apollo {
@@ -148,7 +153,7 @@ Status UtilXmlParser::ParsePoint(const tinyxml2::XMLElement& xml_node,
   CHECK_NOTNULL(pt);
 
   const auto sub_node = xml_node.FirstChildElement("centerPoint");
-  ACHECK(sub_node != nullptr);
+  CHECK(sub_node != nullptr);
   int checker = tinyxml2::XML_SUCCESS;
   double ptx = 0.0;
   double pty = 0.0;

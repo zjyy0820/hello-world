@@ -18,12 +18,16 @@
  * @brief Define lane sequence predictor
  */
 
-#pragma once
+#ifndef MODULES_PREDICTION_PREDICTOR_LANE_SEQUENCE_LANE_SEQUENCE_PREDICTOR_H_
+#define MODULES_PREDICTION_PREDICTOR_LANE_SEQUENCE_LANE_SEQUENCE_PREDICTOR_H_
 
+#include <string>
 #include <vector>
 
-#include "modules/prediction/container/obstacles/obstacles_container.h"
+#include "modules/common/math/kalman_filter.h"
+#include "modules/common/proto/pnc_point.pb.h"
 #include "modules/prediction/predictor/sequence/sequence_predictor.h"
+#include "modules/prediction/proto/lane_graph.pb.h"
 
 namespace apollo {
 namespace prediction {
@@ -33,7 +37,7 @@ class LaneSequencePredictor : public SequencePredictor {
   /**
    * @brief Constructor
    */
-  LaneSequencePredictor();
+  LaneSequencePredictor() = default;
 
   /**
    * @brief Destructor
@@ -42,14 +46,9 @@ class LaneSequencePredictor : public SequencePredictor {
 
   /**
    * @brief Make prediction
-   * @param ADC trajectory container
    * @param Obstacle pointer
-   * @param Obstacles container
-   * @return If predicted successfully
    */
-  bool Predict(const ADCTrajectoryContainer* adc_trajectory_container,
-               Obstacle* obstacle,
-               ObstaclesContainer* obstacles_container) override;
+  void Predict(Obstacle* obstacle) override;
 
  protected:
   /**
@@ -68,3 +67,5 @@ class LaneSequencePredictor : public SequencePredictor {
 
 }  // namespace prediction
 }  // namespace apollo
+
+#endif  // MODULES_PREDICTION_PREDICTOR_VEHICLE_LANE_SEQUENCE_PREDICTOR_H_

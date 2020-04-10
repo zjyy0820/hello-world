@@ -18,7 +18,8 @@
  * @file lincoln_vehicle_factory.h
  */
 
-#pragma once
+#ifndef MODULES_CANBUS_VEHICLE_LINCOLN_VEHICLE_FACTORY_H_
+#define MODULES_CANBUS_VEHICLE_LINCOLN_VEHICLE_FACTORY_H_
 
 #include <memory>
 
@@ -43,8 +44,8 @@ namespace canbus {
 class LincolnVehicleFactory : public AbstractVehicleFactory {
  public:
   /**
-   * @brief destructor
-   */
+  * @brief destructor
+  */
   virtual ~LincolnVehicleFactory() = default;
 
   /**
@@ -63,3 +64,5 @@ class LincolnVehicleFactory : public AbstractVehicleFactory {
 
 }  // namespace canbus
 }  // namespace apollo
+
+#endif  // MODULES_CANBUS_VEHICLE_LINCOLN_VEHICLE_FACTORY_H_

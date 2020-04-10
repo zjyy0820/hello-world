@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 ###############################################################################
 # Copyright 2017 The Apollo Authors. All Rights Reserved.
@@ -16,7 +16,6 @@
 # limitations under the License.
 ###############################################################################
 
-
 class SpeedDecider:
     def __init__(self, max_cruise_speed, enable_follow):
         self.CRUISE_SPEED = max_cruise_speed  # m/s
@@ -32,7 +31,7 @@ class SpeedDecider:
                 if (obs.x - obs.length / 2.0) < obstacle_closest_lon:
                     obstacle_closest_lon = obs.x - obs.length / 2.0
                     obstacle_speed = obs.rel_speed + \
-                        chassis_provider.get_speed_mps()
+                                     chassis_provider.get_speed_mps()
 
         new_path_length = path_length
         if obstacle_closest_lon < new_path_length:

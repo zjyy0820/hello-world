@@ -1,49 +1,58 @@
-/******************************************************************************
- * Copyright 2017 The Apollo Authors. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *****************************************************************************/
+/* Copyright 2017 The Apollo Authors. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+#include "sensor_msgs/CompressedImage.h"
+#include "sensor_msgs/Image.h"
 
 #include "modules/dreamview/backend/handlers/image_handler.h"
 
-#include "cyber/common/log.h"
-#include "modules/common/adapters/adapter_gflags.h"
-#include "modules/common/configs/config_gflags.h"
+#include "modules/common/adapters/adapter_manager.h"
+#include "modules/common/log.h"
+#include "modules/common/time/time.h"
+#include "modules/perception/traffic_light/util/color_space.h"
 
 #include "opencv2/opencv.hpp"
 
 namespace apollo {
 namespace dreamview {
 
-using apollo::drivers::CompressedImage;
-using apollo::drivers::Image;
+using apollo::common::adapter::AdapterManager;
 
 constexpr double ImageHandler::kImageScale;
 
 template <>
-void ImageHandler::OnImage(const std::shared_ptr<Image> &image) {
+void ImageHandler::OnImage(const sensor_msgs::Image &image) {
   if (requests_ == 0) {
     return;
   }
 
-  cv::Mat mat(image->height(), image->width(), CV_8UC3,
-              const_cast<char *>(image->data().data()), image->step());
-  cv::cvtColor(mat, mat, cv::COLOR_RGB2BGR);
-  cv::resize(
-      mat, mat,
-      cv::Size(static_cast<int>(image->width() * ImageHandler::kImageScale),
-               static_cast<int>(image->height() * ImageHandler::kImageScale)),
-      0, 0, CV_INTER_LINEAR);
+  if (image.encoding != "yuyv") {
+    AERROR_EVERY(100) << "Image format not support: " << image.encoding;
+    return;
+  }
+
+  unsigned char *yuv = (unsigned char *)&(image.data[0]);
+  auto mat = cv::Mat(image.height, image.width, CV_8UC3);
+  apollo::perception::traffic_light::Yuyv2rgb(yuv, mat.data,
+                                              image.height * image.width);
+
+  cv::cvtColor(mat, mat, CV_RGB2BGR);
+
+  cv::resize(mat, mat, cv::Size(image.width * ImageHandler::kImageScale,
+                                image.height * ImageHandler::kImageScale),
+             0, 0, CV_INTER_LINEAR);
 
   std::unique_lock<std::mutex> lock(mutex_);
   cv::imencode(".jpg", mat, send_buffer_, std::vector<int>() /* params */);
@@ -51,48 +60,38 @@ void ImageHandler::OnImage(const std::shared_ptr<Image> &image) {
 }
 
 template <>
-void ImageHandler::OnImage(
-    const std::shared_ptr<CompressedImage> &compressed_image) {
-  if (requests_ == 0 ||
-      compressed_image->format() == "h265" /* skip video format */) {
+void ImageHandler::OnImage(const sensor_msgs::CompressedImage &image) {
+  if (requests_ == 0) {
     return;
   }
 
-  std::vector<uint8_t> compressed_raw_data(compressed_image->data().begin(),
-                                           compressed_image->data().end());
-  cv::Mat mat_image = cv::imdecode(compressed_raw_data, CV_LOAD_IMAGE_COLOR);
-
-  std::unique_lock<std::mutex> lock(mutex_);
-  cv::imencode(".jpg", mat_image, send_buffer_,
-               std::vector<int>() /* params */);
-  cvar_.notify_all();
+  try {
+    std::unique_lock<std::mutex> lock(mutex_);
+    auto current_image = cv_bridge::toCvCopy(image);
+    cv::imencode(".jpg", current_image->image, send_buffer_,
+                 std::vector<int>() /* params */);
+    cvar_.notify_all();
+  } catch (cv_bridge::Exception &e) {
+    AERROR << "Error when converting ROS image to CV image: " << e.what();
+    return;
+  }
 }
 
-void ImageHandler::OnImageFront(const std::shared_ptr<Image> &image) {
+void ImageHandler::OnImageFront(const sensor_msgs::Image &image) {
   if (FLAGS_use_navigation_mode) {
-    // Navigation mode
     OnImage(image);
   }
 }
 
-void ImageHandler::OnImageShort(const std::shared_ptr<CompressedImage> &image) {
+void ImageHandler::OnImageShort(const sensor_msgs::Image &image) {
   if (!FLAGS_use_navigation_mode) {
-    // Regular mode
     OnImage(image);
   }
 }
 
-ImageHandler::ImageHandler()
-    : requests_(0), node_(cyber::CreateNode("image_handler")) {
-  node_->CreateReader<Image>(
-      FLAGS_image_front_topic,
-      [this](const std::shared_ptr<Image> &image) { OnImageFront(image); });
-
-  node_->CreateReader<CompressedImage>(
-      FLAGS_image_short_topic,
-      [this](const std::shared_ptr<CompressedImage> &image) {
-        OnImageShort(image);
-      });
+ImageHandler::ImageHandler() : requests_(0) {
+  AdapterManager::AddImageFrontCallback(&ImageHandler::OnImageFront, this);
+  AdapterManager::AddImageShortCallback(&ImageHandler::OnImageShort, this);
 }
 
 bool ImageHandler::handleGet(CivetServer *server, struct mg_connection *conn) {

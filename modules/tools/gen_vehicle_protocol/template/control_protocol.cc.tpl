@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright 2019 The Apollo Authors. All Rights Reserved.
+ * Copyright 2017 The Apollo Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ const int32_t %(classname)s::ID = 0x%(id_upper)s;
 %(classname)s::%(classname)s() { Reset(); }
 
 uint32_t %(classname)s::GetPeriod() const {
-  // TODO(All) :  modify every protocol's period manually
+  // TODO modify every protocol's period manually
   static const uint32_t PERIOD = 20 * 1000;
   return PERIOD;
 }
@@ -40,7 +40,7 @@ void %(classname)s::UpdateData(uint8_t* data) {
 }
 
 void %(classname)s::Reset() {
-  // TODO(All) :  you should check this manually
+  // TODO you should check this manually
 %(set_private_var_init_list)s
 }
 %(set_func_impl_list)s

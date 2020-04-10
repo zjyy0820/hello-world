@@ -1,18 +1,18 @@
 /******************************************************************************
- * Copyright 2017 The Apollo Authors. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *****************************************************************************/
+  * Copyright 2017 The Apollo Authors. All Rights Reserved.
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+  * You may obtain a copy of the License at
+  *
+  * http://www.apache.org/licenses/LICENSE-2.0
+  *
+  * Unless required by applicable law or agreed to in writing, software
+  * distributed under the License is distributed on an "AS IS" BASIS,
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  *****************************************************************************/
 
 #include "modules/routing/graph/topo_node.h"
 
@@ -20,7 +20,7 @@
 #include <cmath>
 #include <utility>
 
-#include "cyber/common/log.h"
+#include "modules/common/log.h"
 #include "modules/common/util/map_util.h"
 #include "modules/routing/graph/range_utils.h"
 
@@ -32,8 +32,8 @@ namespace {
 const double MIN_INTERNAL_FOR_NODE = 0.01;  // in meter
 const double kLenghtEpsilon = 1e-6;         // in meter
 
-using apollo::common::util::FindPtrOrNull;
 using ::google::protobuf::RepeatedPtrField;
+using apollo::common::util::FindPtrOrNull;
 
 void ConvertOutRange(const RepeatedPtrField<CurveRange>& range_vec,
                      double start_s, double end_s,
@@ -55,7 +55,7 @@ void ConvertOutRange(const RepeatedPtrField<CurveRange>& range_vec,
   double max_diff = 0.0;
   for (size_t i = 0; i < out_range->size(); ++i) {
     if (out_range->at(i).Length() > max_diff) {
-      max_index = static_cast<int>(i);
+      max_index = i;
       max_diff = out_range->at(i).Length();
     }
   }
@@ -96,8 +96,8 @@ bool TopoNode::IsOutRangeEnough(const std::vector<NodeSRange>& range_vec,
 
 TopoNode::TopoNode(const Node& node)
     : pb_node_(node), start_s_(0.0), end_s_(pb_node_.length()) {
-  ACHECK(pb_node_.length() > kLenghtEpsilon)
-      << "Node length is invalid in pb: " << pb_node_.DebugString();
+  CHECK(pb_node_.length() > kLenghtEpsilon) << "Node length is invalid in pb: "
+                                            << pb_node_.DebugString();
   Init();
   origin_node_ = this;
 }

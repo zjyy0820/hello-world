@@ -18,9 +18,9 @@
 
 #include "yaml-cpp/yaml.h"
 
-#include "cyber/common/log.h"
 #include "modules/common/time/time.h"
 #include "modules/common/time/timer.h"
+#include "modules/common/log.h"
 #include "modules/localization/msf/common/util/frame_transform.h"
 
 namespace apollo {
@@ -30,16 +30,12 @@ namespace msf {
 using apollo::common::Status;
 
 LocalizationIntegProcess::LocalizationIntegProcess()
-    : sins_(new Sins()),
-      gnss_antenna_extrinsic_(TransformD::Identity()),
-      integ_state_(IntegState::NOT_INIT),
-      ins_pva_(),
-      pva_covariance_{0.0},
-      corrected_imu_(),
-      earth_param_(),
-      keep_running_(false),
-      measure_data_queue_size_(150),
-      delay_output_counter_(0) {}
+    : sins_(new Sins()), gnss_antenna_extrinsic_(TransformD::Identity()),
+      debug_log_flag_(true), integ_state_(IntegState::NOT_INIT),
+      ins_pva_(), pva_covariance_{0.0}, keep_running_(false),
+      measure_data_thread_(), measure_data_queue_size_(150),
+      delay_output_counter_(0) {
+}
 
 LocalizationIntegProcess::~LocalizationIntegProcess() {
   StopThreadLoop();
@@ -48,7 +44,8 @@ LocalizationIntegProcess::~LocalizationIntegProcess() {
   sins_ = nullptr;
 }
 
-Status LocalizationIntegProcess::Init(const LocalizationIntegParam &param) {
+Status LocalizationIntegProcess::Init(
+    const LocalizationIntegParam &param) {
   // sins init
   sins_->Init(param.is_ins_can_self_align);
   sins_->SetSinsAlignFromVel(param.is_sins_align_with_vel);
@@ -64,15 +61,18 @@ Status LocalizationIntegProcess::Init(const LocalizationIntegParam &param) {
     gnss_antenna_extrinsic_ = TransformD::Identity();
   }
   AINFO << "gnss and imu lever arm: "
-        << gnss_antenna_extrinsic_.translation()(0) << " "
-        << gnss_antenna_extrinsic_.translation()(1) << " "
-        << gnss_antenna_extrinsic_.translation()(2);
+            << gnss_antenna_extrinsic_.translation()(0) << " "
+            << gnss_antenna_extrinsic_.translation()(1) << " "
+            << gnss_antenna_extrinsic_.translation()(2);
 
   sins_->SetImuAntennaLeverArm(gnss_antenna_extrinsic_.translation()(0),
                                gnss_antenna_extrinsic_.translation()(1),
                                gnss_antenna_extrinsic_.translation()(2));
 
   sins_->SetVelThresholdGetYaw(param.vel_threshold_get_yaw);
+
+  // imu_rate_ = param.imu_rate;
+  debug_log_flag_ = param.integ_debug_log_flag;
 
   StartThreadLoop();
 
@@ -91,9 +91,10 @@ void LocalizationIntegProcess::RawImuProcess(const ImuData &imu_msg) {
   static double pre_imu_time = cur_imu_time;
   double delta_time = cur_imu_time - pre_imu_time;
   if (delta_time > 0.1) {
-    ADEBUG << std::setprecision(16) << "the imu message loss more than 10, "
-           << "the pre time and current time: " << pre_imu_time << " "
-           << cur_imu_time;
+    ADEBUG << std::setprecision(16)
+           << "the imu message loss more than 10, "
+           << "the pre time and current time: "
+           << pre_imu_time << " " << cur_imu_time;
   } else if (delta_time < 0.0) {
     ADEBUG << std::setprecision(16)
            << "received imu message's time is eary than last imu message, "
@@ -104,8 +105,6 @@ void LocalizationIntegProcess::RawImuProcess(const ImuData &imu_msg) {
   // add imu msg and get current predict pose
   sins_->AddImu(imu_msg);
   sins_->GetPose(&ins_pva_, pva_covariance_);
-  sins_->GetRemoveBiasImu(&corrected_imu_);
-  sins_->GetEarthParameter(&earth_param_);
 
   if (sins_->IsSinsAligned()) {
     integ_state_ = IntegState::NOT_STABLE;
@@ -129,6 +128,8 @@ void LocalizationIntegProcess::RawImuProcess(const ImuData &imu_msg) {
   }
 
   pre_imu_time = cur_imu_time;
+
+  return;
 }
 
 void LocalizationIntegProcess::GetValidFromOK() {
@@ -138,16 +139,20 @@ void LocalizationIntegProcess::GetValidFromOK() {
 
   // AERROR << pva_covariance_[0][0] << " " << pva_covariance_[1][1]
   //     << " " << pva_covariance_[2][2] << " " << pva_covariance_[8][8];
-  if (pva_covariance_[0][0] < 0.3 * 0.3 && pva_covariance_[1][1] < 0.3 * 0.3 &&
-      pva_covariance_[2][2] < 0.3 * 0.3 && pva_covariance_[8][8] < 0.1 * 0.1) {
+  if (pva_covariance_[0][0] < 0.3 * 0.3
+      && pva_covariance_[1][1] < 0.3 * 0.3
+      && pva_covariance_[2][2] < 0.3 * 0.3
+      && pva_covariance_[8][8] < 0.1 * 0.1) {
     integ_state_ = IntegState::VALID;
   }
+  return;
 }
 
 void LocalizationIntegProcess::GetState(IntegState *state) {
   CHECK_NOTNULL(state);
 
   *state = integ_state_;
+  return;
 }
 
 void LocalizationIntegProcess::GetResult(IntegState *state,
@@ -158,19 +163,22 @@ void LocalizationIntegProcess::GetResult(IntegState *state,
   // state
   *state = integ_state_;
 
-  if (*state != IntegState::NOT_INIT) {
-    ADEBUG << std::setprecision(16)
-           << "IntegratedLocalization Debug Log: integ_pose msg: "
-           << "[time:" << ins_pva_.time << "]"
-           << "[x:" << ins_pva_.pos.longitude * 57.295779513082323 << "]"
-           << "[y:" << ins_pva_.pos.latitude * 57.295779513082323 << "]"
-           << "[z:" << ins_pva_.pos.height << "]"
-           << "[ve:" << ins_pva_.vel.ve << "]"
-           << "[vn:" << ins_pva_.vel.vn << "]"
-           << "[vu:" << ins_pva_.vel.vu << "]"
-           << "[pitch: " << ins_pva_.att.pitch * 57.295779513082323 << "]"
-           << "[roll:" << ins_pva_.att.roll * 57.295779513082323 << "]"
-           << "[yaw:" << ins_pva_.att.yaw * 57.295779513082323 << "]";
+  // // IntegSinsPva
+  // *sins_pva = ins_pva_;
+
+  if (debug_log_flag_ && *state != IntegState::NOT_INIT) {
+    AINFO << std::setprecision(16)
+              << "IntegratedLocalization Debug Log: integ_pose msg: "
+              << "[time:" << ins_pva_.time << "]"
+              << "[x:" << ins_pva_.pos.longitude * 57.295779513082323 << "]"
+              << "[y:" << ins_pva_.pos.latitude * 57.295779513082323 << "]"
+              << "[z:" << ins_pva_.pos.height << "]"
+              << "[ve:" << ins_pva_.vel.ve << "]"
+              << "[vn:" << ins_pva_.vel.vn << "]"
+              << "[vu:" << ins_pva_.vel.vu << "]"
+              << "[pitch: " << ins_pva_.att.pitch * 57.295779513082323 << "]"
+              << "[roll:" << ins_pva_.att.roll * 57.295779513082323 << "]"
+              << "[yaw:" << ins_pva_.att.yaw * 57.295779513082323 << "]";
   }
 
   // LocalizationEstimation
@@ -179,12 +187,12 @@ void LocalizationIntegProcess::GetResult(IntegState *state,
 
   localization->set_measurement_time(ins_pva_.time);
   headerpb_loc->set_timestamp_sec(apollo::common::time::Clock::NowInSeconds());
+  // headerpb_loc->set_module_name(_param.publish_frame_id);
 
   apollo::common::PointENU *position_loc = posepb_loc->mutable_position();
   apollo::common::Quaternion *quaternion = posepb_loc->mutable_orientation();
   UTMCoor utm_xy;
-  FrameTransform::LatlonToUtmXY(ins_pva_.pos.longitude, ins_pva_.pos.latitude,
-                                &utm_xy);
+  LatlonToUtmXY(ins_pva_.pos.longitude, ins_pva_.pos.latitude, &utm_xy);
   position_loc->set_x(utm_xy.x);
   position_loc->set_y(utm_xy.y);
   position_loc->set_z(ins_pva_.pos.height);
@@ -226,10 +234,12 @@ void LocalizationIntegProcess::GetResult(IntegState *state,
   orientation_std_dev->set_x(std::sqrt(pva_covariance_[6][6]));
   orientation_std_dev->set_y(std::sqrt(pva_covariance_[7][7]));
   orientation_std_dev->set_z(std::sqrt(pva_covariance_[8][8]));
+  return;
 }
 
-void LocalizationIntegProcess::GetResult(IntegState *state, InsPva *sins_pva,
-                                         double pva_covariance[9][9]) {
+void LocalizationIntegProcess::GetResult(IntegState *state,
+               InsPva *sins_pva,
+               double pva_covariance[9][9]) {
   CHECK_NOTNULL(state);
   CHECK_NOTNULL(sins_pva);
   CHECK_NOTNULL(pva_covariance);
@@ -237,37 +247,29 @@ void LocalizationIntegProcess::GetResult(IntegState *state, InsPva *sins_pva,
   *state = integ_state_;
   *sins_pva = ins_pva_;
   memcpy(pva_covariance, pva_covariance_, sizeof(double) * 9 * 9);
-}
-
-void LocalizationIntegProcess::GetCorrectedImu(ImuData *imu_data) {
-  CHECK_NOTNULL(imu_data);
-
-  *imu_data = corrected_imu_;
-}
-
-void LocalizationIntegProcess::GetEarthParameter(
-    InertialParameter *earth_param) {
-  CHECK_NOTNULL(earth_param);
-
-  *earth_param = earth_param_;
+  return;
 }
 
 void LocalizationIntegProcess::MeasureDataProcess(
     const MeasureData &measure_msg) {
   measure_data_queue_mutex_.lock();
   measure_data_queue_.push(measure_msg);
+  new_measure_data_signal_.notify_one();
   measure_data_queue_mutex_.unlock();
 }
 
 void LocalizationIntegProcess::StartThreadLoop() {
   keep_running_ = true;
   measure_data_queue_size_ = 150;
-  cyber::Async(&LocalizationIntegProcess::MeasureDataThreadLoop, this);
+  const auto& loop_func = [this] { MeasureDataThreadLoop(); };
+  measure_data_thread_ = std::thread(loop_func);
 }
 
 void LocalizationIntegProcess::StopThreadLoop() {
   if (keep_running_.load()) {
     keep_running_ = false;
+    new_measure_data_signal_.notify_one();
+    measure_data_thread_.join();
   }
 }
 
@@ -276,31 +278,23 @@ void LocalizationIntegProcess::MeasureDataThreadLoop() {
   while (keep_running_.load()) {
     {
       std::unique_lock<std::mutex> lock(measure_data_queue_mutex_);
-      int size = static_cast<int>(measure_data_queue_.size());
+      int size = measure_data_queue_.size();
       while (size > measure_data_queue_size_) {
         measure_data_queue_.pop();
         --size;
       }
-      if (measure_data_queue_.empty()) {
-        lock.unlock();
-        cyber::Yield();
+      if (measure_data_queue_.size() == 0) {
+        new_measure_data_signal_.wait(lock);
         continue;
       }
     }
 
     MeasureData measure;
-    int waiting_num = 0;
     {
       std::unique_lock<std::mutex> lock(measure_data_queue_mutex_);
       measure = measure_data_queue_.front();
       measure_data_queue_.pop();
-      waiting_num = static_cast<int>(measure_data_queue_.size());
     }
-
-    if (waiting_num > measure_data_queue_size_ / 4) {
-      AWARN << waiting_num << " measure are waiting to process.";
-    }
-
     MeasureDataProcessImpl(measure);
   }
   AINFO << "Exited measure data process thread";
@@ -318,27 +312,35 @@ void LocalizationIntegProcess::MeasureDataProcessImpl(
   sins_->AddMeasurement(measure_msg);
 
   timer.End("time of integrated navigation measure update");
+  return;
 }
 
 bool LocalizationIntegProcess::CheckIntegMeasureData(
-    const MeasureData &measure_data) {
+    const MeasureData& measure_data) {
   if (measure_data.measure_type == MeasureType::ODOMETER_VEL_ONLY) {
     AERROR << "receive a new odometry measurement!!!\n";
   }
 
-  ADEBUG << std::setprecision(16)
-         << "IntegratedLocalization Debug Log: measure data: "
-         << "[time:" << measure_data.time << "]"
-         << "[x:" << measure_data.gnss_pos.longitude * 57.295779513082323 << "]"
-         << "[y:" << measure_data.gnss_pos.latitude * 57.295779513082323 << "]"
-         << "[z:" << measure_data.gnss_pos.height << "]"
-         << "[ve:" << measure_data.gnss_vel.ve << "]"
-         << "[vn:" << measure_data.gnss_vel.vn << "]"
-         << "[vu:" << measure_data.gnss_vel.vu << "]"
-         << "[pitch:" << measure_data.gnss_att.pitch * 57.295779513082323 << "]"
-         << "[roll:" << measure_data.gnss_att.roll * 57.295779513082323 << "]"
-         << "[yaw:" << measure_data.gnss_att.yaw * 57.295779513082323 << "]"
-         << "[measure type:" << int(measure_data.measure_type) << "]";
+  if (debug_log_flag_) {
+    AINFO << std::setprecision(16)
+              << "IntegratedLocalization Debug Log: measure data: "
+              << "[time:" << measure_data.time << "]"
+              << "[x:" << measure_data.gnss_pos.longitude * 57.295779513082323
+              << "]"
+              << "[y:" << measure_data.gnss_pos.latitude * 57.295779513082323
+              << "]"
+              << "[z:" << measure_data.gnss_pos.height << "]"
+              << "[ve:" << measure_data.gnss_vel.ve << "]"
+              << "[vn:" << measure_data.gnss_vel.vn << "]"
+              << "[vu:" << measure_data.gnss_vel.vu << "]"
+              << "[pitch:" << measure_data.gnss_att.pitch * 57.295779513082323
+              << "]"
+              << "[roll:" << measure_data.gnss_att.roll * 57.295779513082323
+              << "]"
+              << "[yaw:" << measure_data.gnss_att.yaw * 57.295779513082323
+              << "]"
+              << "[measure type:" << int(measure_data.measure_type) << "]";
+  }
 
   return true;
 }

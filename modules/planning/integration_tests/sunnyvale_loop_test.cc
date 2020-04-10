@@ -14,10 +14,15 @@
  * limitations under the License.
  *****************************************************************************/
 
+#include <string>
+
+#include "gtest/gtest.h"
+
 #include "modules/common/configs/config_gflags.h"
 #include "modules/map/hdmap/hdmap_util.h"
 #include "modules/planning/common/planning_gflags.h"
 #include "modules/planning/integration_tests/planning_test_base.h"
+#include "modules/planning/planning.h"
 
 DECLARE_bool(reckless_change_lane);
 
@@ -38,12 +43,9 @@ class SunnyvaleLoopTest : public PlanningTestBase {
     FLAGS_test_data_dir = "modules/planning/testdata/sunnyvale_loop_test";
     FLAGS_planning_upper_speed_limit = 12.5;
     FLAGS_use_multi_thread_to_add_obstacles = false;
-
-    FLAGS_enable_scenario_stop_sign = false;
-    FLAGS_enable_scenario_traffic_light = false;
-    FLAGS_enable_rss_info = false;
-
     ENABLE_RULE(TrafficRuleConfig::CROSSWALK, false);
+    ENABLE_RULE(TrafficRuleConfig::PULL_OVER, false);
+    ENABLE_RULE(TrafficRuleConfig::STOP_SIGN, false);
   }
 };
 
@@ -64,9 +66,6 @@ TEST_F(SunnyvaleLoopTest, cruise) {
 /*
  * stop case to trigger QP ST failed to solve
  */
-// TODO(all): need fix test data.
-// the existing obstacle is not along reference line and gets ignored
-/*
 TEST_F(SunnyvaleLoopTest, stop) {
   std::string seq_num = "2";
   FLAGS_test_routing_response_file = seq_num + "_routing.pb.txt";
@@ -77,7 +76,6 @@ TEST_F(SunnyvaleLoopTest, stop) {
   PlanningTestBase::SetUp();
   RUN_GOLDEN_TEST(0);
 }
-*/
 
 /*
  * test follow a vehicle with medium distance
@@ -159,13 +157,13 @@ TEST_F(SunnyvaleLoopTest, rightturn_01) {
   FLAGS_test_prediction_file = seq_num + "_prediction.pb.txt";
   FLAGS_test_localization_file = seq_num + "_localization.pb.txt";
   FLAGS_test_chassis_file = seq_num + "_chassis.pb.txt";
-  ENABLE_RULE(TrafficRuleConfig::TRAFFIC_LIGHT, true);
+  ENABLE_RULE(TrafficRuleConfig::SIGNAL_LIGHT, false);
   PlanningTestBase::SetUp();
   RUN_GOLDEN_TEST(0);
 }
 
 /*
- * test right turn, but stop before traffic light
+ * test right turn, but stop before trafic light
  * A right turn test case
  * A traffic light test case
  */
@@ -187,7 +185,7 @@ TEST_F(SunnyvaleLoopTest, rightturn_with_red_light) {
 TEST_F(SunnyvaleLoopTest, change_lane) {
   std::string seq_num = "9";
   FLAGS_test_routing_response_file = seq_num + "_routing.pb.txt";
-  FLAGS_test_prediction_file = seq_num + "_prediction.pb.txt";
+  FLAGS_enable_prediction = false;
   FLAGS_test_localization_file = seq_num + "_localization.pb.txt";
   FLAGS_test_chassis_file = seq_num + "_chassis.pb.txt";
   PlanningTestBase::SetUp();
@@ -198,12 +196,19 @@ TEST_F(SunnyvaleLoopTest, change_lane) {
  * test mission complete
  */
 TEST_F(SunnyvaleLoopTest, mission_complete) {
+  ENABLE_RULE(TrafficRuleConfig::PULL_OVER, false);
+
   std::string seq_num = "10";
   FLAGS_test_routing_response_file = seq_num + "_routing.pb.txt";
-  FLAGS_test_prediction_file = seq_num + "_prediction.pb.txt";
+  FLAGS_enable_prediction = false;
   FLAGS_test_localization_file = seq_num + "_localization.pb.txt";
   FLAGS_test_chassis_file = seq_num + "_chassis.pb.txt";
   PlanningTestBase::SetUp();
+
+  // set config
+  auto* destination_config = PlanningTestBase::GetTrafficRuleConfig(
+      TrafficRuleConfig::DESTINATION);
+  destination_config->mutable_destination()->set_enable_pull_over(false);
 
   RUN_GOLDEN_TEST(0);
 }
@@ -228,8 +233,8 @@ TEST_F(SunnyvaleLoopTest, avoid_change_left) {
 TEST_F(SunnyvaleLoopTest, qp_path_failure) {
   std::string seq_num = "12";
   FLAGS_reckless_change_lane = true;
+  FLAGS_enable_prediction = false;
   FLAGS_test_chassis_file = seq_num + "_chassis.pb.txt";
-  FLAGS_test_prediction_file = seq_num + "_prediction.pb.txt";
   FLAGS_test_localization_file = seq_num + "_localization.pb.txt";
   FLAGS_test_routing_response_file = seq_num + "_routing.pb.txt";
   PlanningTestBase::SetUp();
@@ -243,17 +248,17 @@ TEST_F(SunnyvaleLoopTest, qp_path_failure) {
  * Expect to keep going on the current lane.
  */
 TEST_F(SunnyvaleLoopTest, change_lane_failback) {
-  // temporarily disable this test case, because a lane in routing cannot be
-  // found on test map.
+  //// temporarly disable this test case, because a lane in routing cannot be
+  //// found on test map.
   auto target_lane = hdmap::HDMapUtil::BaseMapPtr()->GetLaneById(
       hdmap::MakeMapId("2020_1_-2"));
   if (target_lane == nullptr) {
     AERROR << "Could not find lane 2020_1_-2 on map " << hdmap::BaseMapFile();
     return;
   }
-
   std::string seq_num = "13";
   FLAGS_reckless_change_lane = true;
+  FLAGS_enable_prediction = true;
   FLAGS_test_chassis_file = seq_num + "_chassis.pb.txt";
   FLAGS_test_localization_file = seq_num + "_localization.pb.txt";
   FLAGS_test_routing_response_file = seq_num + "_routing.pb.txt";

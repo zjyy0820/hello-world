@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 ###############################################################################
 # Copyright 2017 The Apollo Authors. All Rights Reserved.
@@ -30,7 +30,7 @@ import sys
 from gflags import FLAGS
 from std_msgs.msg import String
 
-from common.logger import Logger
+from logger import Logger
 from modules.localization.proto import localization_pb2
 from modules.drivers.proto import mobileye_pb2
 
@@ -41,7 +41,7 @@ class LaneRecord(object):
     """
 
     def write(self, data):
-        """Wrap file write function to flush data to disk"""
+        """wrap file write function to flush data to disk"""
         self.file_handler.write(data)
         self.file_handler.flush()
 
@@ -53,10 +53,10 @@ class LaneRecord(object):
 
         try:
             self.file_handler = open(record_file, 'w')
-        except IOError:
-            self.logger.error("Failed to open file %s " % (record_file))
+        except:
+            self.logger.error("open file %s failed" % (record_file))
             self.file_handler.close()
-            sys.exit(-1)
+            sys.exit()
 
         self.write("x,y,z,theta,dist_l,conf_l,dist_r,conf_r\n")
 
@@ -69,7 +69,7 @@ class LaneRecord(object):
         """
         New message received
         """
-        if self.terminating is True:
+        if self.terminating == True:
             self.logger.info("terminating when receive mobileye msg")
             return
 
@@ -80,7 +80,7 @@ class LaneRecord(object):
         """
         New message received
         """
-        if self.terminating is True:
+        if self.terminating == True:
             self.logger.info("terminating when receive localization msg")
             return
 

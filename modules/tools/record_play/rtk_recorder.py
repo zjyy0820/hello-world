@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 ###############################################################################
 # Copyright 2017 The Apollo Authors. All Rights Reserved.
@@ -24,12 +24,11 @@ import logging
 import math
 import os
 import sys
-import time
 
-from cyber_py3 import cyber
+import rospy
 from gflags import FLAGS
 
-from common.logger import Logger
+from logger import Logger
 from modules.canbus.proto import chassis_pb2
 from modules.localization.proto import localization_pb2
 
@@ -40,7 +39,7 @@ class RtkRecord(object):
     """
 
     def write(self, data):
-        """Wrap file write function to flush data to disk"""
+        """wrap file write function to flush data to disk"""
         self.file_handler.write(data)
         self.file_handler.flush()
 
@@ -52,13 +51,13 @@ class RtkRecord(object):
 
         try:
             self.file_handler = open(record_file, 'w')
-        except IOError:
-            self.logger.error("Open file %s failed" % (record_file))
+        except:
+            self.logger.error("open file %s failed" % (record_file))
             self.file_handler.close()
-            sys.exit(1)
+            sys.exit()
 
-        self.write("x,y,z,speed,acceleration,curvature,"
-                   "curvature_change_rate,time,theta,gear,s,throttle,brake,steering\n")
+        self.write("x,y,z,speed,acceleration,curvature,"\
+                        "curvature_change_rate,time,theta,gear,s,throttle,brake,steering\n")
 
         self.localization = localization_pb2.LocalizationEstimate()
         self.chassis = chassis_pb2.Chassis()
@@ -76,7 +75,7 @@ class RtkRecord(object):
         """
         New message received
         """
-        if self.terminating is True:
+        if self.terminating == True:
             self.logger.info("terminating when receive chassis msg")
             return
 
@@ -93,7 +92,7 @@ class RtkRecord(object):
         """
         New message received
         """
-        if self.terminating is True:
+        if self.terminating == True:
             self.logger.info("terminating when receive localization msg")
             return
 
@@ -120,7 +119,7 @@ class RtkRecord(object):
 
         speed_epsilon = 1e-9
         if abs(self.prev_carspeed) < speed_epsilon \
-                and abs(carspeed) < speed_epsilon:
+            and abs(carspeed) < speed_epsilon:
             caracceleration = 0.0
 
         carsteer = self.chassis.steering_percentage
@@ -135,13 +134,13 @@ class RtkRecord(object):
         cargear = self.chassis.gear_location
 
         if abs(carspeed) >= speed_epsilon:
-            if self.startmoving is False:
+            if self.startmoving == False:
                 self.logger.info(
                     "carspeed !=0 and startmoving is False, Start Recording")
             self.startmoving = True
 
         if self.startmoving:
-            self.cars += carspeed * 0.01
+            self.cars = self.cars + carspeed * 0.01
             self.write(
                 "%s, %s, %s, %s, %s, %s, %s, %.4f, %s, %s, %s, %s, %s, %s\n" %
                 (carx, cary, carz, carspeed, caracceleration, self.carcurvature,
@@ -158,22 +157,23 @@ class RtkRecord(object):
 
     def shutdown(self):
         """
-        shutdown node
+        shutdown rosnode
         """
         self.terminating = True
         self.logger.info("Shutting Down...")
-        self.logger.info("File is written into %s" % self.record_file)
+        self.logger.info("file is written into %s" % self.record_file)
         self.file_handler.close()
+        rospy.sleep(0.1)
 
 
 def main(argv):
     """
-    Main node
+    Main rosnode
     """
-    node = cyber.Node("rtk_recorder")
+    rospy.init_node('rtk_recorder', anonymous=True)
+
     argv = FLAGS(argv)
-    log_dir = os.path.dirname(os.path.abspath(
-        __file__)) + "/../../../data/log/"
+    log_dir = os.path.dirname(os.path.abspath(__file__)) + "/../../../data/log/"
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
     Logger.config(
@@ -184,19 +184,15 @@ def main(argv):
     record_file = log_dir + "/garage.csv"
     recorder = RtkRecord(record_file)
     atexit.register(recorder.shutdown)
-    node.create_reader('/apollo/canbus/chassis',
-                       chassis_pb2.Chassis,
-                       recorder.chassis_callback)
+    rospy.Subscriber('/apollo/canbus/chassis', chassis_pb2.Chassis,
+                     recorder.chassis_callback)
 
-    node.create_reader('/apollo/localization/pose',
-                       localization_pb2.LocalizationEstimate,
-                       recorder.localization_callback)
+    rospy.Subscriber('/apollo/localization/pose',
+                     localization_pb2.LocalizationEstimate,
+                     recorder.localization_callback)
 
-    while not cyber.is_shutdown():
-        time.sleep(0.002)
+    rospy.spin()
 
 
 if __name__ == '__main__':
-    cyber.init()
     main(sys.argv)
-    cyber.shutdown()

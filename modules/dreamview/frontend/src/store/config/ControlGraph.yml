@@ -1,12 +1,6 @@
 trajectoryGraph:
     title: 'Trajectory'
     options:
-        # This is the aspect ratio (width/height) of the entire chart.
-        # Given there's space used for title and legend in this chart,
-        # the ratio is reduced to get aspectRatio of x-axis/y-axis ~ 1.
-        aspectRatio: 0.9
-        # To make sure x-Axis and y-Axis has the same window size
-        syncXYWindowSize: true
         legend:
             display: true
         axes:
@@ -15,17 +9,12 @@ trajectoryGraph:
             y:
                 labelString: 'y (m)'
     properties:
-        cars:
-            pose:
-                color: 'rgba(0, 255, 0, 0.55)' # green
         lines:
-            currentTargetPoint:
-                color: 'rgba(360, 0, 0, 1)' # red
+            pose:
+                color: 'rgba(0, 255, 0, 1)' # green
                 borderWidth: 0
-                pointRadius: 7
-                fill: false
-                showLine: false
-                pointStyle: 'crossRot'
+                pointRadius: 0
+                specialMarker: 'car'
             real:
                 color: 'rgba(0, 106, 255, 1)' # blue
                 borderWidth: 2
@@ -40,10 +29,10 @@ trajectoryGraph:
                 showLine: true
             plan:
                 color: 'rgba(1, 209, 193, 0.65)' # green
-                borderWidth: 0
-                pointRadius: 1
+                borderWidth: 3
+                pointRadius: 0
                 fill: false
-                showLine: false
+                showLine: true
             target:
                 color: 'rgba(180, 255, 180, 0.7)' # light green
                 borderWidth: 3
@@ -76,10 +65,10 @@ speedGraph:
                 showLine: ture
             plan:
                 color: 'rgba(1, 209, 193, 0.65)' # green
-                borderWidth: 0
-                pointRadius: 2
+                borderWidth: 3
+                pointRadius: 0
                 fill: false
-                showLine: false
+                showLine: true
             target:
                 color: 'rgba(180, 255, 180, 0.7)' # light green
                 borderWidth: 3
@@ -112,10 +101,10 @@ curvatureGraph:
                 showLine: ture
             plan:
                 color: 'rgba(1, 209, 193, 0.65)' # green
-                borderWidth: 0
-                pointRadius: 2
+                borderWidth: 3
+                pointRadius: 0
                 fill: false
-                showLine: false
+                showLine: true
             target:
                 color: 'rgba(180, 255, 180, 0.7)' # light green
                 borderWidth: 3
@@ -148,10 +137,10 @@ accelerationGraph:
                 showLine: ture
             plan:
                 color: 'rgba(1, 209, 193, 0.65)' # green
-                borderWidth: 0
-                pointRadius: 2
+                borderWidth: 3
+                pointRadius: 0
                 fill: false
-                showLine: false
+                showLine: true
             target:
                 color: 'rgba(180, 255, 180, 0.7)' # light green
                 borderWidth: 3

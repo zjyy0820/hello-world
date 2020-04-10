@@ -19,13 +19,13 @@
  * @brief
  */
 
-#pragma once
+#ifndef MODULES_LOCALIZATION_MSF_LOCAL_TOOL_POSES_INTERPOLATION
+#define MODULES_LOCALIZATION_MSF_LOCAL_TOOL_POSES_INTERPOLATION
 
+#include <Eigen/Geometry>
 #include <iostream>
-#include <string>
 #include <vector>
-
-#include "Eigen/Geometry"
+#include <string>
 
 /**
  * @namespace apollo::localization
@@ -77,3 +77,5 @@ class PosesInterpolation {
 }  // namespace msf
 }  // namespace localization
 }  // namespace apollo
+
+#endif  // MODULES_LOCALIZATION_MSF_LOCAL_TOOL_POSES_INTERPOLATION

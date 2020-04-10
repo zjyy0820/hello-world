@@ -16,13 +16,19 @@
 
 #include "modules/planning/common/speed/st_boundary.h"
 
+#include <algorithm>
+#include <cmath>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-#include "cyber/common/log.h"
+#include "modules/common/log.h"
 
 namespace apollo {
 namespace planning {
+
+using apollo::common::math::Box2d;
+using apollo::common::math::Vec2d;
 
 TEST(StBoundaryTest, basic_test) {
   std::vector<STPoint> upper_points;
@@ -38,14 +44,14 @@ TEST(StBoundaryTest, basic_test) {
   point_pairs.emplace_back(lower_points[0], upper_points[0]);
   point_pairs.emplace_back(lower_points[1], upper_points[1]);
 
-  STBoundary boundary(point_pairs);
+  StBoundary boundary(point_pairs);
 
   EXPECT_EQ(boundary.id(), "");
-  EXPECT_EQ(boundary.boundary_type(), STBoundary::BoundaryType::UNKNOWN);
-  EXPECT_DOUBLE_EQ(0.0, boundary.min_s());
-  EXPECT_DOUBLE_EQ(5.0, boundary.max_s());
-  EXPECT_DOUBLE_EQ(0.0, boundary.min_t());
-  EXPECT_DOUBLE_EQ(10.0, boundary.max_t());
+  EXPECT_EQ(boundary.boundary_type(), StBoundary::BoundaryType::UNKNOWN);
+  EXPECT_FLOAT_EQ(0.0, boundary.min_s());
+  EXPECT_FLOAT_EQ(5.0, boundary.max_s());
+  EXPECT_FLOAT_EQ(0.0, boundary.min_t());
+  EXPECT_FLOAT_EQ(10.0, boundary.max_t());
 }
 
 TEST(StBoundaryTest, boundary_range) {
@@ -62,9 +68,9 @@ TEST(StBoundaryTest, boundary_range) {
   point_pairs.emplace_back(lower_points[0], upper_points[0]);
   point_pairs.emplace_back(lower_points[1], upper_points[1]);
 
-  STBoundary boundary(point_pairs);
+  StBoundary boundary(point_pairs);
 
-  boundary.SetBoundaryType(STBoundary::BoundaryType::YIELD);
+  boundary.SetBoundaryType(StBoundary::BoundaryType::YIELD);
   double t = -10.0;
   const double dt = 0.01;
   while (t < 10.0) {
@@ -103,7 +109,7 @@ TEST(StBoundaryTest, get_index_range) {
   point_pairs.emplace_back(lower_points[0], upper_points[0]);
   point_pairs.emplace_back(lower_points[1], upper_points[1]);
 
-  STBoundary boundary(point_pairs);
+  StBoundary boundary(point_pairs);
 
   size_t left = 0;
   size_t right = 0;
@@ -136,7 +142,7 @@ TEST(StBoundaryTest, remove_redundant_points) {
 
   EXPECT_EQ(points.size(), 5);
 
-  STBoundary st_boundary;
+  StBoundary st_boundary;
   st_boundary.RemoveRedundantPoints(&points);
 
   EXPECT_EQ(points.size(), 2);

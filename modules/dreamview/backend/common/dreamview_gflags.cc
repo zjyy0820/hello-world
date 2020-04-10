@@ -20,12 +20,18 @@ DEFINE_string(dreamview_module_name, "dreamview", "dreamview module name");
 
 DEFINE_bool(dreamview_profiling_mode, false, "Run dreamview in profiling mode");
 
-DEFINE_int32(
-    dreamview_profiling_duration, -1,
-    "Dreamview profiling duration in ms. Negative value will not restrict the "
+DEFINE_double(
+    dreamview_profiling_duration, -1.0,
+    "Dreamview profiling duration. Negative value will not restrict the "
     "profiling time");
 
-DEFINE_string(static_file_dir, "/apollo/modules/dreamview/frontend/dist",
+DEFINE_string(dreamview_adapter_config_filename,
+              "modules/dreamview/conf/adapter.conf", "The adapter config file");
+
+DEFINE_string(hmi_config_filename, "/apollo/modules/dreamview/conf/hmi.conf",
+              "The HMI config file");
+
+DEFINE_string(static_file_dir, "modules/dreamview/frontend/dist",
               "The path to the dreamview distribution directory. The default "
               "value points to built-in version from the Apollo project.");
 
@@ -41,7 +47,7 @@ DEFINE_string(routing_response_file,
               "modules/map/data/demo/garage_routing.pb.txt",
               "File path of the routing response that SimControl will read the "
               "start point from. If this is absent, SimControl will directly "
-              "take the RoutingResponse from external to determine the start "
+              "take the RoutingResponse from ROS to determine the start "
               "point.");
 
 DEFINE_string(websocket_timeout_ms, "36000000",
@@ -57,6 +63,8 @@ DEFINE_string(ssl_certificate, "",
 DEFINE_double(sim_map_radius, 200.0,
               "The radius within which Dreamview will find all the map "
               "elements around the car.");
+
+DEFINE_int32(dreamview_worker_num, 1, "number of dreamview thread workers");
 
 DEFINE_bool(enable_update_size_check, true,
             "True to check if the update byte number is less than threshold");
@@ -80,15 +88,3 @@ DEFINE_double(system_status_lifetime_seconds, 30,
               "Lifetime of a valid SystemStatus message. It's more like a "
               "replay message if the timestamp is old, where we should ignore "
               "the status change.");
-
-DEFINE_string(lidar_height_yaml,
-              "/apollo/modules/localization/msf/params/velodyne_params/"
-              "velodyne64_height.yaml",
-              "The yaml file for reading height of lidar w.r.t. ground.");
-
-DEFINE_int32(monitor_msg_pending_queue_size, 10,
-             "Max monitor message pending queue size");
-
-DEFINE_string(default_data_collection_config_path,
-              "/apollo/modules/dreamview/conf/data_collection_table.pb.txt",
-              "Data collection table config path.");

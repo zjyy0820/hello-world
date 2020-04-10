@@ -18,12 +18,13 @@
  * @points_downsampler
  */
 
-#pragma once
+#ifndef MODULES_COMMON_UTIL_POINTS_DOWNSAMPLER_H_
+#define MODULES_COMMON_UTIL_POINTS_DOWNSAMPLER_H_
 
 #include <cmath>
 #include <vector>
 
-#include "cyber/common/log.h"
+#include "modules/common/log.h"
 #include "modules/common/math/vec2d.h"
 
 /**
@@ -77,10 +78,10 @@ double GetPathAngle(const Points &points, const size_t start,
  * @return sampled_indices Indices of all sampled points, or empty when fail.
  */
 template <typename Points>
-std::vector<size_t> DownsampleByAngle(const Points &points,
-                                      const double angle_threshold) {
-  std::vector<size_t> sampled_indices;
-  if (points.empty()) {
+std::vector<int> DownsampleByAngle(const Points &points,
+                                   const double angle_threshold) {
+  std::vector<int> sampled_indices;
+  if (points.size() == 0) {
     return sampled_indices;
   }
 
@@ -93,8 +94,8 @@ std::vector<size_t> DownsampleByAngle(const Points &points,
     size_t start = 0;
     size_t end = 1;
     double accum_degree = 0.0;
-    while (end + 1 < points.size()) {
-      const double angle = GetPathAngle(points, start, end);
+    while (end < static_cast<size_t>(points.size() - 1)) {
+      double angle = GetPathAngle(points, start, end);
       accum_degree += std::fabs(angle);
 
       if (accum_degree > angle_threshold) {
@@ -121,10 +122,10 @@ std::vector<size_t> DownsampleByAngle(const Points &points,
  * @return sampled_indices Indices of all sampled points, or empty when fail.
  */
 template <typename Points>
-std::vector<size_t> DownsampleByDistance(const Points &points,
-                                         int downsampleDistance,
-                                         int steepTurnDownsampleDistance) {
-  std::vector<size_t> sampled_indices;
+std::vector<int> DownsampleByDistance(const Points &points,
+                                      int downsampleDistance,
+                                      int steepTurnDownsampleDistance) {
+  std::vector<int> sampled_indices;
   if (points.size() <= 4) {
     // No need to downsample if there are not too many points.
     for (size_t i = 0; i < points.size(); ++i) {
@@ -139,10 +140,7 @@ std::vector<size_t> DownsampleByDistance(const Points &points,
   Vec2d v_end =
       Vec2d(points[points.size() - 1].x() - points[points.size() - 2].x(),
             points[points.size() - 1].y() - points[points.size() - 2].y());
-  v_start.Normalize();
-  v_end.Normalize();
-  // If the angle exceeds 80 degree, it's a steep turn
-  bool is_steep_turn = v_start.InnerProd(v_end) <= cos(80.0 * M_PI / 180.0);
+  bool is_steep_turn = v_start.InnerProd(v_end) <= 0;
   int downsampleRate =
       is_steep_turn ? steepTurnDownsampleDistance : downsampleDistance;
 
@@ -169,3 +167,5 @@ std::vector<size_t> DownsampleByDistance(const Points &points,
 }  // namespace util
 }  // namespace common
 }  // namespace apollo
+
+#endif  // MODULES_COMMON_UTIL_POINTS_DOWNSAMPLER_H_

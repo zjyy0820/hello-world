@@ -19,6 +19,8 @@
  **/
 #include "modules/planning/math/curve_math.h"
 
+#include <cmath>
+
 #include "gtest/gtest.h"
 
 namespace apollo {

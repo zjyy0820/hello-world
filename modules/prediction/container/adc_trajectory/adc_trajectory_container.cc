@@ -16,47 +16,49 @@
 
 #include "modules/prediction/container/adc_trajectory/adc_trajectory_container.h"
 
-#include <utility>
+#include <memory>
+#include <vector>
 
+#include "modules/common/log.h"
 #include "modules/prediction/common/prediction_gflags.h"
+#include "modules/prediction/common/prediction_map.h"
 
 namespace apollo {
 namespace prediction {
 
-using apollo::common::PathPoint;
-using apollo::common::math::Polygon2d;
-using apollo::common::math::Vec2d;
-using apollo::hdmap::JunctionInfo;
-using apollo::planning::ADCTrajectory;
-
-ADCTrajectoryContainer::ADCTrajectoryContainer()
-    : adc_junction_info_ptr_(nullptr), s_dist_to_junction_(0.0) {}
+using ::apollo::common::PathPoint;
+using ::apollo::common::TrajectoryPoint;
+using ::apollo::common::math::LineSegment2d;
+using ::apollo::common::math::Polygon2d;
+using ::apollo::common::math::Vec2d;
+using ::apollo::hdmap::JunctionInfo;
+using ::apollo::planning::ADCTrajectory;
 
 void ADCTrajectoryContainer::Insert(
     const ::google::protobuf::Message& message) {
   adc_lane_ids_.clear();
   adc_lane_seq_.clear();
-  adc_target_lane_ids_.clear();
-  adc_target_lane_seq_.clear();
-  adc_junction_polygon_ = std::move(Polygon2d());
+  adc_junction_polygon_ = Polygon2d{};
 
   adc_trajectory_.CopyFrom(dynamic_cast<const ADCTrajectory&>(message));
   ADEBUG << "Received a planning message ["
          << adc_trajectory_.ShortDebugString() << "].";
 
+  // Find junction
+  if (IsProtected()) {
+    SetJunctionPolygon();
+  }
+  ADEBUG << "Generate a polygon [" << adc_junction_polygon_.DebugString()
+         << "].";
+
   // Find ADC lane sequence
   SetLaneSequence();
   ADEBUG << "Generate an ADC lane id sequence [" << ToString(adc_lane_seq_)
          << "].";
-
-  // Find ADC target lane sequence
-  SetTargetLaneSequence();
-  ADEBUG << "Generate an ADC target lane id sequence ["
-         << ToString(adc_target_lane_seq_) << "].";
 }
 
 bool ADCTrajectoryContainer::IsPointInJunction(const PathPoint& point) const {
-  if (adc_junction_polygon_.points().size() < 3) {
+  if (adc_junction_polygon_.num_points() < 3) {
     return false;
   }
   bool in_polygon = adc_junction_polygon_.IsPointIn({point.x(), point.y()});
@@ -77,31 +79,9 @@ bool ADCTrajectoryContainer::IsProtected() const {
          adc_trajectory_.right_of_way_status() == ADCTrajectory::PROTECTED;
 }
 
-void ADCTrajectoryContainer::SetJunction(const std::string& junction_id,
-                                         const double distance) {
-  std::shared_ptr<const JunctionInfo> junction_info =
-      PredictionMap::JunctionById(junction_id);
-  if (junction_info != nullptr && junction_info->junction().has_polygon()) {
-    std::vector<Vec2d> vertices;
-    for (const auto& point : junction_info->junction().polygon().point()) {
-      vertices.emplace_back(point.x(), point.y());
-    }
-    if (vertices.size() >= 3) {
-      adc_junction_info_ptr_ = junction_info;
-      s_dist_to_junction_ = distance;
-      adc_junction_polygon_ = std::move(Polygon2d{vertices});
-    }
-  }
-}
-
 void ADCTrajectoryContainer::SetJunctionPolygon() {
   std::shared_ptr<const JunctionInfo> junction_info(nullptr);
 
-  double s_start = 0.0;
-  double s_at_junction = 0.0;
-  if (adc_trajectory_.trajectory_point_size() > 0) {
-    s_start = adc_trajectory_.trajectory_point(0).path_point().s();
-  }
   for (int i = 0; i < adc_trajectory_.trajectory_point_size(); ++i) {
     double s = adc_trajectory_.trajectory_point(i).path_point().s();
 
@@ -110,7 +90,6 @@ void ADCTrajectoryContainer::SetJunctionPolygon() {
     }
 
     if (junction_info != nullptr) {
-      s_at_junction = s;
       break;
     }
 
@@ -129,34 +108,9 @@ void ADCTrajectoryContainer::SetJunctionPolygon() {
       vertices.emplace_back(point.x(), point.y());
     }
     if (vertices.size() >= 3) {
-      adc_junction_info_ptr_ = junction_info;
-      s_dist_to_junction_ = s_at_junction - s_start;
-      adc_junction_polygon_ = std::move(Polygon2d{vertices});
+      adc_junction_polygon_ = Polygon2d{vertices};
     }
   }
-}
-
-std::shared_ptr<const apollo::hdmap::JunctionInfo>
-ADCTrajectoryContainer::ADCJunction() const {
-  return adc_junction_info_ptr_;
-}
-
-double ADCTrajectoryContainer::ADCDistanceToJunction() const {
-  return s_dist_to_junction_;
-}
-
-const ADCTrajectory& ADCTrajectoryContainer::adc_trajectory() const {
-  return adc_trajectory_;
-}
-
-bool ADCTrajectoryContainer::IsLaneIdInReferenceLine(
-    const std::string& lane_id) const {
-  return adc_lane_ids_.find(lane_id) != adc_lane_ids_.end();
-}
-
-bool ADCTrajectoryContainer::IsLaneIdInTargetReferenceLine(
-    const std::string& lane_id) const {
-  return adc_target_lane_ids_.find(lane_id) != adc_target_lane_ids_.end();
 }
 
 void ADCTrajectoryContainer::SetLaneSequence() {
@@ -169,20 +123,6 @@ void ADCTrajectoryContainer::SetLaneSequence() {
   }
   adc_lane_ids_.clear();
   adc_lane_ids_.insert(adc_lane_seq_.begin(), adc_lane_seq_.end());
-}
-
-void ADCTrajectoryContainer::SetTargetLaneSequence() {
-  for (const auto& lane : adc_trajectory_.target_lane_id()) {
-    if (!lane.id().empty()) {
-      if (adc_target_lane_seq_.empty() ||
-          lane.id() != adc_target_lane_seq_.back()) {
-        adc_target_lane_seq_.emplace_back(lane.id());
-      }
-    }
-  }
-  adc_target_lane_ids_.clear();
-  adc_target_lane_ids_.insert(adc_target_lane_seq_.begin(),
-                              adc_target_lane_seq_.end());
 }
 
 std::string ADCTrajectoryContainer::ToString(
@@ -213,8 +153,7 @@ std::string ADCTrajectoryContainer::ToString(
   return str_lane_sequence;
 }
 
-bool ADCTrajectoryContainer::HasOverlap(
-    const LaneSequence& lane_sequence) const {
+bool ADCTrajectoryContainer::HasOverlap(const LaneSequence& lane_sequence) {
   for (const auto& lane_segment : lane_sequence.lane_segment()) {
     std::string lane_id = lane_segment.lane_id();
     if (adc_lane_ids_.find(lane_id) != adc_lane_ids_.end()) {
@@ -234,16 +173,6 @@ void ADCTrajectoryContainer::SetPosition(const Vec2d& position) {
     }
   }
   ADEBUG << "Generate an ADC lane ids [" << ToString(adc_lane_ids_) << "].";
-}
-
-const std::vector<std::string>& ADCTrajectoryContainer::GetADCLaneIDSequence()
-    const {
-  return adc_lane_seq_;
-}
-
-const std::vector<std::string>&
-ADCTrajectoryContainer::GetADCTargetLaneIDSequence() const {
-  return adc_target_lane_seq_;
 }
 
 }  // namespace prediction

@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright 2018 The Apollo Authors. All Rights Reserved.
+ * Copyright 2017 The Apollo Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,13 @@
 
 #include "modules/localization/msf/local_tool/data_extraction/location_exporter.h"
 
-#include "modules/localization/proto/gps.pb.h"
+#include <string>
+
 #include "modules/localization/proto/localization.pb.h"
 #include "modules/localization/proto/measure.pb.h"
+#include "modules/localization/proto/gps.pb.h"
 
-#include "cyber/common/log.h"
+#include "modules/common/log.h"
 
 namespace apollo {
 namespace localization {
@@ -70,26 +72,26 @@ LocationExporter::~LocationExporter() {
   }
 }
 
-void LocationExporter::GnssLocCallback(const std::string &msg_string) {
+void LocationExporter::GnssLocCallback(
+    const rosbag::MessageInstance &msg_instance) {
   AINFO << "GNSS location callback.";
-  LocalizationEstimate msg;
-  msg.ParseFromString(msg_string);
-
+  boost::shared_ptr<LocalizationEstimate> msg =
+      msg_instance.instantiate<LocalizationEstimate>();
   static unsigned int index = 1;
 
-  double timestamp = msg.measurement_time();
-  double x = msg.pose().position().x();
-  double y = msg.pose().position().y();
-  double z = msg.pose().position().z();
+  double timestamp = msg->measurement_time();
+  double x = msg->pose().position().x();
+  double y = msg->pose().position().y();
+  double z = msg->pose().position().z();
 
-  double qx = msg.pose().orientation().qx();
-  double qy = msg.pose().orientation().qy();
-  double qz = msg.pose().orientation().qz();
-  double qw = msg.pose().orientation().qw();
+  double qx = msg->pose().orientation().qx();
+  double qy = msg->pose().orientation().qy();
+  double qz = msg->pose().orientation().qz();
+  double qw = msg->pose().orientation().qw();
 
-  double std_x = msg.uncertainty().position_std_dev().x();
-  double std_y = msg.uncertainty().position_std_dev().y();
-  double std_z = msg.uncertainty().position_std_dev().z();
+  double std_x = msg->uncertainty().position_std_dev().x();
+  double std_y = msg->uncertainty().position_std_dev().y();
+  double std_z = msg->uncertainty().position_std_dev().z();
 
   fprintf(gnss_loc_file_handle_,
           "%u %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf\n", index, timestamp,
@@ -98,21 +100,22 @@ void LocationExporter::GnssLocCallback(const std::string &msg_string) {
   ++index;
 }
 
-void LocationExporter::LidarLocCallback(const std::string &msg_string) {
+void LocationExporter::LidarLocCallback(
+    const rosbag::MessageInstance &msg_instance) {
   AINFO << "Lidar location callback.";
-  LocalizationEstimate msg;
-  msg.ParseFromString(msg_string);
+  boost::shared_ptr<LocalizationEstimate> msg =
+      msg_instance.instantiate<LocalizationEstimate>();
   static unsigned int index = 1;
 
-  double timestamp = msg.measurement_time();
-  double x = msg.pose().position().x();
-  double y = msg.pose().position().y();
-  double z = msg.pose().position().z();
+  double timestamp = msg->measurement_time();
+  double x = msg->pose().position().x();
+  double y = msg->pose().position().y();
+  double z = msg->pose().position().z();
 
-  double qx = msg.pose().orientation().qx();
-  double qy = msg.pose().orientation().qy();
-  double qz = msg.pose().orientation().qz();
-  double qw = msg.pose().orientation().qw();
+  double qx = msg->pose().orientation().qx();
+  double qy = msg->pose().orientation().qy();
+  double qz = msg->pose().orientation().qz();
+  double qw = msg->pose().orientation().qw();
 
   // apollo::common::math::EulerAnglesZXY<double> euler(
   //     qw, qx, qy, qz);
@@ -120,9 +123,9 @@ void LocationExporter::LidarLocCallback(const std::string &msg_string) {
   // double pitch = euler.pitch();
   // double yaw = euler.yaw();
 
-  double std_x = msg.uncertainty().position_std_dev().x();
-  double std_y = msg.uncertainty().position_std_dev().y();
-  double std_z = msg.uncertainty().position_std_dev().z();
+  double std_x = msg->uncertainty().position_std_dev().x();
+  double std_y = msg->uncertainty().position_std_dev().y();
+  double std_z = msg->uncertainty().position_std_dev().z();
 
   fprintf(lidar_loc_file_handle_,
           "%u %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf\n", index, timestamp,
@@ -131,21 +134,22 @@ void LocationExporter::LidarLocCallback(const std::string &msg_string) {
   ++index;
 }
 
-void LocationExporter::FusionLocCallback(const std::string &msg_string) {
+void LocationExporter::FusionLocCallback(
+    const rosbag::MessageInstance &msg_instance) {
   AINFO << "Fusion location callback.";
-  LocalizationEstimate msg;
-  msg.ParseFromString(msg_string);
+  boost::shared_ptr<LocalizationEstimate> msg =
+      msg_instance.instantiate<LocalizationEstimate>();
   static unsigned int index = 1;
 
-  double timestamp = msg.measurement_time();
-  double x = msg.pose().position().x();
-  double y = msg.pose().position().y();
-  double z = msg.pose().position().z();
+  double timestamp = msg->measurement_time();
+  double x = msg->pose().position().x();
+  double y = msg->pose().position().y();
+  double z = msg->pose().position().z();
 
-  double qx = msg.pose().orientation().qx();
-  double qy = msg.pose().orientation().qy();
-  double qz = msg.pose().orientation().qz();
-  double qw = msg.pose().orientation().qw();
+  double qx = msg->pose().orientation().qx();
+  double qy = msg->pose().orientation().qy();
+  double qz = msg->pose().orientation().qz();
+  double qw = msg->pose().orientation().qw();
 
   // apollo::common::math::EulerAnglesZXY<double> euler(
   //     qw, qx, qy, qz);
@@ -153,9 +157,9 @@ void LocationExporter::FusionLocCallback(const std::string &msg_string) {
   // double pitch = euler.pitch();
   // double yaw = euler.yaw();
 
-  double std_x = msg.uncertainty().position_std_dev().x();
-  double std_y = msg.uncertainty().position_std_dev().y();
-  double std_z = msg.uncertainty().position_std_dev().z();
+  double std_x = msg->uncertainty().position_std_dev().x();
+  double std_y = msg->uncertainty().position_std_dev().y();
+  double std_z = msg->uncertainty().position_std_dev().z();
 
   fprintf(fusion_loc_file_handle_,
           "%u %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf\n", index, timestamp,
@@ -164,21 +168,22 @@ void LocationExporter::FusionLocCallback(const std::string &msg_string) {
   ++index;
 }
 
-void LocationExporter::OdometryLocCallback(const std::string &msg_string) {
+void LocationExporter::OdometryLocCallback(
+    const rosbag::MessageInstance &msg_instance) {
   AINFO << "Odometry location callback.";
-  Gps msg;
-  msg.ParseFromString(msg_string);
+  boost::shared_ptr<Gps> msg =
+      msg_instance.instantiate<Gps>();
   static unsigned int index = 1;
 
-  double timestamp = msg.header().timestamp_sec();
-  double x = msg.localization().position().x();
-  double y = msg.localization().position().y();
-  double z = msg.localization().position().z();
+  double timestamp = msg->header().timestamp_sec();
+  double x = msg->localization().position().x();
+  double y = msg->localization().position().y();
+  double z = msg->localization().position().z();
 
-  double qx = msg.localization().orientation().qx();
-  double qy = msg.localization().orientation().qy();
-  double qz = msg.localization().orientation().qz();
-  double qw = msg.localization().orientation().qw();
+  double qx = msg->localization().orientation().qx();
+  double qy = msg->localization().orientation().qy();
+  double qz = msg->localization().orientation().qz();
+  double qw = msg->localization().orientation().qw();
 
   // apollo::common::math::EulerAnglesZXY<double> euler(
   //     qw, qx, qy, qz);

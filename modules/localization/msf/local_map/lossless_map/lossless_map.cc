@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright 2018 The Apollo Authors. All Rights Reserved.
+ * Copyright 2017 The Apollo Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,9 @@
 
 #include "modules/localization/msf/local_map/lossless_map/lossless_map.h"
 
-#include "cyber/common/log.h"
+#include <vector>
+
+#include "modules/common/log.h"
 #include "modules/localization/msf/local_map/lossless_map/lossless_map_node.h"
 
 namespace apollo {
@@ -29,8 +31,8 @@ LosslessMap::~LosslessMap() {}
 void LosslessMap::SetValue(const Eigen::Vector3d& coordinate, int zone_id,
                            unsigned char intensity) {
   for (size_t i = 0; i < map_config_->map_resolutions_.size(); ++i) {
-    MapNodeIndex index = MapNodeIndex::GetMapNodeIndex(
-        *map_config_, coordinate, static_cast<unsigned int>(i), zone_id);
+    MapNodeIndex index =
+        MapNodeIndex::GetMapNodeIndex(*map_config_, coordinate, i, zone_id);
     LosslessMapNode* node =
         static_cast<LosslessMapNode*>(GetMapNodeSafe(index));
     node->SetValue(coordinate, intensity);
@@ -40,8 +42,8 @@ void LosslessMap::SetValue(const Eigen::Vector3d& coordinate, int zone_id,
 void LosslessMap::SetValueLayer(const Eigen::Vector3d& coordinate, int zone_id,
                                 unsigned char intensity) {
   for (size_t i = 0; i < map_config_->map_resolutions_.size(); ++i) {
-    MapNodeIndex index = MapNodeIndex::GetMapNodeIndex(
-        *map_config_, coordinate, static_cast<unsigned int>(i), zone_id);
+    MapNodeIndex index =
+        MapNodeIndex::GetMapNodeIndex(*map_config_, coordinate, i, zone_id);
     LosslessMapNode* node =
         static_cast<LosslessMapNode*>(GetMapNodeSafe(index));
     node->SetValueLayer(coordinate, intensity);
@@ -243,6 +245,7 @@ void LosslessMap::PreloadMapArea(const Eigen::Vector3d& location,
                                  unsigned int resolution_id,
                                  unsigned int zone_id) {
   BaseMap::PreloadMapArea(location, trans_diff, resolution_id, zone_id);
+  return;
 }
 
 bool LosslessMap::LoadMapArea(const Eigen::Vector3d& seed_pt3d,

@@ -18,7 +18,8 @@
  * @file polynomial_curve1d.h
  **/
 
-#pragma once
+#ifndef MODULES_PLANNING_MATH_CURVE1D_POLYNOMIAL_CURVE1D_H_
+#define MODULES_PLANNING_MATH_CURVE1D_POLYNOMIAL_CURVE1D_H_
 
 #include "modules/planning/math/curve1d/curve1d.h"
 
@@ -30,12 +31,11 @@ class PolynomialCurve1d : public Curve1d {
   PolynomialCurve1d() = default;
   virtual ~PolynomialCurve1d() = default;
 
-  virtual double Coef(const size_t order) const = 0;
-  virtual size_t Order() const = 0;
-
  protected:
   double param_ = 0.0;
 };
 
 }  // namespace planning
 }  // namespace apollo
+
+#endif  // MODULES_PLANNING_MATH_CURVE1D_POLYNOMIAL_CURVE1D_H_

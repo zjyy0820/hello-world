@@ -18,12 +18,14 @@
  * @file
  */
 
-#pragma once
+#ifndef MODULES_DREAMVIEW_BACKEND_MAP_MAP_SERVICE_H_
+#define MODULES_DREAMVIEW_BACKEND_MAP_MAP_SERVICE_H_
 
-#include <boost/thread/locks.hpp>
-#include <boost/thread/shared_mutex.hpp>
 #include <string>
 #include <vector>
+
+#include "boost/thread/locks.hpp"
+#include "boost/thread/shared_mutex.hpp"
 
 #include "modules/dreamview/proto/simulation_world.pb.h"
 #include "modules/map/pnc_map/pnc_map.h"
@@ -40,8 +42,12 @@ class MapService {
  public:
   explicit MapService(bool use_sim_map = true);
 
-  inline double GetXOffset() const { return x_offset_; }
-  inline double GetYOffset() const { return y_offset_; }
+  inline double GetXOffset() const {
+    return x_offset_;
+  }
+  inline double GetYOffset() const {
+    return y_offset_;
+  }
 
   void CollectMapElementIds(const apollo::common::PointENU &point,
                             double raidus, MapElementIds *ids) const;
@@ -71,14 +77,6 @@ class MapService {
   bool ConstructLaneWayPoint(const double x, const double y,
                              routing::LaneWaypoint *laneWayPoint) const;
 
-  bool ConstructLaneWayPointWithHeading(
-      const double x, const double y, const double heading,
-      routing::LaneWaypoint *laneWayPoint) const;
-
-  bool CheckRoutingPoint(const double x, const double y) const;
-
-  bool CheckRoutingPointLaneType(apollo::hdmap::LaneInfoConstPtr lane) const;
-
   // Reload map from current FLAGS_map_dir.
   bool ReloadMap(bool force_reload);
 
@@ -89,11 +87,6 @@ class MapService {
   bool GetNearestLane(const double x, const double y,
                       apollo::hdmap::LaneInfoConstPtr *nearest_lane,
                       double *nearest_s, double *nearest_l) const;
-
-  bool GetNearestLaneWithHeading(const double x, const double y,
-                                 apollo::hdmap::LaneInfoConstPtr *nearest_lane,
-                                 double *nearest_s, double *nearest_l,
-                                 const double heading) const;
 
   bool CreatePathsFromRouting(const routing::RoutingResponse &routing,
                               std::vector<apollo::hdmap::Path> *paths) const;
@@ -118,3 +111,5 @@ class MapService {
 
 }  // namespace dreamview
 }  // namespace apollo
+
+#endif  // MODULES_DREAMVIEW_BACKEND_MAP_MAP_SERVICE_H_

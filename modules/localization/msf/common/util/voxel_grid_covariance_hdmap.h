@@ -14,55 +14,18 @@
  * limitations under the License.
  *****************************************************************************/
 
-/*
- * Software License Agreement (BSD License)
- *
- *  Point Cloud Library (PCL) - www.pointclouds.org
- *  Copyright (c) 2010-2011, Willow Garage, Inc.
- *  Copyright (c) 2012-, Open Perception, Inc.
- *
- *  All rights reserved.
- *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions
- *  are met:
- *
- *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above
- *     copyright notice, this list of conditions and the following
- *     disclaimer in the documentation and/or other materials provided
- *     with the distribution.
- *   * Neither the name of the copyright holder(s) nor the names of its
- *     contributors may be used to endorse or promote products derived
- *     from this software without specific prior written permission.
- *
- *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- *  POSSIBILITY OF SUCH DAMAGE.
- *
- * $Id$
- *
- */
+#ifndef MODULES_LOCALIZATION_MSF_VOXEL_GRID_COVARIANCE_HDMAP_H_
+#define MODULES_LOCALIZATION_MSF_VOXEL_GRID_COVARIANCE_HDMAP_H_
 
-#pragma once
-
+#include <pcl/common/common.h>
+#include <pcl/filters/boost.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/kdtree/kdtree_flann.h>
+#include <Eigen/Cholesky>
+#include <Eigen/Dense>
 #include <limits>
 #include <map>
 #include <vector>
-
-#include "pcl/common/common.h"
-#include "pcl/filters/voxel_grid.h"
-#include "pcl/kdtree/kdtree_flann.h"
 
 namespace apollo {
 namespace localization {
@@ -226,7 +189,7 @@ class VoxelGridCovariance : public pcl::VoxelGrid<PointT> {
       LeafConstPtr ret(&(leaf_iter->second));
       return ret;
     } else {
-      return nullptr;
+      return NULL;
     }
   }
 
@@ -247,7 +210,7 @@ class VoxelGridCovariance : public pcl::VoxelGrid<PointT> {
       LeafConstPtr ret(&(leaf_iter->second));
       return ret;
     } else {
-      return nullptr;
+      return NULL;
     }
   }
 
@@ -271,7 +234,7 @@ class VoxelGridCovariance : public pcl::VoxelGrid<PointT> {
       LeafConstPtr ret(&(leaf_iter->second));
       return ret;
     } else {
-      return nullptr;
+      return NULL;
     }
   }
 
@@ -378,7 +341,7 @@ class VoxelGridCovariance : public pcl::VoxelGrid<PointT> {
         // Get the distance value
         const uint8_t* pt_data =
             reinterpret_cast<const uint8_t*>(&input_->points[cp]);
-        float distance_value = 0.0f;
+        float distance_value = 0;
         memcpy(&distance_value, pt_data + fields[distance_idx].offset,
                sizeof(float));
 
@@ -569,10 +532,10 @@ class VoxelGridCovariance : public pcl::VoxelGrid<PointT> {
           if (rgba_index >= 0) {
             pcl::RGB& rgb = *reinterpret_cast<pcl::RGB*>(
                 reinterpret_cast<char*>(&output->points.back()) + rgba_index);
-            rgb.a = static_cast<uint8_t>(leaf.centroid[centroid_size - 4]);
-            rgb.r = static_cast<uint8_t>(leaf.centroid[centroid_size - 3]);
-            rgb.g = static_cast<uint8_t>(leaf.centroid[centroid_size - 2]);
-            rgb.b = static_cast<uint8_t>(leaf.centroid[centroid_size - 1]);
+            rgb.a = leaf.centroid[centroid_size - 4];
+            rgb.r = leaf.centroid[centroid_size - 3];
+            rgb.g = leaf.centroid[centroid_size - 2];
+            rgb.b = leaf.centroid[centroid_size - 1];
           }
         }
 
@@ -622,7 +585,7 @@ class VoxelGridCovariance : public pcl::VoxelGrid<PointT> {
   // Flag to determine if voxel structure is searchable. */
   bool searchable_;
 
-  // Minimum points contained with in a voxel to allow it to be usable.
+  // Minimum points contained with in a voxel to allow it to be useable.
   int min_points_per_voxel_;
 
   // Minimum allowable ratio between eigenvalues.
@@ -632,7 +595,7 @@ class VoxelGridCovariance : public pcl::VoxelGrid<PointT> {
   std::map<size_t, Leaf> leaves_;
 
   /* Point cloud containing centroids of voxels
-   * containing at least minimum number of points. */
+   * containing atleast minimum number of points. */
   PointCloudPtr voxel_centroids_;
 
   /* Indices of leaf structurs associated with each point in
@@ -646,3 +609,4 @@ class VoxelGridCovariance : public pcl::VoxelGrid<PointT> {
 }  // namespace msf
 }  // namespace localization
 }  // namespace apollo
+#endif  // MODULES_LOCALIZATION_MSF_VOXEL_GRID_COVARIANCE_HDMAP_H_

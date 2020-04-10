@@ -1,7 +1,6 @@
 import React from "react";
 import { observer } from "mobx-react";
 import classNames from "classnames";
-import _ from "lodash";
 
 import RadioItem from 'components/common/RadioItem';
 
@@ -28,22 +27,57 @@ const MenuIconMapping = {
         map: mapIcon,
 };
 
+const MenuIdOptionMapping = {
+        perceptionPointCloud: 'showPointCloud',
+        perceptionVehicle: 'showObstaclesVehicle',
+        perceptionPedestrian: 'showObstaclesPedestrian',
+        perceptionBicycle: 'showObstaclesBicycle',
+        perceptionUnknownMovable: 'showObstaclesUnknownMovable',
+        perceptionUnknownUnmovable: 'showObstaclesUnknownUnmovable',
+        perceptionUnknown: 'showObstaclesUnknown',
+        perceptionVirtual: 'showObstaclesVirtual',
+        perceptionCipv: 'showObstaclesCipv',
+        perceptionVelocity: 'showObstaclesVelocity',
+        perceptionHeading: 'showObstaclesHeading',
+        perceptionId: 'showObstaclesId',
+        perceptionObstacleInfo: 'showObstaclesInfo',
+        perceptionLaneMarker: 'showPerceptionLaneMarker',
+        predictionMajor: 'showPredictionMajor',
+        predictionMinor: 'showPredictionMinor',
+        routing: 'showRouting',
+        decisionMain: 'showDecisionMain',
+        decisionObstacle: 'showDecisionObstacle',
+        planningCar: 'showPlanningCar',
+        planningReference: 'showPlanningReference',
+        planningDpOptimizer: 'showPlanningDpOptimizer',
+        planningQpOptimizer: 'showPlanningQpOptimizer',
+        planningLine: 'showPlanning',
+        positionLocalization: 'showPositionLocalization',
+        positionGps: 'showPositionGps',
+        mapCrosswalk: 'showMapCrosswalk',
+        mapClearArea: 'showMapClearArea',
+        mapJunction: 'showMapJunction',
+        mapLane: 'showMapLane',
+        mapRoad: 'showMapRoad',
+        mapSignal: 'showMapSignal',
+        mapStopSign: 'showMapStopSign',
+};
+
 @observer
 class MenuItemCheckbox extends React.Component {
     render() {
-        const {id, title, optionName, options, isCustomized} = this.props;
+        const {id, title, options} = this.props;
         return (
-            <ul className="item">
+            <ul>
                 <li id={id} onClick={() => {
-                    options.toggle(optionName, isCustomized);
+                    options.toggle(MenuIdOptionMapping[id]);
                     if (id === "perceptionPointCloud") {
                         POINT_CLOUD_WS.togglePointCloud(options.showPointCloud);
                     }
                 }}>
                     <div className="switch">
                         <input type="checkbox" name={id} className="toggle-switch"
-                        id={id} checked={isCustomized ? options.customizedToggles.get(optionName) :
-                            options[optionName]} readOnly/>
+                        id={id} checked={options[MenuIdOptionMapping[id]]} readOnly/>
                         <label className="toggle-switch-label" htmlFor={id} />
                     </div>
                     <span>{title}</span>
@@ -55,18 +89,6 @@ class MenuItemCheckbox extends React.Component {
 
 @observer
 class SubMenu extends React.Component {
-    constructor(props) {
-        super(props);
-
-        this.menuIdOptionMapping = {};
-        for (const name in PARAMETERS.options) {
-            const option = PARAMETERS.options[name];
-            if (option.menuId) {
-                this.menuIdOptionMapping[option.menuId] = name;
-            }
-        }
-    }
-
     render() {
         const {tabId, tabTitle, tabType, data, options} = this.props;
         let entries = null;
@@ -74,46 +96,30 @@ class SubMenu extends React.Component {
             entries = Object.keys(data)
                 .map(key => {
                     const item = data[key];
-                    if (options.togglesToHide[key]) {
+                    if (options.hideOptionToggle[key]) {
                         return null;
                     }
                     return (
-                        <MenuItemCheckbox
-                            key={key} id={key} title={item}
-                            optionName={this.menuIdOptionMapping[key]}
-                            options={options}
-                            isCustomized={false} />
+                        <MenuItemCheckbox key={key} id={key} title={item}
+                        options={options}/>
                     );
                 });
-            if (tabId === 'planning' && options.customizedToggles.size > 0) {
-                const extraEntries = options.customizedToggles.keys().map(pathName => {
-                    const title = _.startCase(_.snakeCase(pathName));
-                    return (
-                        <MenuItemCheckbox
-                            key={pathName} id={pathName} title={title}
-                            optionName={pathName}
-                            options={options}
-                            isCustomized={true} />
-                    );
-                });
-                entries = entries.concat(extraEntries);
-            }
         } else if (tabType === 'radio') {
-            // Now we only have camera tab using radio in menu
-            if (tabId === 'camera') {
-                const cameraAngles = Object.values(data)
-                    .filter(angle => PARAMETERS.options.cameraAngle[`has${angle}`] !== false);
-                entries = cameraAngles.map((item) => {
+            entries = Object.keys(data)
+                .map(key => {
+                    const item = data[key];
+                    if (options.hideOptionToggle[key]) {
+                        return null;
+                    }
                     return (
-                        <RadioItem key={`${tabId}_${item}`} id={tabId}
-                                    onClick={() => {
+                        <RadioItem key={`${tabId}_${key}`} id={tabId}
+                                   onClick={() => {
                                             options.selectCamera(item);
-                                    }}
-                                    checked={options.cameraAngle === item}
-                                    title={_.startCase(item)} options={options}/>
+                                   }}
+                                   checked={options.cameraAngle === item}
+                                   title={item} options={options}/>
                     );
                 });
-            }
         }
         const result = (
             <div className="card">
@@ -131,7 +137,7 @@ class SubMenu extends React.Component {
 }
 
 @observer
-export default class LayerMenu extends React.Component {
+export default class Menu extends React.Component {
     render() {
         const { options } = this.props;
 

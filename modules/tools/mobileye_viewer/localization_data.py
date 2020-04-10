@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 ###############################################################################
 # Copyright 2017 The Apollo Authors. All Rights Reserved.
@@ -18,10 +18,10 @@
 
 import threading
 
-
 class LocalizationData:
     def __init__(self, localization_pb=None):
         self.localization_pb = localization_pb
 
     def update(self, localization_pb):
         self.localization_pb = localization_pb
+

@@ -14,48 +14,42 @@
  * limitations under the License.
  *****************************************************************************/
 
-#include <thread>
-
-#include "cyber/common/file.h"
-#include "cyber/common/log.h"
-#include "cyber/cyber.h"
-#include "cyber/time/rate.h"
-
 #include "gflags/gflags.h"
-#include "modules/canbus/common/canbus_gflags.h"
 #include "modules/common/adapters/adapter_gflags.h"
-#include "modules/control/proto/control_cmd.pb.h"
+#include "modules/common/log.h"
+#include "ros/include/ros/ros.h"
+#include "std_msgs/String.h"
 
-using apollo::control::ControlCommand;
-using apollo::cyber::Rate;
-using apollo::cyber::Reader;
-using apollo::cyber::Writer;
+#include "modules/canbus/common/canbus_gflags.h"
+#include "modules/common/util/file.h"
+#include "modules/control/proto/control_cmd.pb.h"
 
 int main(int32_t argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
   google::ParseCommandLineFlags(&argc, &argv, true);
   FLAGS_alsologtostderr = true;
 
-  // init cyber framework
-  apollo::cyber::Init("testing_canbus_tester");
-  std::shared_ptr<apollo::cyber::Node> node_(
-      apollo::cyber::CreateNode("canbus_tester"));
-  std::shared_ptr<Writer<ControlCommand>> control_command_writer_ =
-      node_->CreateWriter<ControlCommand>(FLAGS_control_command_topic);
+  ros::init(argc, argv, "canbus_tester");
 
-  ControlCommand control_cmd;
-  if (!apollo::cyber::common::GetProtoFromFile(FLAGS_canbus_test_file,
-                                               &control_cmd)) {
+  ros::NodeHandle nh;
+  ros::Publisher pub =
+      nh.advertise<std_msgs::String>(FLAGS_control_command_topic, 100);
+
+  apollo::control::ControlCommand control_cmd;
+  if (!apollo::common::util::GetProtoFromFile(FLAGS_canbus_test_file,
+                                              &control_cmd)) {
     AERROR << "failed to load file: " << FLAGS_canbus_test_file;
     return -1;
   }
 
-  Rate rate(1.0);  // frequency
+  std_msgs::String msg;
+  control_cmd.SerializeToString(&msg.data);
+  ros::Rate loop_rate(1);  // frequency
 
-  while (apollo::cyber::OK()) {
-    // pub.publish(msg);
-    control_command_writer_->Write(control_cmd);
-    rate.Sleep();
+  while (ros::ok()) {
+    pub.publish(msg);
+    ros::spinOnce();  // yield
+    loop_rate.sleep();
   }
 
   return 0;

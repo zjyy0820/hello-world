@@ -21,6 +21,10 @@
 
 #include "modules/planning/math/smoothing_spline/spline_1d.h"
 
+#include <algorithm>
+#include <cmath>
+#include <limits>
+
 namespace apollo {
 namespace planning {
 
@@ -32,7 +36,7 @@ Spline1d::Spline1d(const std::vector<double>& x_knots, const uint32_t order)
 }
 
 double Spline1d::operator()(const double x) const {
-  if (splines_.empty()) {
+  if (splines_.size() == 0) {
     return 0.0;
   }
   uint32_t index = FindIndex(x);
@@ -41,7 +45,7 @@ double Spline1d::operator()(const double x) const {
 
 double Spline1d::Derivative(const double x) const {
   // zero order spline
-  if (splines_.empty()) {
+  if (splines_.size() == 0) {
     return 0.0;
   }
   uint32_t index = FindIndex(x);
@@ -49,7 +53,7 @@ double Spline1d::Derivative(const double x) const {
 }
 
 double Spline1d::SecondOrderDerivative(const double x) const {
-  if (splines_.empty()) {
+  if (splines_.size() == 0) {
     return 0.0;
   }
   uint32_t index = FindIndex(x);
@@ -57,7 +61,7 @@ double Spline1d::SecondOrderDerivative(const double x) const {
 }
 
 double Spline1d::ThirdOrderDerivative(const double x) const {
-  if (splines_.empty()) {
+  if (splines_.size() == 0) {
     return 0.0;
   }
   uint32_t index = FindIndex(x);
@@ -87,16 +91,13 @@ const std::vector<double>& Spline1d::x_knots() const { return x_knots_; }
 
 uint32_t Spline1d::spline_order() const { return spline_order_; }
 
-const std::vector<Spline1dSeg>& Spline1d::splines() const { return splines_; }
-
 uint32_t Spline1d::FindIndex(const double x) const {
   auto upper_bound = std::upper_bound(x_knots_.begin() + 1, x_knots_.end(), x);
-  const uint32_t dis =
-      static_cast<uint32_t>(std::distance(x_knots_.begin(), upper_bound));
+  const uint32_t dis = std::distance(x_knots_.begin(), upper_bound);
   if (dis < x_knots_.size()) {
     return dis - 1;
   } else {
-    return static_cast<uint32_t>(x_knots_.size()) - 2;
+    return x_knots_.size() - 2;
   }
 }
 

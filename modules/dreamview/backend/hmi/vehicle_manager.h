@@ -14,12 +14,12 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef MODULES_DREAMVIEW_BACKEND_HMI_VEHICLE_MANAGER_H_
+#define MODULES_DREAMVIEW_BACKEND_HMI_VEHICLE_MANAGER_H_
 
 #include <string>
 
-#include "cyber/common/macros.h"
-
+#include "modules/common/macro.h"
 #include "modules/dreamview/proto/hmi_config.pb.h"
 
 /**
@@ -31,15 +31,15 @@ namespace dreamview {
 
 class VehicleManager {
  public:
-  bool UseVehicle(const std::string& vehicle_data_path);
-  const std::string& GetVehicleDataPath() const;
+  bool UseVehicle(const std::string &vehicle_data_path);
 
  private:
-  std::string vehicle_data_path_;
   VehicleData vehicle_data_;
 
-  DECLARE_SINGLETON(VehicleManager)
+  DECLARE_SINGLETON(VehicleManager);
 };
 
 }  // namespace dreamview
 }  // namespace apollo
+
+#endif  // MODULES_DREAMVIEW_BACKEND_HMI_VEHICLE_MANAGER_H_

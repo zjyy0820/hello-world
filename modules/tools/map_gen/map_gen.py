@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 ###############################################################################
 # Copyright 2017 The Apollo Authors. All Rights Reserved.
@@ -92,14 +92,14 @@ def create_lane(map, id):
 
 
 fpath = sys.argv[1]
+f = open(fpath, 'r')
 points = []
-with open(fpath, 'r') as f:
-    for line in f:
-        line = line.replace("\n", '')
-        data = line.split(',')
-        x = float(data[0])
-        y = float(data[1])
-        points.append((x, y))
+for line in f:
+    line = line.replace("\n", '')
+    data = line.split(',')
+    x = float(data[0])
+    y = float(data[1])
+    points.append((x, y))
 
 path = LineString(points)
 length = int(path.length)

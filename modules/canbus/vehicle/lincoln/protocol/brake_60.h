@@ -19,10 +19,11 @@
  * @brief the class of Brake60 (for lincoln vehicle)
  */
 
-#pragma once
+#ifndef MODULES_CANBUS_VEHICLE_LINCOLN_PROTOCOL_BRAKE_60_H_
+#define MODULES_CANBUS_VEHICLE_LINCOLN_PROTOCOL_BRAKE_60_H_
 
-#include "modules/canbus/proto/chassis_detail.pb.h"
 #include "modules/drivers/canbus/can_comm/protocol_data.h"
+#include "modules/canbus/proto/chassis_detail.pb.h"
 
 /**
  * @namespace apollo::canbus::lincoln
@@ -144,3 +145,5 @@ class Brake60 : public ::apollo::drivers::canbus::ProtocolData<
 }  // namespace lincoln
 }  // namespace canbus
 }  // namespace apollo
+
+#endif  // MODULES_CANBUS_VEHICLE_LINCOLN_PROTOCOL_BRAKE_60_H_

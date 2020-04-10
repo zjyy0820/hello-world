@@ -18,43 +18,27 @@
 
 #include <unordered_map>
 
-#include "cyber/common/log.h"
+#include "modules/common/log.h"
 
 namespace apollo {
 namespace prediction {
 namespace network {
 
-float sigmoid(const float x) { return 1.0f / (1.0f + std::exp(-x)); }
+float sigmoid(const float x) { return 1 / (1 + exp(-x)); }
 
 float tanh(const float x) { return std::tanh(x); }
 
 float linear(const float x) { return x; }
 
 float hard_sigmoid(const float x) {
-  const float z = 0.2f * x + 0.5f;
-  return z <= 0.0f ? 0.0f : (z <= 1.0f ? z : 1.0f);
+  const float z = 0.2 * x + 0.5;
+  return z <= 0.0 ? 0.0 : (z <= 1.0 ? z : 1.0);
 }
 
-float relu(const float x) { return (x > 0.0f) ? x : 0.0f; }
-
-Eigen::MatrixXf FlattenMatrix(const Eigen::MatrixXf& matrix) {
-  CHECK_GT(matrix.rows(), 0);
-  CHECK_GT(matrix.cols(), 0);
-  int output_size = static_cast<int>(matrix.rows() * matrix.cols());
-  Eigen::MatrixXf output_matrix;
-  output_matrix.resize(1, output_size);
-  int output_index = 0;
-  for (int i = 0; i < matrix.rows(); ++i) {
-    for (int j = 0; j < matrix.cols(); ++j) {
-      output_matrix(0, output_index) = matrix(i, j);
-      ++output_index;
-    }
-  }
-  return output_matrix;
-}
+float relu(const float x) { return (x > 0.0) ? x : 0.0; }
 
 std::function<float(float)> serialize_to_function(const std::string& str) {
-  static const std::unordered_map<std::string, std::function<float(float)>>
+  static const std::unordered_map<std::string, std::function<float(float)> >
       func_map({{"linear", linear},
                 {"tanh", tanh},
                 {"sigmoid", sigmoid},
@@ -64,7 +48,7 @@ std::function<float(float)> serialize_to_function(const std::string& str) {
 }
 
 bool LoadTensor(const TensorParameter& tensor_pb, Eigen::MatrixXf* matrix) {
-  if (tensor_pb.data().empty() || tensor_pb.shape().empty()) {
+  if (tensor_pb.data_size() == 0 || tensor_pb.shape_size() == 0) {
     AERROR << "Fail to load the necessary fields!";
     return false;
   }
@@ -90,7 +74,7 @@ bool LoadTensor(const TensorParameter& tensor_pb, Eigen::MatrixXf* matrix) {
 }
 
 bool LoadTensor(const TensorParameter& tensor_pb, Eigen::VectorXf* vector) {
-  if (tensor_pb.data().empty() || tensor_pb.shape().empty()) {
+  if (tensor_pb.data_size() == 0 || tensor_pb.shape_size() == 0) {
     AERROR << "Fail to load the necessary fields!";
     return false;
   }
@@ -102,31 +86,6 @@ bool LoadTensor(const TensorParameter& tensor_pb, Eigen::VectorXf* vector) {
       (*vector)(i) = static_cast<float>(tensor_pb.data(i));
     }
   }
-  return true;
-}
-
-bool LoadTensor(const TensorParameter& tensor_pb,
-                std::vector<Eigen::MatrixXf>* const tensor3d) {
-  if (tensor_pb.data().empty() || tensor_pb.shape_size() != 3) {
-    AERROR << "Fail to load the necessary fields!";
-    return false;
-  }
-  int num_depth = tensor_pb.shape(0);
-  int num_row = tensor_pb.shape(1);
-  int num_col = tensor_pb.shape(2);
-  CHECK_EQ(tensor_pb.data_size(), num_depth * num_row * num_col);
-  int tensor_pb_index = 0;
-  for (int k = 0; k < num_depth; ++k) {
-    Eigen::MatrixXf matrix = Eigen::MatrixXf::Zero(num_row, num_col);
-    for (int i = 0; i < num_row; ++i) {
-      for (int j = 0; j < num_col; ++j) {
-        matrix(i, j) = tensor_pb.data(tensor_pb_index);
-        ++tensor_pb_index;
-      }
-    }
-    tensor3d->push_back(matrix);
-  }
-  CHECK_EQ(tensor_pb_index, num_depth * num_row * num_col);
   return true;
 }
 

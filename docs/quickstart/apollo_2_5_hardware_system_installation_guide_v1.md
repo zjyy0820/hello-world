@@ -254,7 +254,7 @@ The 64 line LiDAR system **HDL-64E S3** is available from Velodyne LiDAR, Inc.
 
 The 16 line LiDAR system VLP-16 is available from Velodyne LiDAR, Inc.
 
-![lidar_image](images/lidar_pic_16.png)
+![lidar_image](/Users/hanyang07/apollo/docs/quickstart/images/lidar_pic_16.png)
 
 **Key Features:**
 
@@ -266,7 +266,7 @@ The 16 line LiDAR system VLP-16 is available from Velodyne LiDAR, Inc.
 - Low Power Consumption
 - Protective Design
 
-![online](images/online_icon.png)Webpage for Velodyne VLP-16:
+![online](/Users/hanyang07/apollo/docs/quickstart/images/online_icon.png)Webpage for Velodyne VLP-16:
 [http://velodynelidar.com/vlp-16.html](http://velodynelidar.com/vlp-16.html)
 
 ## Cameras
@@ -356,7 +356,7 @@ Follow these steps:
   a. Locate and unscrew the eight screws (shown in the brown squares or	pointed by brown arrows) on the side of computer:
   ![Positions_of_Screws](images/IPC-6108GC-Screw-Positions_labeled.png)b. Remove the cover from the IPC. 3 PCI slots (one occupied by the	graphic card) locate on the base:
 
-  ![removing the cover](images/Removing_the_cover.jpg)
+  ![removing the cover](images/Removing_the_cover.JPG)
 
   ![Before installing the CAN card](images/Before_installing_the_can_card.png)
 
@@ -403,7 +403,7 @@ Follow these steps:
 
 c. Connect the power: 
 
-![IPC-6108GC-PowerCable.jpg](images/IPC-6108GC-PowerCable.jpg)
+![IPC-6108GC-PowerCable.JPG](images/IPC-6108GC-PowerCable.JPG)
 
 
 ### Installing the Software for the IPC
@@ -553,7 +553,7 @@ The following two diagrams indicate the locations of where the three major compo
 
 
 
-![major_component_side_view](images/Car_Sideview_2_5.png)
+![major_component_side_view](images/Car_Sideview_2_5.PNG)
 
 
 
@@ -689,13 +689,13 @@ Each HDL-64E S3 LiDAR includes a cable bundle to connect the LiDAR to the power 
 
    Connect the power and signal cable to the matching ports on the LiDAR
 
-   ![HDL64_Cabling](images/HDL64_Cabling.jpg)
+   ![HDL64_Cabling](images/HDL64_Cabling.JPG)
 
 2. Connection to Power Source
 
    The two AWG 16 wires are used to power HDL-64E S3 LiDAR. It requires about 3A at 12V. To connect the power source, make full contact with the wires and tighten the screws. 
 
-   ![HDL64_Power_Cable](images/HDL64_PowerCable.jpg)
+   ![HDL64_Power_Cable](images/HDL64_PowerCable.JPG)
 
 3. Conection to IPC
 
@@ -767,7 +767,7 @@ Each HDL-64E S3 LiDAR includes a cable bundle to connect the LiDAR to the power 
 
 In Apollo 2.5, map creation service has been opened to the public. To acquire the data necessary for map creation, one would need to install an additional VLP-16 LiDAR on the vehicle. The purpose of this LiDAR is to collect point cloud information for objects above the FOV of the HDL-64 S3 Lidar, such as traffic lights and signs. It requires a customized rack to mount the VLP-16 Lidar on top of the vehicle. The figure below shows one of the possible configurations. ![VLP_16_installation](images/VLP16_install_configuration.jpg)
 
-In this specific configuration, the VLP-16 LiDAR is mounted with an upward tilt of 20±2°. The power cable of the VLP-16 is connected to the DataSpeed power panel. The ethernet connection is connected to the IPC (possibly through an ethernet switch). Similar to HDL-64 S3 LiDAR, the VLP-16 GPRMC and PPS input from the GPS receiver. Ideally, additional hardware should be installed to duplicate the GPRMC and PPS signal from the GPS receiver send to HDL-64 and VLP-16 respectively. However, a simple Y-split cable may also provide adequate signal for both LiDAR's. To distinguish from the HDL-64 S3 LiDAR, please follow the VLP-16 manual and use the webpage interface to configure the IP of VLP-16 to 192.168.20.14, the data port to 2369, and the telemetry port to 8309. The pinout for the signal input from GPS receiver can also be found in the manual if you need customized cable.
+In this specific configuration, the VLP-16 LiDAR is mounted with an upward tilt of 20±2°. The power cable of the VLP-16 is connected to the DataSpeed power panel. The ethernet connection is connected to the IPC (possibly through an ethernet switch). Similar to HDL-64 S3 LiDAR, the VLP-16 GPRMC and PPS input from the GPS receiver. Ideally, additional hardware should be installed to duplicate the GPRMC and PPS signal from the GPS receiver send to HDL-64 and VLP-16 respectively. However, a simple Y-split cable may also provide adequate signal for both LiDAR's. To distingush from the HDL-64 S3 LiDAR, please follow the VLP-16 manual and use the webpage interface to configure the IP of VLP-16 to 192.168.20.14, the data port to 2369, and the telemetry port to 8309. The pinout for the signal input from GPS receiver can also be found in the manual if you need customized cable.
 
 ![online_icon](images/online_icon.png)VLP-16 Manual can be found on this webpage:
 
@@ -825,7 +825,7 @@ Follow these steps:
 
 2.   Place the onboard computer system, the 6108GC, inside the trunk (recommended).
 
-     For example, Apollo 2.5 uses 4x4 self-tapping screws to bolt the 6108GC to the carpeted floor of the trunk. ![IPC-bolt_down-936x720](images/Mount_ipc_on_carpet.jpg)
+     For example, Apollo 2.5 uses 4x4 self-tapping screws to bolt the 6108GC to the carpeted floor of the trunk. ![IPC-bolt_down-936x720](images/Mount_ipc_on_carpet.JPG)
 
 3. Mount the IPC so that its front and back sides(where all ports are located) face the right side (passenger) or the left side(driver) of the trunk.
 
@@ -869,7 +869,7 @@ d. Connect:
 
 - (optional) the monitor:
 
-![IPC-power-842x636](images/cable_connected_incar.jpg)
+![IPC-power-842x636](images/cable_connected_incar.JPG)
 
 
 

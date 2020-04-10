@@ -14,13 +14,13 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef _BCAN_LIB_H_
+#define _BCAN_LIB_H_
 
+#include <stdint.h>
+#include <stdlib.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
-#include <cstdint>
-#include <cstdlib>
-
 #include "linux/zynq_api.h"
 
 #ifdef DEBUG
@@ -58,3 +58,5 @@ typedef struct bcan_ihdl {
 #define BCAN_DEV_STOP (1 << 7)
 #define BCAN_DEV_ACTIVE (1 << 8)
 #define BCAN_DEV_RECVD (1 << 9)
+
+#endif /* _BCAN_LIB_H_ */

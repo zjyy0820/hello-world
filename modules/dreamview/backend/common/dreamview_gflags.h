@@ -14,7 +14,8 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef MODULES_DREAMVIEW_BACKEND_COMMON_DREAMVIEW_GFLAGS_H_
+#define MODULES_DREAMVIEW_BACKEND_COMMON_DREAMVIEW_GFLAGS_H_
 
 #include "gflags/gflags.h"
 
@@ -22,7 +23,11 @@ DECLARE_string(dreamview_module_name);
 
 DECLARE_bool(dreamview_profiling_mode);
 
-DECLARE_int32(dreamview_profiling_duration);
+DECLARE_double(dreamview_profiling_duration);
+
+DECLARE_string(dreamview_adapter_config_filename);
+
+DECLARE_string(hmi_config_filename);
 
 DECLARE_string(static_file_dir);
 
@@ -54,8 +59,4 @@ DECLARE_double(voxel_filter_height);
 
 DECLARE_double(system_status_lifetime_seconds);
 
-DECLARE_string(lidar_height_yaml);
-
-DECLARE_int32(monitor_msg_pending_queue_size);
-
-DECLARE_string(default_data_collection_config_path);
+#endif  // MODULES_DREAMVIEW_BACKEND_COMMON_DREAMVIEW_GFLAGS_H_

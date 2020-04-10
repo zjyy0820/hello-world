@@ -16,8 +16,8 @@
 
 #include "modules/dreamview/backend/hmi/vehicle_manager.h"
 
-#include "cyber/common/log.h"
 #include "gflags/gflags.h"
+#include "modules/common/log.h"
 
 DEFINE_string(vehicle_data_path, "modules/calibration/data/mkz_example",
               "Vehicle data path.");
@@ -27,7 +27,7 @@ int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
   google::ParseCommandLineFlags(&argc, &argv, true);
 
-  apollo::dreamview::VehicleManager::Instance()->UseVehicle(
+  apollo::dreamview::VehicleManager::instance()->UseVehicle(
       FLAGS_vehicle_data_path);
   AINFO << "Switched to vehicle with data from " << FLAGS_vehicle_data_path;
 

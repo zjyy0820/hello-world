@@ -2,10 +2,25 @@ import React from "react";
 import { inject, observer } from "mobx-react";
 
 import SETTING from "store/config/ControlGraph.yml";
-import ScatterGraph, { generateScatterGraph } from "components/PNCMonitor/ScatterGraph";
+import ScatterGraph from "components/PNCMonitor/ScatterGraph";
 
 @inject("store") @observer
 export default class ControlMonitor extends React.Component {
+    generateScatterGraph(name, data) {
+        if (SETTING[name] === undefined) {
+            console.error("Graph setting not found: ", name);
+            return null;
+        }
+
+        return (
+            <ScatterGraph
+                title={SETTING[name].title}
+                options={SETTING[name].options}
+                properties={SETTING[name].properties}
+                data={data} />
+        );
+    }
+
     render() {
         const { lastUpdatedTime, data } = this.props.store.controlData;
 
@@ -15,15 +30,13 @@ export default class ControlMonitor extends React.Component {
 
         return (
             <div>
-                {generateScatterGraph(SETTING.trajectoryGraph, data.trajectoryGraph, {
-                    pose: data.pose,
-                })}
-                {generateScatterGraph(SETTING.speedGraph, data.speedGraph)}
-                {generateScatterGraph(SETTING.accelerationGraph, data.accelerationGraph)}
-                {generateScatterGraph(SETTING.curvatureGraph, data.curvatureGraph)}
-                {generateScatterGraph(SETTING.stationErrorGraph, data.stationErrorGraph)}
-                {generateScatterGraph(SETTING.lateralErrorGraph, data.lateralErrorGraph)}
-                {generateScatterGraph(SETTING.headingErrorGraph, data.headingErrorGraph)}
+                {this.generateScatterGraph('trajectoryGraph', data.trajectoryGraph)}
+                {this.generateScatterGraph('speedGraph', data.speedGraph)}
+                {this.generateScatterGraph('accelerationGraph', data.accelerationGraph)}
+                {this.generateScatterGraph('curvatureGraph', data.curvatureGraph)}
+                {this.generateScatterGraph('stationErrorGraph', data.stationErrorGraph)}
+                {this.generateScatterGraph('lateralErrorGraph', data.lateralErrorGraph)}
+                {this.generateScatterGraph('headingErrorGraph', data.headingErrorGraph)}
             </div>
         );
     }

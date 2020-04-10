@@ -28,8 +28,8 @@ export function drawImage(img, width, height, x = 0, y = 0, z = 0) {
 }
 
 export function drawDashedLineFromPoints(
-    points, color = 0xff0000, linewidth = 1, dashSize = 4, gapSize = 2,
-    zOffset = 0, opacity = 1, matrixAutoUpdate = true) {
+    points, color = 0xff0000, linewidth = 1, dashSize = 4,
+    gapSize = 2, zOffset = 0, matrixAutoUpdate = true) {
 
     const path = new THREE.Path();
     const geometry = path.createGeometry(points);
@@ -38,9 +38,7 @@ export function drawDashedLineFromPoints(
         color: color,
         dashSize: dashSize,
         linewidth: linewidth,
-        gapSize: gapSize,
-        transparent: true,
-        opacity: opacity,
+        gapSize: gapSize
     });
     const mesh = new THREE.Line(geometry, material);
     addOffsetZ(mesh, zOffset);
@@ -55,15 +53,6 @@ export function drawCircle(radius, material, segments = 32) {
     const geometry = new THREE.CircleGeometry(radius, segments);
     const circleMesh = new THREE.Mesh(geometry, material);
     return circleMesh;
-}
-
-
-export function drawEllipse(aRadius, bRadius, material) {
-    const path = new THREE.Shape();
-    path.absellipse(0, 0, aRadius, bRadius, 0, Math.PI * 2, false, 0);
-    const geometry = new THREE.ShapeBufferGeometry(path);
-    const ellipse = new THREE.Mesh(geometry, material);
-    return ellipse;
 }
 
 export function drawThickBandFromPoints(
@@ -165,26 +154,4 @@ export function drawShapeFromPoints(points,
         mesh.updateMatrix();
     }
     return mesh;
-}
-
-export function disposeMeshGroup(mesh) {
-    if (!mesh) {
-        return;
-    }
-
-    mesh.traverse((child) => {
-        if (child.geometry !== undefined) {
-            child.geometry.dispose();
-            child.material.dispose();
-        }
-    });
-}
-
-export function disposeMesh(mesh) {
-    if (!mesh) {
-        return;
-    }
-
-    mesh.geometry.dispose();
-    mesh.material.dispose();
 }

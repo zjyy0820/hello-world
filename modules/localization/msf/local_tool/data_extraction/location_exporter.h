@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright 2018 The Apollo Authors. All Rights Reserved.
+ * Copyright 2017 The Apollo Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,12 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef MODULES_LOCALIZATION_MSF_LOCAL_TOOL_LOCATION_EXPORTER_H
+#define MODULES_LOCALIZATION_MSF_LOCAL_TOOL_LOCATION_EXPORTER_H
 
+#include <memory>
 #include <string>
+#include "modules/localization/msf/local_tool/data_extraction/base_exporter.h"
 
 namespace apollo {
 namespace localization {
@@ -26,15 +29,18 @@ namespace msf {
  * @class LocationExporter
  * @brief Export info about localziation in rosbag.
  */
-class LocationExporter {
+class LocationExporter : public BaseExporter {
  public:
+  typedef std::shared_ptr<LocationExporter> Ptr;
+  typedef std::shared_ptr<LocationExporter const> ConstPtr;
+
   explicit LocationExporter(const std::string &loc_file_folder);
   ~LocationExporter();
 
-  void GnssLocCallback(const std::string &msg);
-  void LidarLocCallback(const std::string &msg);
-  void FusionLocCallback(const std::string &msg);
-  void OdometryLocCallback(const std::string &msg);
+  void GnssLocCallback(const rosbag::MessageInstance &msg);
+  void LidarLocCallback(const rosbag::MessageInstance &msg);
+  void FusionLocCallback(const rosbag::MessageInstance &msg);
+  void OdometryLocCallback(const rosbag::MessageInstance &msg);
 
  private:
   std::string gnss_loc_file_;
@@ -51,3 +57,5 @@ class LocationExporter {
 }  // namespace msf
 }  // namespace localization
 }  // namespace apollo
+
+#endif  // MODULES_LOCALIZATION_MSF_LOCAL_TOOL_LOCATION_EXPORTER_H

@@ -27,7 +27,7 @@ class GemVehicleFactoryTest : public ::testing::Test {
  public:
   virtual void SetUp() {
     VehicleParameter parameter;
-    parameter.set_brand(apollo::common::GEM);
+    parameter.set_brand(VehicleParameter::GEM);
     gem_factory_.SetVehicleParameter(parameter);
   }
   virtual void TearDown() {}
@@ -37,11 +37,11 @@ class GemVehicleFactoryTest : public ::testing::Test {
 };
 
 TEST_F(GemVehicleFactoryTest, InitVehicleController) {
-  EXPECT_NE(gem_factory_.CreateVehicleController(), nullptr);
+  EXPECT_TRUE(gem_factory_.CreateVehicleController() != nullptr);
 }
 
 TEST_F(GemVehicleFactoryTest, InitMessageManager) {
-  EXPECT_NE(gem_factory_.CreateMessageManager(), nullptr);
+  EXPECT_TRUE(gem_factory_.CreateMessageManager() != nullptr);
 }
 
 }  // namespace canbus

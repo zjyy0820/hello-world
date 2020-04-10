@@ -18,15 +18,12 @@
 
 APOLLO_ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 
-BOLD='\033[1m'
 RED='\033[0;31m'
-GREEN='\033[32m'
-WHITE='\033[34m'
-YELLOW='\033[33m'
+YELLOW='\e[33m'
 NO_COLOR='\033[0m'
 
 function info() {
-  (>&2 echo -e "[${WHITE}${BOLD}INFO${NO_COLOR}] $*")
+  (>&2 echo -e "[\e[34m\e[1mINFO\e[0m] $*")
 }
 
 function error() {
@@ -38,7 +35,7 @@ function warning() {
 }
 
 function ok() {
-  (>&2 echo -e "[${GREEN}${BOLD} OK ${NO_COLOR}] $*")
+  (>&2 echo -e "[\e[32m\e[1m OK \e[0m] $*")
 }
 
 function print_delim() {
@@ -81,47 +78,27 @@ function check_in_docker() {
 }
 
 function set_lib_path() {
-  export LD_LIBRARY_PATH=/usr/lib:/usr/lib/x86_64-linux-gnu
-
-  if [ "$RELEASE_DOCKER" == 1 ]; then
-    local CYBER_SETUP="/apollo/cyber/setup.bash"
-    if [ -e "${CYBER_SETUP}" ]; then
-      source "${CYBER_SETUP}"
-    fi
+  if [ "$RELEASE_DOCKER" == 1 ];then
+    source /apollo/ros/setup.bash
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/apollo/lib:/usr/local/apollo/local_integ/lib:/home/caros/secure_upgrade/depend_lib
     PY_LIB_PATH=/apollo/lib
     PY_TOOLS_PATH=/apollo/modules/tools
   else
-    local CYBER_SETUP="/apollo/cyber/setup.bash"
-    if [ -e "${CYBER_SETUP}" ]; then
-      source "${CYBER_SETUP}"
+    local ROS_SETUP="/home/tmp/ros/setup.bash"
+    if [ -e "${ROS_SETUP}" ]; then
+      source "${ROS_SETUP}"
     fi
     PY_LIB_PATH=${APOLLO_ROOT_DIR}/py_proto
     PY_TOOLS_PATH=${APOLLO_ROOT_DIR}/modules/tools
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/apollo/lib:/apollo/bazel-genfiles/external/caffe/lib
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/apollo/lib:/apollo/bazel-genfiles/external/caffe/lib:/home/caros/secure_upgrade/depend_lib
   fi
-  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/apollo/lib:/usr/local/apollo/local_integ/lib
-  export LD_LIBRARY_PATH=/usr/local/adolc/lib64:$LD_LIBRARY_PATH
-  export LD_LIBRARY_PATH=/usr/local/Qt5.5.1/5.5/gcc_64/lib:$LD_LIBRARY_PATH
-  export LD_LIBRARY_PATH=/usr/local/fast-rtps/lib:$LD_LIBRARY_PATH
-  if [ "$USE_GPU" != "1" ];then
-    export LD_LIBRARY_PATH=/usr/local/apollo/libtorch/lib:$LD_LIBRARY_PATH
-  else
-    export LD_LIBRARY_PATH=/usr/local/apollo/libtorch_gpu/lib:$LD_LIBRARY_PATH
-  fi
-  export LD_LIBRARY_PATH=/usr/local/apollo/boost/lib:$LD_LIBRARY_PATH
-  export LD_LIBRARY_PATH=/usr/local/apollo/paddlepaddle_dep/mkldnn/lib/:$LD_LIBRARY_PATH
-  export PYTHONPATH=${PY_LIB_PATH}:${PY_TOOLS_PATH}:${PYTHONPATH}
-
-  # Set teleop paths
-  export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
-  export PYTHONPATH=/apollo/modules/teleop/common:${PYTHONPATH}
-  export PATH=/apollo/modules/teleop/common/scripts:${PATH}
-
-  if [ -e /usr/local/cuda/ ];then
-    export PATH=/usr/local/cuda/bin:$PATH
-    export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
-    export C_INCLUDE_PATH=/usr/local/cuda/include:$C_INCLUDE_PATH
-    export CPLUS_INCLUDE_PATH=/usr/local/cuda/include:$CPLUS_INCLUDE_PATH
+  PY_LIB_PATH=${PY_LIB_PATH}:/usr/local/apollo/snowboy/Python
+  export PYTHONPATH=/usr/local/lib/python2.7/dist-packages:${PY_LIB_PATH}:${PY_TOOLS_PATH}:${PYTHONPATH}
+  if [ -e /usr/local/cuda-8.0/ ];then
+    export PATH=/usr/local/cuda-8.0/bin:$PATH
+    export LD_LIBRARY_PATH=/usr/local/cuda-8.0/lib64:$LD_LIBRARY_PATH
+    export C_INCLUDE_PATH=/usr/local/cuda-8.0/include:$C_INCLUDE_PATH
+    export CPLUS_INCLUDE_PATH=/usr/local/cuda-8.0/include:$CPLUS_INCLUDE_PATH
   fi
 }
 
@@ -236,7 +213,7 @@ function decide_task_dir() {
 function is_stopped_customized_path() {
   MODULE_PATH=$1
   MODULE=$2
-  NUM_PROCESSES="$(pgrep -c -f "modules/${MODULE_PATH}/launch/${MODULE}.launch")"
+  NUM_PROCESSES="$(pgrep -c -f "modules/${MODULE_PATH}/${MODULE}")"
   if [ "${NUM_PROCESSES}" -eq 0 ]; then
     return 1
   else
@@ -249,9 +226,12 @@ function start_customized_path() {
   MODULE=$2
   shift 2
 
+  LOG="${APOLLO_ROOT_DIR}/data/log/${MODULE}.out"
   is_stopped_customized_path "${MODULE_PATH}" "${MODULE}"
   if [ $? -eq 1 ]; then
-    eval "nohup cyber_launch start /apollo/modules/${MODULE_PATH}/launch/${MODULE}.launch &"
+    eval "nohup ${APOLLO_BIN_PREFIX}/modules/${MODULE_PATH}/${MODULE} \
+        --flagfile=modules/${MODULE_PATH}/conf/${MODULE}.conf \
+        --log_dir=${APOLLO_ROOT_DIR}/data/log $@ </dev/null >${LOG} 2>&1 &"
     sleep 0.5
     is_stopped_customized_path "${MODULE_PATH}" "${MODULE}"
     if [ $? -eq 0 ]; then
@@ -317,13 +297,9 @@ function start_fe_customized_path() {
   MODULE=$2
   shift 2
 
-  is_stopped_customized_path "${MODULE_PATH}" "${MODULE}"
-  if [ $? -eq 1 ]; then
-    eval "cyber_launch start /apollo/modules/${MODULE_PATH}/launch/${MODULE}.launch"
-  else
-    echo "Module ${MODULE} is already running - skipping."
-    return 2
-  fi
+  eval "${APOLLO_BIN_PREFIX}/modules/${MODULE_PATH}/${MODULE} \
+      --flagfile=modules/${MODULE_PATH}/conf/${MODULE}.conf \
+      --alsologtostderr --log_dir=${APOLLO_ROOT_DIR}/data/log $@"
 }
 
 function start_fe() {
@@ -354,13 +330,7 @@ function stop_customized_path() {
   MODULE_PATH=$1
   MODULE=$2
 
-  is_stopped_customized_path "${MODULE_PATH}" "${MODULE}"
-  if [ $? -eq 1 ]; then
-    echo "${MODULE} process is not running!"
-    return
-  fi
-
-  cyber_launch stop "/apollo/modules/${MODULE_PATH}/launch/${MODULE}.launch"
+  pkill -SIGKILL -f "modules/${MODULE_PATH}/${MODULE}"
   if [ $? -eq 0 ]; then
     echo "Successfully stopped module ${MODULE}."
   else
@@ -451,16 +421,10 @@ function run() {
 }
 
 check_in_docker
-unset OMP_NUM_THREADS
-if [ $APOLLO_IN_DOCKER = "true" ]; then
-  CYBER_SETUP="/apollo/cyber/setup.bash"
-  if [ -e "${CYBER_SETUP}" ]; then
-    source "${CYBER_SETUP}"
-  fi
-  create_data_dir
-  set_lib_path $1
-  if [ -z $APOLLO_BASE_SOURCED ]; then
-    determine_bin_prefix
-    export APOLLO_BASE_SOURCED=1
-  fi
+create_data_dir
+
+if [ -z $APOLLO_BASE_SOURCED ]; then
+  set_lib_path
+  determine_bin_prefix
+  export APOLLO_BASE_SOURCED=1
 fi

@@ -14,16 +14,14 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef MODULES_DRIVERS_GNSS_RTCM_PARSER_H_
+#define MODULES_DRIVERS_GNSS_RTCM_PARSER_H_
 
+#include <std_msgs/String.h>
 #include <memory>
-#include <string>
-
-#include "cyber/cyber.h"
+#include "ros/include/ros/ros.h"
 
 #include "modules/drivers/gnss/parser/parser.h"
-
-#include "modules/drivers/gnss/proto/gnss_raw_observation.pb.h"
 
 namespace apollo {
 namespace drivers {
@@ -31,28 +29,22 @@ namespace gnss {
 
 class RtcmParser {
  public:
-  using MessagePtr = ::google::protobuf::Message*;
-  RtcmParser(const config::Config& config,
-             const std::shared_ptr<apollo::cyber::Node>& node);
+  RtcmParser() {}
   ~RtcmParser() {}
   bool Init();
-  void ParseRtcmData(const std::string& msg);
+  void ParseRtcmData(const std_msgs::String::ConstPtr &msg);
 
  private:
   void DispatchMessage(Parser::MessageType type, MessagePtr message);
-  void PublishEphemeris(const MessagePtr& message);
-  void PublishObservation(const MessagePtr& message);
+  void PublishEphemeris(const MessagePtr message);
+  void PublishObservation(const MessagePtr message);
 
-  config::Config config_;
-  std::shared_ptr<apollo::cyber::Node> node_ = nullptr;
-  std::shared_ptr<apollo::cyber::Writer<GnssEphemeris>> gnssephemeris_writer_ =
-      nullptr;
-  std::shared_ptr<apollo::cyber::Writer<EpochObservation>>
-      epochobservation_writer_ = nullptr;
-  bool init_flag_ = false;
-  std::unique_ptr<Parser> rtcm_parser_ = nullptr;
+  bool inited_flag_ = false;
+  std::unique_ptr<Parser> rtcm_parser_;
 };
 
 }  // namespace gnss
 }  // namespace drivers
 }  // namespace apollo
+
+#endif  // MODULES_DRIVERS_GNSS_RTCM_PARSER_H_

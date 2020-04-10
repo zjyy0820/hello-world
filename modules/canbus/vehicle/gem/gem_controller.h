@@ -14,26 +14,26 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef MODULES_CANBUS_VEHICLE_GEM_GEM_PROTOCOL_MANAGER_H_
+#define MODULES_CANBUS_VEHICLE_GEM_GEM_PROTOCOL_MANAGER_H_
 
 #include <memory>
 #include <thread>
 
-#include "cyber/common/macros.h"
+#include "modules/canbus/vehicle/vehicle_controller.h"
 
 #include "modules/canbus/proto/canbus_conf.pb.h"
 #include "modules/canbus/proto/chassis.pb.h"
 #include "modules/canbus/proto/vehicle_parameter.pb.h"
-#include "modules/common/proto/error_code.pb.h"
-#include "modules/control/proto/control_cmd.pb.h"
-
 #include "modules/canbus/vehicle/gem/protocol/accel_cmd_67.h"
 #include "modules/canbus/vehicle/gem/protocol/brake_cmd_6b.h"
 #include "modules/canbus/vehicle/gem/protocol/global_cmd_69.h"
 #include "modules/canbus/vehicle/gem/protocol/shift_cmd_65.h"
 #include "modules/canbus/vehicle/gem/protocol/steering_cmd_6d.h"
 #include "modules/canbus/vehicle/gem/protocol/turn_cmd_63.h"
-#include "modules/canbus/vehicle/vehicle_controller.h"
+#include "modules/common/macro.h"
+#include "modules/common/proto/error_code.pb.h"
+#include "modules/control/proto/control_cmd.pb.h"
 
 namespace apollo {
 namespace canbus {
@@ -88,8 +88,6 @@ class GemController final : public VehicleController {
   // gas:0.00~99.99 unit:
   void Throttle(double throttle) override;
 
-  // drive with acceleration/deceleration
-  // acc:-7.0~5.0 unit:m/s^2
   void Acceleration(double acc) override;
 
   // steering with old angle speed
@@ -142,3 +140,5 @@ class GemController final : public VehicleController {
 }  // namespace gem
 }  // namespace canbus
 }  // namespace apollo
+
+#endif  // MODULES_CANBUS_VEHICLE_GEM_GEM_PROTOCOL_MANAGER_H_

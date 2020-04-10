@@ -21,8 +21,9 @@
 #include "modules/planning/math/smoothing_spline/spline_2d_constraint.h"
 
 #include <algorithm>
+#include <cmath>
 
-#include "cyber/common/log.h"
+#include "modules/common/log.h"
 #include "modules/common/math/angle.h"
 #include "modules/common/math/math_utils.h"
 
@@ -36,8 +37,7 @@ Spline2dConstraint::Spline2dConstraint(const std::vector<double>& t_knots,
     : t_knots_(t_knots), spline_order_(order) {
   inequality_constraint_.SetIsEquality(false);
   equality_constraint_.SetIsEquality(true);
-  total_param_ =
-      2 * (spline_order_ + 1) * (static_cast<uint32_t>(t_knots.size()) - 1);
+  total_param_ = 2 * (spline_order_ + 1) * (t_knots.size() - 1);
 }
 
 // direct method
@@ -244,7 +244,7 @@ bool Spline2dConstraint::AddPointConstraint(const double t, const double x,
 bool Spline2dConstraint::AddPointSecondDerivativeConstraint(const double t,
                                                             const double ddx,
                                                             const double ddy) {
-  const size_t index = FindIndex(t);
+  const std::size_t index = FindIndex(t);
   const double rel_t = t - t_knots_[index];
   std::vector<double> coef = SecondDerivativeCoef(rel_t);
   return AddPointKthOrderDerivativeConstraint(t, ddx, ddy, coef);
@@ -253,7 +253,7 @@ bool Spline2dConstraint::AddPointSecondDerivativeConstraint(const double t,
 bool Spline2dConstraint::AddPointThirdDerivativeConstraint(const double t,
                                                            const double dddx,
                                                            const double dddy) {
-  const size_t index = FindIndex(t);
+  const std::size_t index = FindIndex(t);
   const double rel_t = t - t_knots_[index];
   std::vector<double> coef = ThirdDerivativeCoef(rel_t);
   return AddPointKthOrderDerivativeConstraint(t, dddx, dddy, coef);
@@ -266,9 +266,9 @@ bool Spline2dConstraint::AddPointKthOrderDerivativeConstraint(
   Eigen::MatrixXd affine_equality = Eigen::MatrixXd::Zero(2, total_param_);
   Eigen::MatrixXd affine_boundary = Eigen::MatrixXd::Zero(2, 1);
   affine_boundary << x_kth_derivative, y_kth_derivative;
-  const size_t index = FindIndex(t);
-  const size_t index_offset = index * 2 * num_params;
-  for (size_t i = 0; i < num_params; ++i) {
+  const std::size_t index = FindIndex(t);
+  const std::size_t index_offset = index * 2 * num_params;
+  for (std::size_t i = 0; i < num_params; ++i) {
     affine_equality(0, i + index_offset) = coef[i];
     affine_equality(1, i + num_params + index_offset) = coef[i];
   }
@@ -320,7 +320,7 @@ bool Spline2dConstraint::AddPointAngleConstraint(const double t,
   return AddInequalityConstraint(affine_inequality, affine_inequality_boundary);
 }
 
-// guarantee up to values are joint
+// guarantee upto values are joint
 bool Spline2dConstraint::AddSmoothConstraint() {
   if (t_knots_.size() < 3) {
     return false;
@@ -345,10 +345,10 @@ bool Spline2dConstraint::AddSmoothConstraint() {
   return AddEqualityConstraint(affine_equality, affine_boundary);
 }
 
-// guarantee up to derivative are joint
+// guarantee upto derivative are joint
 bool Spline2dConstraint::AddDerivativeSmoothConstraint() {
   if (t_knots_.size() < 3) {
-    return true;
+    return false;
   }
   Eigen::MatrixXd affine_equality =
       Eigen::MatrixXd::Zero(4 * (t_knots_.size() - 2), total_param_);
@@ -376,10 +376,10 @@ bool Spline2dConstraint::AddDerivativeSmoothConstraint() {
   return AddEqualityConstraint(affine_equality, affine_boundary);
 }
 
-// guarantee up to second order derivative are joint
+// guarantee upto second order derivative are joint
 bool Spline2dConstraint::AddSecondDerivativeSmoothConstraint() {
   if (t_knots_.size() < 3) {
-    return true;
+    return false;
   }
   Eigen::MatrixXd affine_equality =
       Eigen::MatrixXd::Zero(6 * (t_knots_.size() - 2), total_param_);
@@ -413,7 +413,7 @@ bool Spline2dConstraint::AddSecondDerivativeSmoothConstraint() {
   return AddEqualityConstraint(affine_equality, affine_boundary);
 }
 
-// guarantee up to third order derivative are joint
+// guarantee upto third order derivative are joint
 bool Spline2dConstraint::AddThirdDerivativeSmoothConstraint() {
   if (t_knots_.size() < 3) {
     return false;

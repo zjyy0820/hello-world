@@ -24,7 +24,7 @@
 
 #include <limits>
 
-#include "cyber/common/log.h"
+#include "modules/common/log.h"
 
 namespace apollo {
 namespace planning {
@@ -420,8 +420,7 @@ bool Spline1dConstraint::AddDerivativeSmoothConstraint() {
     return false;
   }
 
-  const uint32_t n_constraint =
-      (static_cast<uint32_t>(x_knots_.size()) - 2) * 2;
+  const uint32_t n_constraint = (x_knots_.size() - 2) * 2;
   const uint32_t num_params = spline_order_ + 1;
   Eigen::MatrixXd equality_constraint =
       Eigen::MatrixXd::Zero(n_constraint, (x_knots_.size() - 1) * num_params);
@@ -457,8 +456,7 @@ bool Spline1dConstraint::AddSecondDerivativeSmoothConstraint() {
     return false;
   }
 
-  const uint32_t n_constraint =
-      (static_cast<uint32_t>(x_knots_.size()) - 2) * 3;
+  const uint32_t n_constraint = (x_knots_.size() - 2) * 3;
   const uint32_t num_params = spline_order_ + 1;
   Eigen::MatrixXd equality_constraint =
       Eigen::MatrixXd::Zero(n_constraint, (x_knots_.size() - 1) * num_params);
@@ -507,8 +505,7 @@ bool Spline1dConstraint::AddThirdDerivativeSmoothConstraint() {
     return false;
   }
 
-  const uint32_t n_constraint =
-      (static_cast<uint32_t>(x_knots_.size()) - 2) * 4;
+  const uint32_t n_constraint = (x_knots_.size() - 2) * 4;
   const uint32_t num_params = spline_order_ + 1;
   Eigen::MatrixXd equality_constraint =
       Eigen::MatrixXd::Zero(n_constraint, (x_knots_.size() - 1) * num_params);

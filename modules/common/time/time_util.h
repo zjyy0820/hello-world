@@ -19,7 +19,7 @@
 #include <sys/time.h>
 #include <iomanip>
 
-#include "cyber/common/macros.h"
+#include "modules/common/macro.h"
 
 namespace apollo {
 namespace common {
@@ -31,28 +31,29 @@ namespace time {
 class TimeUtil {
  public:
   // @brief: UNIX timestamp to GPS timestamp, in seconds.
-  static double Unix2gps(double unix_time) {
-    double gps_time = unix_time - UNIX_GPS_DIFF;
+  template <typename T>
+  static T Unix2gps(T unix_time) {
+    T gps_time = unix_time - UNIX_GPS_DIFF;
     if (unix_time < LEAP_SECOND_TIMESTAMP) {
       gps_time -= 1.0;
     }
-    return gps_time;
+    return static_cast<T>(gps_time);
   }
 
   // @brief: GPS timestamp to UNIX timestamp, in seconds.
-  static double Gps2unix(double gps_time) {
-    double unix_time = gps_time + UNIX_GPS_DIFF;
+  template <typename T>
+  static T Gps2unix(T gps_time) {
+    T unix_time = gps_time + UNIX_GPS_DIFF;
     if (unix_time + 1 < LEAP_SECOND_TIMESTAMP) {
       unix_time += 1.0;
     }
-    return unix_time;
+    return static_cast<T>(unix_time);
   }
 
   static double GetCurrentTime() {
     struct timeval tv;
     gettimeofday(&tv, nullptr);
-    const double timestamp =
-        static_cast<double>(tv.tv_sec * 1000000 + tv.tv_usec);
+    const double timestamp = tv.tv_sec * 1000000 + tv.tv_usec;
     return timestamp / 1000000;
   }
 

@@ -18,7 +18,8 @@
  * @file
  **/
 
-#pragma once
+#ifndef MODULES_PLANNING_LATTICE_TRAJECTORY_GENERATION_TRAJECTORY1D_GENERATOR_H_
+#define MODULES_PLANNING_LATTICE_TRAJECTORY_GENERATION_TRAJECTORY1D_GENERATOR_H_
 
 #include <memory>
 #include <utility>
@@ -28,8 +29,8 @@
 
 #include "modules/planning/lattice/behavior/path_time_graph.h"
 #include "modules/planning/lattice/behavior/prediction_querier.h"
+#include "modules/planning/lattice/trajectory1d/lattice_trajectory1d.h"
 #include "modules/planning/lattice/trajectory_generation/end_condition_sampler.h"
-#include "modules/planning/lattice/trajectory_generation/lattice_trajectory1d.h"
 #include "modules/planning/math/curve1d/curve1d.h"
 #include "modules/planning/math/curve1d/quartic_polynomial_curve1d.h"
 #include "modules/planning/math/curve1d/quintic_polynomial_curve1d.h"
@@ -71,7 +72,7 @@ class Trajectory1dGenerator {
       const PlanningTarget& planning_target,
       std::vector<std::shared_ptr<Curve1d>>* ptr_lon_trajectory_bundle) const;
 
-  template <size_t N>
+  template <std::size_t N>
   void GenerateTrajectory1DBundle(
       const std::array<double, 3>& init_state,
       const std::vector<std::pair<std::array<double, 3>, double>>&
@@ -94,10 +95,9 @@ inline void Trajectory1dGenerator::GenerateTrajectory1DBundle<4>(
     const std::vector<std::pair<std::array<double, 3>, double>>& end_conditions,
     std::vector<std::shared_ptr<Curve1d>>* ptr_trajectory_bundle) const {
   CHECK_NOTNULL(ptr_trajectory_bundle);
-  ACHECK(!end_conditions.empty());
+  CHECK(!end_conditions.empty());
 
-  ptr_trajectory_bundle->reserve(ptr_trajectory_bundle->size() +
-                                 end_conditions.size());
+  ptr_trajectory_bundle->reserve(end_conditions.size());
   for (const auto& end_condition : end_conditions) {
     auto ptr_trajectory1d = std::make_shared<LatticeTrajectory1d>(
         std::shared_ptr<Curve1d>(new QuarticPolynomialCurve1d(
@@ -116,10 +116,9 @@ inline void Trajectory1dGenerator::GenerateTrajectory1DBundle<5>(
     const std::vector<std::pair<std::array<double, 3>, double>>& end_conditions,
     std::vector<std::shared_ptr<Curve1d>>* ptr_trajectory_bundle) const {
   CHECK_NOTNULL(ptr_trajectory_bundle);
-  ACHECK(!end_conditions.empty());
+  CHECK(!end_conditions.empty());
 
-  ptr_trajectory_bundle->reserve(ptr_trajectory_bundle->size() +
-                                 end_conditions.size());
+  ptr_trajectory_bundle->reserve(end_conditions.size());
   for (const auto& end_condition : end_conditions) {
     auto ptr_trajectory1d = std::make_shared<LatticeTrajectory1d>(
         std::shared_ptr<Curve1d>(new QuinticPolynomialCurve1d(
@@ -134,3 +133,6 @@ inline void Trajectory1dGenerator::GenerateTrajectory1DBundle<5>(
 
 }  // namespace planning
 }  // namespace apollo
+
+#endif
+// MODULES_PLANNING_LATTICE_TRAJECTORY_GENERATION_TRAJECTORY1D_GENERATOR_H_

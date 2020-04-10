@@ -18,7 +18,8 @@
  * @file gem_vehicle_factory.h
  */
 
-#pragma once
+#ifndef MODULES_CANBUS_VEHICLE_GEM_VEHICLE_FACTORY_H_
+#define MODULES_CANBUS_VEHICLE_GEM_VEHICLE_FACTORY_H_
 
 #include <memory>
 
@@ -63,3 +64,5 @@ class GemVehicleFactory : public AbstractVehicleFactory {
 
 }  // namespace canbus
 }  // namespace apollo
+
+#endif  // MODULES_CANBUS_VEHICLE_GEM_VEHICLE_FACTORY_H_

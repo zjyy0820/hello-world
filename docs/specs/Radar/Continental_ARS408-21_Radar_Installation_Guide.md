@@ -2,9 +2,9 @@
 
 ```
 The ARS408 realized a broad field of view by two independent scans in conjunction with the high range functions
-like Adaptive Cruise Control, Forward Collision Warning and Emergency Brake Assist can be easily implemented.
-Its capability to detect stationary objects without the help of a camera system emphasizes its performance. The ARS408 is a best in class radar,
-especially for the stationary target detection and separation.
+like Adaptive Cruise Control, Forward Collision Warning and Emergency Brake Assist can be easily implemented. 
+Its capability to detect stationary objects without the help of a camera system emphasizes its performance. The ARS408 is a best in class radar, 
+especially for the stationary target detection and separation. 
 
 ----Continental official website
 ```
@@ -13,7 +13,7 @@ especially for the stationary target detection and separation.
 
 The following diagram contains the range of the ARS-408-21 Radar:
 
-![radar_range](images/ars-404-21-range.jpg)
+![radar_range](images/ARS-404-21-range.jpg)
 
 ### Installation
 
@@ -39,5 +39,6 @@ The following diagram contains the range of the ARS-408-21 Radar:
 
 This device is `Apollo Platform Supported`
 
+    
 
-
+    

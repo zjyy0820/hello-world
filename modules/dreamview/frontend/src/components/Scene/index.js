@@ -10,37 +10,29 @@ import STORE from "store";
 export default class Scene extends React.Component {
     componentDidMount() {
         RENDERER.initialize("canvas", this.props.width, this.props.height,
-                this.props.options, this.props.store.cameraData);
+                this.props.options);
     }
 
     componentWillUpdate(nextProps) {
-        if (nextProps.width !== this.props.width ||
-            nextProps.height !== this.props.height) {
-            // The dimension of the renderer should always be consistent with
-            // the dimension of this component.
-            RENDERER.updateDimension(nextProps.width, nextProps.height);
-        }
+        // The dimension of the renderer should always be consistent with
+        // the dimension of this component.
+        RENDERER.updateDimension(nextProps.width, nextProps.height);
     }
 
     render() {
-        const { options, shouldDisplayOnRight } = this.props;
-
-        const shouldDisplayCameraImage = options.showCameraView && !options.showRouteEditingBar;
-        const leftPosition = shouldDisplayOnRight ? '50%' : '0%';
+        const {invisible, options} = this.props;
 
         return (
-            <React.Fragment>
-                {shouldDisplayCameraImage && <img id="camera-image" />}
-                <div id="canvas"
-                     className="dreamview-canvas"
-                     style={{left: leftPosition}}
-                     onMouseMove={(event) => {
-                        const geo = RENDERER.getGeolocation(event);
-                        STORE.setGeolocation(geo);
-                     }}>
-                    {options.showGeo && <Geolocation />}
-                </div>
-            </React.Fragment>
+            <div id = "canvas"
+                 className={classNames({
+                            "dreamview-canvas" : true,
+                             "hidden" : invisible})}
+                 onMouseMove={(event) => {
+                    const geo = RENDERER.getGeolocation(event);
+                    STORE.setGeolocation(geo);
+                 }}>
+                {options.showGeo && <Geolocation />}
+            </div>
         );
     }
 }

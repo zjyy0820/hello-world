@@ -19,15 +19,20 @@
  * @brief ADC trajectory container
  */
 
-#pragma once
+#ifndef MODULES_PREDICTION_CONTAINER_ADC_TRAJECTORY_OBSTACLES_H_
+#define MODULES_PREDICTION_CONTAINER_ADC_TRAJECTORY_OBSTACLES_H_
 
 #include <memory>
 #include <string>
 #include <unordered_set>
 #include <vector>
 
+#include "Eigen/Dense"
+
+#include "modules/common/math/line_segment2d.h"
+#include "modules/common/math/polygon2d.h"
+#include "modules/common/math/vec2d.h"
 #include "modules/planning/proto/planning.pb.h"
-#include "modules/prediction/common/prediction_map.h"
 #include "modules/prediction/container/container.h"
 #include "modules/prediction/proto/lane_graph.pb.h"
 
@@ -39,7 +44,7 @@ class ADCTrajectoryContainer : public Container {
   /**
    * @brief Constructor
    */
-  ADCTrajectoryContainer();
+  ADCTrajectoryContainer() = default;
 
   /**
    * @brief Destructor
@@ -63,72 +68,36 @@ class ADCTrajectoryContainer : public Container {
    * @param Point
    * @return True if the point is in the first junction of the adc trajectory
    */
-  bool IsPointInJunction(const common::PathPoint& point) const;
+  bool IsPointInJunction(const apollo::common::PathPoint& point) const;
 
   /**
    * @brief Has overlap with ADC trajectory
    * @return True if a target lane sequence has overlap with ADC trajectory
    */
-  bool HasOverlap(const LaneSequence& lane_sequence) const;
+  bool HasOverlap(const LaneSequence& lane_sequence);
 
   /**
    * @brief Set ADC position
    */
-  void SetPosition(const common::math::Vec2d& position);
-
-  /**
-   * @brief Get ADC junction
-   * @return A pointer to ADC junction information
-   */
-  std::shared_ptr<const hdmap::JunctionInfo> ADCJunction() const;
-
-  /**
-   * @brief Compute ADC's distance to junction
-   * @return ADC's distance to junction
-   */
-  double ADCDistanceToJunction() const;
-
-  /**
-   * @brief Get ADC planning trajectory
-   * @return ADC planning trajectory
-   */
-  const planning::ADCTrajectory& adc_trajectory() const;
-
-  /**
-   * @brief Determine if a lane ID is in the reference line
-   * @return The lane ID to be investigated
-   */
-  bool IsLaneIdInReferenceLine(const std::string& lane_id) const;
-
-  bool IsLaneIdInTargetReferenceLine(const std::string& lane_id) const;
-
-  const std::vector<std::string>& GetADCLaneIDSequence() const;
-
-  const std::vector<std::string>& GetADCTargetLaneIDSequence() const;
-
-  void SetJunction(const std::string& junction_id, const double distance);
+  void SetPosition(const ::apollo::common::math::Vec2d& position);
 
  private:
   void SetJunctionPolygon();
 
   void SetLaneSequence();
 
-  void SetTargetLaneSequence();
-
   std::string ToString(const std::unordered_set<std::string>& lane_ids);
 
   std::string ToString(const std::vector<std::string>& lane_ids);
 
  private:
-  planning::ADCTrajectory adc_trajectory_;
-  common::math::Polygon2d adc_junction_polygon_;
-  std::shared_ptr<const hdmap::JunctionInfo> adc_junction_info_ptr_;
-  double s_dist_to_junction_;
+  ::apollo::planning::ADCTrajectory adc_trajectory_;
+  ::apollo::common::math::Polygon2d adc_junction_polygon_;
   std::unordered_set<std::string> adc_lane_ids_;
   std::vector<std::string> adc_lane_seq_;
-  std::unordered_set<std::string> adc_target_lane_ids_;
-  std::vector<std::string> adc_target_lane_seq_;
 };
 
 }  // namespace prediction
 }  // namespace apollo
+
+#endif  // MODULES_PREDICTION_CONTAINER_ADC_TRAJECTORY_OBSTACLES_H_

@@ -5,12 +5,9 @@ package apollo.control;
 message PidConf {
   optional bool integrator_enable = 1;
   optional double integrator_saturation_level = 2;
-  optional double deadband = 3;
-  optional double ceff = 4;
-  optional double kp = 5;
-  optional double ki = 6;
-  optional double kd = 7;
-  optional double wp = 8;
-  optional double wi = 9;
-  optional double wd = 10;
+  optional double kp = 3;
+  optional double ki = 4;
+  optional double kd = 5;
+  optional double kaw = 6 [default = 0.0];
+  optional double output_saturation_level = 7;
 }

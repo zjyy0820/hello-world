@@ -17,7 +17,8 @@
 // Commonly-used macro definitions. Some of them are copied from
 // https://chromium.googlesource.com/chromium/src/base/+/master/macros.h
 
-#pragma once
+#ifndef MODULES_DRIVERS_GNSS_UTIL_MACROS_H_
+#define MODULES_DRIVERS_GNSS_UTIL_MACROS_H_
 
 #include <cstddef>
 
@@ -46,9 +47,9 @@
 // Creates a thread-safe singleton.
 #define MAKE_SINGLETON(TypeName) \
  public:                         \
-  static TypeName *Instance() {  \
-    static TypeName Instance;    \
-    return &Instance;            \
+  static TypeName *instance() {  \
+    static TypeName instance;    \
+    return &instance;            \
   }                              \
                                  \
  private:                        \
@@ -63,3 +64,5 @@ constexpr size_t array_size(T (&)[N]) {
 }
 
 }  // namespace apollo
+
+#endif  // MODULES_DRIVERS_GNSS_UTIL_MACROS_H_

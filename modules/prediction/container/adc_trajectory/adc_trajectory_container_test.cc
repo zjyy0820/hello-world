@@ -16,6 +16,8 @@
 
 #include "modules/prediction/container/adc_trajectory/adc_trajectory_container.h"
 
+#include "gtest/gtest.h"
+
 #include "modules/prediction/common/kml_map_based_test.h"
 
 namespace apollo {
@@ -26,6 +28,7 @@ using ::apollo::common::TrajectoryPoint;
 using ::apollo::common::math::Vec2d;
 using ::apollo::hdmap::Id;
 using ::apollo::planning::ADCTrajectory;
+using ::apollo::prediction::LaneSequence;
 
 class ADCTrajectoryTest : public KMLMapBasedTest {
  public:
@@ -63,14 +66,13 @@ TEST_F(ADCTrajectoryTest, InsertionWithProtection) {
   PathPoint path_point;
   path_point.set_x(-438.537);
   path_point.set_y(-160.991);
-  EXPECT_FALSE(container_.IsPointInJunction(path_point));
-  EXPECT_EQ(container_.ADCJunction(), nullptr);
+  EXPECT_TRUE(!container_.IsPointInJunction(path_point));
 
   LaneSequence non_overlap_lane_sequence;
   LaneSegment lane_segment;
   lane_segment.set_lane_id("l22");
   non_overlap_lane_sequence.add_lane_segment()->CopyFrom(lane_segment);
-  EXPECT_FALSE(container_.HasOverlap(non_overlap_lane_sequence));
+  EXPECT_TRUE(!container_.HasOverlap(non_overlap_lane_sequence));
 
   LaneSequence overlap_lane_sequence;
   lane_segment.set_lane_id("l164");
@@ -81,7 +83,7 @@ TEST_F(ADCTrajectoryTest, InsertionWithProtection) {
 TEST_F(ADCTrajectoryTest, InsertionWithoutProtection) {
   trajectory_.set_right_of_way_status(ADCTrajectory::UNPROTECTED);
   container_.Insert(trajectory_);
-  EXPECT_FALSE(container_.IsProtected());
+  EXPECT_TRUE(!container_.IsProtected());
 }
 
 }  // namespace prediction

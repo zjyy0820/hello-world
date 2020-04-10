@@ -14,14 +14,14 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef MODULES_DREAMVIEW_BACKEND_HMI_HMI_H_
+#define MODULES_DREAMVIEW_BACKEND_HMI_HMI_H_
 
 #include <memory>
+#include <mutex>
 
 #include "modules/common/monitor_log/monitor_log_buffer.h"
-#include "modules/dreamview/backend/data_collection_monitor/data_collection_monitor.h"
 #include "modules/dreamview/backend/handlers/websocket_handler.h"
-#include "modules/dreamview/backend/hmi/hmi_worker.h"
 #include "modules/dreamview/backend/map/map_service.h"
 
 /**
@@ -33,26 +33,31 @@ namespace dreamview {
 
 class HMI {
  public:
-  HMI(WebSocketHandler *websocket, MapService *map_service,
-      DataCollectionMonitor *data_collection_monitor_);
-  void Start();
-  void Stop();
+  HMI(WebSocketHandler *websocket, MapService *map_service);
 
  private:
+  // Broadcast HMIStatus to all clients.
+  void StartBroadcastHMIStatusThread();
+  void DeferredBroadcastHMIStatus();
+
   // Send VehicleParam to the given conn, or broadcast if conn is null.
   void SendVehicleParam(WebSocketHandler::Connection *conn = nullptr);
-  void SendStatus(WebSocketHandler::Connection *conn = nullptr);
 
   void RegisterMessageHandlers();
-
-  std::unique_ptr<HMIWorker> hmi_worker_;
-  apollo::common::monitor::MonitorLogBuffer monitor_log_buffer_;
 
   // No ownership.
   WebSocketHandler *websocket_;
   MapService *map_service_;
-  DataCollectionMonitor *data_collection_monitor_;
+
+  // For HMIStatus broadcasting.
+  std::unique_ptr<std::thread> broadcast_hmi_status_thread_;
+  bool need_broadcast_ = false;
+  std::mutex need_broadcast_mutex_;
+
+  apollo::common::monitor::MonitorLogger logger_;
 };
 
 }  // namespace dreamview
 }  // namespace apollo
+
+#endif  // MODULES_DREAMVIEW_BACKEND_HMI_HMI_H_

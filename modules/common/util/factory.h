@@ -19,15 +19,15 @@
  * @brief Defines the Factory class.
  */
 
-#pragma once
+#ifndef MODULES_COMMON_UTIL_FACTORY_H_
+#define MODULES_COMMON_UTIL_FACTORY_H_
 
 #include <map>
 #include <memory>
 #include <utility>
 
-#include "cyber/common/macros.h"
-
-#include "cyber/common/log.h"
+#include "modules/common/log.h"
+#include "modules/common/macro.h"
 
 /**
  * @namespace apollo::common::util
@@ -71,10 +71,6 @@ class Factory {
     return producers_.insert(std::make_pair(id, creator)).second;
   }
 
-  bool Contains(const IdentifierType &id) {
-    return producers_.find(id) != producers_.end();
-  }
-
   /**
    * @brief Unregisters the class with the given identifier
    * @param id The identifier of the class to be unregistered
@@ -83,13 +79,11 @@ class Factory {
     return producers_.erase(id) == 1;
   }
 
-  void Clear() { producers_.clear(); }
-
   bool Empty() const { return producers_.empty(); }
 
   /**
    * @brief Creates and transfers membership of an object of type matching id.
-   * Need to register id before CreateObject is called. May return nullptr
+   * Need to register id before CreateObject is called. May return NULL
    * silently.
    * @param id The identifier of the class we which to instantiate
    * @param args the object construction arguments
@@ -126,3 +120,5 @@ class Factory {
 }  // namespace util
 }  // namespace common
 }  // namespace apollo
+
+#endif  // MODULES_COMMON_UTIL_FACTORY_H_

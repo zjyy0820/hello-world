@@ -15,10 +15,14 @@ limitations under the License.
 
 #include "modules/map/hdmap/adapter/proto_organizer.h"
 
+#include <functional>
+#include <iostream>
+#include <string>
+#include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
-#include "absl/strings/str_cat.h"
-#include "cyber/common/log.h"
+#include "modules/common/log.h"
 #include "modules/common/math/polygon2d.h"
 #include "modules/common/math/vec2d.h"
 
@@ -27,7 +31,7 @@ namespace {
 std::string CreateOverlapId() {
   static int count = 0;
   ++count;
-  return absl::StrCat("overlap_", count);
+  return "overlap_" + std::to_string(count);
 }
 
 }  // namespace
@@ -100,10 +104,6 @@ void ProtoOrganizer::GetRoadElements(std::vector<RoadInternal>* roads) {
       }
       proto_data_.pb_yield_signs[yield_sign.id().id()] = yield_sign;
     }
-    // pnc junctions
-    for (auto& pnc_junction : road_internal.pnc_junctions) {
-      proto_data_.pb_pnc_junctions[pnc_junction.id().id()] = pnc_junction;
-    }
   }
 }
 
@@ -123,17 +123,13 @@ void ProtoOrganizer::GetLaneObjectOverlapElements(
     if (proto_data_.pb_crosswalks.count(object_id) <= 0 &&
         proto_data_.pb_clear_areas.count(object_id) <= 0 &&
         proto_data_.pb_speed_bumps.count(object_id) <= 0 &&
-        proto_data_.pb_parking_spaces.count(object_id) <= 0 &&
-        proto_data_.pb_pnc_junctions.count(object_id) <= 0) {
+        proto_data_.pb_parking_spaces.count(object_id) <= 0) {
       continue;
     }
     PbOverlap overlap;
     std::string overlap_id = CreateOverlapId();
+    proto_data_.pb_lanes[lane_id].add_overlap_id()->set_id(overlap_id);
     overlap.mutable_id()->set_id(overlap_id);
-    for (auto& region_overlap : overlap_object.region_overlaps) {
-      *(overlap.add_region_overlap()) = region_overlap;
-    }
-
     PbObjectOverlapInfo* object_overlap = overlap.add_object();
     object_overlap->mutable_id()->set_id(lane_id);
     object_overlap->mutable_lane_overlap_info()->set_start_s(
@@ -142,20 +138,10 @@ void ProtoOrganizer::GetLaneObjectOverlapElements(
         overlap_object.end_s);
     object_overlap->mutable_lane_overlap_info()->set_is_merge(
         overlap_object.is_merge);
-    if (!overlap_object.region_overlap_id.empty()) {
-      object_overlap->mutable_lane_overlap_info()
-          ->mutable_region_overlap_id()
-          ->set_id(overlap_object.region_overlap_id);
-    }
     object_overlap = overlap.add_object();
     object_overlap->mutable_id()->set_id(object_id);
     if (proto_data_.pb_crosswalks.count(object_id) > 0) {
       proto_data_.pb_crosswalks[object_id].add_overlap_id()->set_id(overlap_id);
-      if (!overlap_object.region_overlap_id.empty()) {
-        object_overlap->mutable_crosswalk_overlap_info()
-            ->mutable_region_overlap_id()
-            ->set_id(overlap_object.region_overlap_id);
-      }
       object_overlap->mutable_crosswalk_overlap_info();
     } else if (proto_data_.pb_clear_areas.count(object_id) > 0) {
       object_overlap->mutable_clear_area_overlap_info();
@@ -169,14 +155,9 @@ void ProtoOrganizer::GetLaneObjectOverlapElements(
       object_overlap->mutable_parking_space_overlap_info();
       proto_data_.pb_parking_spaces[object_id].add_overlap_id()->set_id(
           overlap_id);
-    } else if (proto_data_.pb_pnc_junctions.count(object_id)) {
-      object_overlap->mutable_pnc_junction_overlap_info();
-      proto_data_.pb_pnc_junctions[object_id].add_overlap_id()->set_id(
-          overlap_id);
     } else {
       AERROR << "unknown object, object id:" << object_id;
     }
-    proto_data_.pb_lanes[lane_id].add_overlap_id()->set_id(overlap_id);
     proto_data_.pb_overlaps[overlap_id] = overlap;
   }
 }
@@ -194,6 +175,7 @@ void ProtoOrganizer::GetLaneSignalOverlapElements(
     }
     PbOverlap overlap;
     std::string overlap_id = CreateOverlapId();
+    proto_data_.pb_lanes[lane_id].add_overlap_id()->set_id(overlap_id);
     overlap.mutable_id()->set_id(overlap_id);
     PbObjectOverlapInfo* object_overlap = overlap.add_object();
     object_overlap->mutable_id()->set_id(lane_id);
@@ -218,8 +200,6 @@ void ProtoOrganizer::GetLaneSignalOverlapElements(
     } else {
       AERROR << "unknown signal, signal id:" << object_id;
     }
-
-    proto_data_.pb_lanes[lane_id].add_overlap_id()->set_id(overlap_id);
     proto_data_.pb_overlaps[overlap_id] = overlap;
   }
 }
@@ -235,6 +215,7 @@ void ProtoOrganizer::GetLaneJunctionOverlapElements(
     }
     PbOverlap overlap;
     std::string overlap_id = CreateOverlapId();
+    proto_data_.pb_lanes[lane_id].add_overlap_id()->set_id(overlap_id);
     overlap.mutable_id()->set_id(overlap_id);
     PbObjectOverlapInfo* object_overlap = overlap.add_object();
     object_overlap->mutable_id()->set_id(lane_id);
@@ -252,7 +233,6 @@ void ProtoOrganizer::GetLaneJunctionOverlapElements(
     } else {
       AERROR << "unknown junction overlap, id:" << object_id;
     }
-    proto_data_.pb_lanes[lane_id].add_overlap_id()->set_id(overlap_id);
     proto_data_.pb_overlaps[overlap_id] = overlap;
   }
 }
@@ -276,6 +256,7 @@ void ProtoOrganizer::GetLaneLaneOverlapElements(
     close_set.insert(unique_object_id);
     PbOverlap overlap;
     std::string overlap_id = CreateOverlapId();
+    proto_data_.pb_lanes[lane_id].add_overlap_id()->set_id(overlap_id);
     overlap.mutable_id()->set_id(overlap_id);
     PbObjectOverlapInfo* object_overlap = overlap.add_object();
     object_overlap->mutable_id()->set_id(lane_id);
@@ -295,7 +276,6 @@ void ProtoOrganizer::GetLaneLaneOverlapElements(
       AERROR << "lane overlap is not symmetrical " << overlap_id;
       continue;
     }
-    proto_data_.pb_lanes[lane_id].add_overlap_id()->set_id(overlap_id);
     auto& lane_lane_overlap =
         lane_lane_overlaps.at(make_pair(object_id, lane_id));
     object_overlap->mutable_lane_overlap_info()->set_start_s(
@@ -316,6 +296,8 @@ void ProtoOrganizer::GetJunctionObjectOverlapElements(
     for (auto& overlap_junction : junction_internal.overlap_with_junctions) {
       PbOverlap overlap;
       std::string overlap_id = CreateOverlapId();
+      proto_data_.pb_junctions[junction_id].add_overlap_id()->set_id(
+          overlap_id);
       overlap.mutable_id()->set_id(overlap_id);
       PbObjectOverlapInfo* object_overlap = overlap.add_object();
       object_overlap->mutable_id()->set_id(junction_id);
@@ -335,15 +317,9 @@ void ProtoOrganizer::GetJunctionObjectOverlapElements(
         object_overlap->mutable_stop_sign_overlap_info();
         proto_data_.pb_stop_signs[object_id].add_overlap_id()->set_id(
             overlap_id);
-      } else if (proto_data_.pb_signals.count(object_id) > 0) {
-        object_overlap->mutable_signal_overlap_info();
-        proto_data_.pb_signals[object_id].add_overlap_id()->set_id(overlap_id);
       } else {
         continue;
       }
-
-      proto_data_.pb_junctions[junction_id].add_overlap_id()->set_id(
-          overlap_id);
       proto_data_.pb_overlaps[overlap_id] = overlap;
     }
   }
@@ -404,9 +380,6 @@ void ProtoOrganizer::OutputData(apollo::hdmap::Map* pb_map) {
   for (auto& yield_sign_pair : proto_data_.pb_yield_signs) {
     *(pb_map->add_yield()) = yield_sign_pair.second;
   }
-  for (auto& pnc_junction_pair : proto_data_.pb_pnc_junctions) {
-    *(pb_map->add_pnc_junction()) = pnc_junction_pair.second;
-  }
   for (auto& junction_pair : proto_data_.pb_junctions) {
     *(pb_map->add_junction()) = junction_pair.second;
   }
@@ -422,8 +395,7 @@ void ProtoOrganizer::OutputData(apollo::hdmap::Map* pb_map) {
         << proto_data_.pb_speed_bumps.size() << ",signals-"
         << proto_data_.pb_signals.size() << ",stop signs-"
         << proto_data_.pb_stop_signs.size() << ",yield signs-"
-        << proto_data_.pb_yield_signs.size() << ",pnc-junctions-"
-        << proto_data_.pb_pnc_junctions.size() << ",junctions-"
+        << proto_data_.pb_yield_signs.size() << ",junctions-"
         << proto_data_.pb_junctions.size() << ",overlaps-"
         << proto_data_.pb_overlaps.size();
 }

@@ -3,7 +3,6 @@ import { observable, computed, action } from "mobx";
 export default class Monitor {
     @observable hasActiveNotification = false;
     @observable items = [];
-    @observable rssInfo = [];
 
     lastUpdateTimestamp = 0;
     refreshTimer = null;
@@ -40,8 +39,6 @@ export default class Monitor {
                 return Object.assign(notification.item, {
                     timestampMs: notification.timestampSec * 1000,
                 });
-            }).sort((notification1, notification2) => {
-                return notification2.timestampMs - notification1.timestampMs;
             });
         } else if (world.monitor) {
             // deprecated: no timestamp for each item
@@ -49,7 +46,10 @@ export default class Monitor {
         }
 
         if (this.hasNewNotification(this.items, newItems)) {
-            this.updateMonitorMessages(newItems, Date.now());
+            this.hasActiveNotification = true;
+            this.lastUpdateTimestamp = Date.now();
+            this.items.replace(newItems);
+            this.startRefresh();
         }
     }
 
@@ -63,13 +63,13 @@ export default class Monitor {
         return JSON.stringify(this.items[0]) !== JSON.stringify(newItems[0]);
     }
 
-    // Inserts the provided message into the items. This message won't send to backend
+    // Inserts the provided message into the items. This is for
+    // debug purpose only.
     @action insert(level, message, timestamp) {
         const newItems = [];
         newItems.push({
             msg: message,
-            logLevel: level,
-            timestampMs: timestamp,
+            logLevel: level
         });
 
         for (let i = 0; i < this.items.length; ++i) {
@@ -78,21 +78,9 @@ export default class Monitor {
             }
         }
 
-        this.updateMonitorMessages(newItems, timestamp);
-    }
-
-    updateMonitorMessages(newItems, newTimestamp) {
         this.hasActiveNotification = true;
-        this.lastUpdateTimestamp = newTimestamp;
-
-        this.items = [];
-        this.rssInfo = [];
-        newItems.forEach(item => {
-            if (item && item.msg && item.msg.startsWith('RSS')) {
-                this.rssInfo.push(item);
-            } else {
-                this.items.push(item);
-            }
-        });
+        this.lastUpdateTimestamp = timestamp;
+        this.items.replace(newItems);
+        this.startRefresh();
     }
 }

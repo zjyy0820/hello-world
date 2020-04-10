@@ -18,23 +18,23 @@
  * @file
  **/
 
-#pragma once
+#ifndef MODULES_PLANNING_LATTICE_BEHAVIOR_PATH_TIME_GRAPH_H_
+#define MODULES_PLANNING_LATTICE_BEHAVIOR_PATH_TIME_GRAPH_H_
 
+#include <array>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
 #include "modules/common/proto/geometry.pb.h"
-
 #include "modules/common/math/polygon2d.h"
 #include "modules/planning/common/frame.h"
 #include "modules/planning/common/obstacle.h"
 #include "modules/planning/common/reference_line_info.h"
+#include "modules/planning/proto/lattice_structure.pb.h"
 #include "modules/planning/reference_line/reference_line.h"
-
-#include "modules/planning/common/speed/st_boundary.h"
-#include "modules/planning/common/speed/st_point.h"
 
 namespace apollo {
 namespace planning {
@@ -44,13 +44,14 @@ class PathTimeGraph {
   PathTimeGraph(const std::vector<const Obstacle*>& obstacles,
                 const std::vector<common::PathPoint>& discretized_ref_points,
                 const ReferenceLineInfo* ptr_reference_line_info,
-                const double s_start, const double s_end, const double t_start,
-                const double t_end, const std::array<double, 3>& init_d);
+                const double s_start, const double s_end,
+                const double t_start, const double t_end,
+                const std::array<double, 3>& init_d);
 
-  const std::vector<STBoundary>& GetPathTimeObstacles() const;
+  const std::vector<PathTimeObstacle>& GetPathTimeObstacles() const;
 
   bool GetPathTimeObstacle(const std::string& obstacle_id,
-                           STBoundary* path_time_obstacle);
+                           PathTimeObstacle* path_time_obstacle);
 
   std::vector<std::pair<double, double>> GetPathBlockingIntervals(
       const double t) const;
@@ -62,7 +63,7 @@ class PathTimeGraph {
 
   std::pair<double, double> get_time_range() const;
 
-  std::vector<STPoint> GetObstacleSurroundingPoints(
+  std::vector<PathTimePoint> GetObstacleSurroundingPoints(
       const std::string& obstacle_id, const double s_dist,
       const double t_density) const;
 
@@ -80,8 +81,8 @@ class PathTimeGraph {
       const std::vector<common::math::Vec2d>& vertices,
       const std::vector<common::PathPoint>& discretized_ref_points) const;
 
-  STPoint SetPathTimePoint(const std::string& obstacle_id, const double s,
-                           const double t) const;
+  PathTimePoint SetPathTimePoint(const std::string& obstacle_id, const double s,
+                                 const double t) const;
 
   void SetStaticObstacle(
       const Obstacle* obstacle,
@@ -92,9 +93,10 @@ class PathTimeGraph {
       const std::vector<common::PathPoint>& discretized_ref_points);
 
   void UpdateLateralBoundsByObstacle(
-      const SLBoundary& sl_boundary,
-      const std::vector<double>& discretized_path, const double s_start,
-      const double s_end, std::vector<std::pair<double, double>>* const bounds);
+    const SLBoundary& sl_boundary,
+    const std::vector<double>& discretized_path,
+    const double s_start, const double s_end,
+    std::vector<std::pair<double, double>>* const bounds);
 
  private:
   std::pair<double, double> time_range_;
@@ -102,10 +104,12 @@ class PathTimeGraph {
   const ReferenceLineInfo* ptr_reference_line_info_;
   std::array<double, 3> init_d_;
 
-  std::unordered_map<std::string, STBoundary> path_time_obstacle_map_;
-  std::vector<STBoundary> path_time_obstacles_;
+  std::unordered_map<std::string, PathTimeObstacle> path_time_obstacle_map_;
+  std::vector<PathTimeObstacle> path_time_obstacles_;
   std::vector<SLBoundary> static_obs_sl_boundaries_;
 };
 
 }  // namespace planning
 }  // namespace apollo
+
+#endif  // MODULES_PLANNING_LATTICE_BEHAVIOR_PATH_TIME_GRAPH_H_

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 ###############################################################################
 # Copyright 2018 The Apollo Authors. All Rights Reserved.
@@ -16,12 +16,8 @@
 # limitations under the License.
 ###############################################################################
 
+import urllib
 import os
-
-import urllib.request
-import urllib.parse
-import urllib.error
-
 
 URL_LIST = [
     "https://github.com/ApolloAuto/apollo/releases/download/v1.5.0/demo_1.5.bag",
@@ -29,7 +25,6 @@ URL_LIST = [
     "https://github.com/ApolloAuto/apollo/releases/download/v2.0.0/apollo_2.0_camera_sample.bag",
     "https://github.com/ApolloAuto/apollo/releases/download/v2.5.0/demo_2.5.bag",
     "https://github.com/ApolloAuto/apollo/releases/download/v1.0.0/demo_1.0.bag",
-    "https://github.com/ApolloAuto/apollo/releases/download/v3.5.0/demo_3.5.record",
 ]
 
 URL_DICT = {}

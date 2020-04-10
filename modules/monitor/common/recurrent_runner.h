@@ -14,9 +14,14 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef MODULES_MONITOR_COMMON_RECURRENT_RUNNER_H_
+#define MODULES_MONITOR_COMMON_RECURRENT_RUNNER_H_
 
+#include <memory>
+#include <mutex>
 #include <string>
+#include <thread>
+#include <vector>
 
 /**
  * @namespace apollo::monitor
@@ -39,12 +44,33 @@ class RecurrentRunner {
 
  protected:
   std::string name_;
-  unsigned int round_count_ = 0;
 
  private:
   double interval_;
   double next_round_ = 0;
 };
 
+class RecurrentRunnerThread {
+ public:
+  explicit RecurrentRunnerThread(const double interval);
+
+  void RegisterRunner(std::unique_ptr<RecurrentRunner> runner);
+
+  // Start the thread of ticking all registered runners.
+  void Start();
+  // Stop the ticking thread.
+  void Stop();
+
+ private:
+  int64_t interval_ms_;
+  std::vector<std::unique_ptr<RecurrentRunner>> runners_;
+  std::unique_ptr<std::thread> thread_ = nullptr;
+
+  bool stop_ = false;
+  std::mutex stop_mutex_;
+};
+
 }  // namespace monitor
 }  // namespace apollo
+
+#endif  // MODULES_MONITOR_COMMON_RECURRENT_RUNNER_H_

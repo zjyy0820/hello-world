@@ -16,12 +16,15 @@
 
 #include "modules/prediction/common/prediction_map.h"
 
+#include "gtest/gtest.h"
+
 #include "modules/prediction/common/kml_map_based_test.h"
 #include "modules/prediction/common/prediction_gflags.h"
 
 namespace apollo {
 namespace prediction {
 
+using apollo::hdmap::Id;
 using apollo::hdmap::LaneInfo;
 using apollo::hdmap::MapPathPoint;
 
@@ -29,11 +32,11 @@ class PredictionMapTest : public KMLMapBasedTest {};
 
 TEST_F(PredictionMapTest, get_lane_info) {
   std::shared_ptr<const LaneInfo> lane_info = PredictionMap::LaneById("l20");
-  EXPECT_NE(nullptr, lane_info);
+  EXPECT_TRUE(lane_info != nullptr);
   EXPECT_EQ("l20", lane_info->id().id());
 
   lane_info = PredictionMap::LaneById("l500");
-  EXPECT_EQ(nullptr, lane_info);
+  EXPECT_TRUE(lane_info == nullptr);
 }
 
 TEST_F(PredictionMapTest, get_position_on_lane) {
@@ -118,8 +121,8 @@ TEST_F(PredictionMapTest, on_lane) {
   // on lane without previous lanes
   std::vector<std::shared_ptr<const LaneInfo>> curr_lanes(0);
   PredictionMap::OnLane(prev_lanes, point, heading, radius, true,
-                        FLAGS_max_num_current_lane, FLAGS_max_lane_angle_diff,
-                        &curr_lanes);
+                        FLAGS_max_num_current_lane,
+                        FLAGS_max_lane_angle_diff, &curr_lanes);
   EXPECT_EQ(1, curr_lanes.size());
   EXPECT_EQ("l20", curr_lanes[0]->id().id());
 
@@ -127,8 +130,8 @@ TEST_F(PredictionMapTest, on_lane) {
   prev_lanes.emplace_back(PredictionMap::LaneById("l10"));
   curr_lanes.clear();
   PredictionMap::OnLane(prev_lanes, point, heading, radius, true,
-                        FLAGS_max_num_current_lane, FLAGS_max_lane_angle_diff,
-                        &curr_lanes);
+                        FLAGS_max_num_current_lane,
+                        FLAGS_max_lane_angle_diff, &curr_lanes);
   EXPECT_EQ(0, curr_lanes.size());
 
   // off lane without previous lanes
@@ -137,9 +140,9 @@ TEST_F(PredictionMapTest, on_lane) {
   point(1) = 357.52733;
   curr_lanes.clear();
   PredictionMap::OnLane(prev_lanes, point, heading, radius, true,
-                        FLAGS_max_num_current_lane, FLAGS_max_lane_angle_diff,
-                        &curr_lanes);
-  EXPECT_TRUE(curr_lanes.empty());
+                        FLAGS_max_num_current_lane,
+                        FLAGS_max_lane_angle_diff, &curr_lanes);
+  EXPECT_EQ(0, curr_lanes.size());
 }
 
 TEST_F(PredictionMapTest, get_path_heading) {
@@ -174,8 +177,7 @@ TEST_F(PredictionMapTest, get_nearby_lanes_by_current_lanes) {
   double radius = 6.0;
   double theta = -0.061427808505166936;
   PredictionMap::NearbyLanesByCurrentLanes(point, theta, radius, curr_lanes,
-                                           FLAGS_max_num_nearby_lane,
-                                           &nearby_lanes);
+      FLAGS_max_num_nearby_lane, &nearby_lanes);
   EXPECT_EQ(1, nearby_lanes.size());
   EXPECT_EQ("l21", nearby_lanes[0]->id().id());
 
@@ -183,8 +185,7 @@ TEST_F(PredictionMapTest, get_nearby_lanes_by_current_lanes) {
   nearby_lanes.clear();
   radius = 0.5;
   PredictionMap::NearbyLanesByCurrentLanes(point, theta, radius, curr_lanes,
-                                           FLAGS_max_num_nearby_lane,
-                                           &nearby_lanes);
+      FLAGS_max_num_nearby_lane, &nearby_lanes);
   EXPECT_EQ(0, nearby_lanes.size());
 
   // without current lanes
@@ -192,8 +193,7 @@ TEST_F(PredictionMapTest, get_nearby_lanes_by_current_lanes) {
   nearby_lanes.clear();
   radius = 5.0;
   PredictionMap::NearbyLanesByCurrentLanes(point, theta, radius, curr_lanes,
-                                           FLAGS_max_num_nearby_lane,
-                                           &nearby_lanes);
+      FLAGS_max_num_nearby_lane, &nearby_lanes);
   EXPECT_EQ(2, nearby_lanes.size());
   EXPECT_EQ("l20", nearby_lanes[0]->id().id());
   EXPECT_EQ("l21", nearby_lanes[1]->id().id());

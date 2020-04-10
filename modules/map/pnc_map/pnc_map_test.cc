@@ -16,10 +16,13 @@
 
 #include "modules/map/pnc_map/pnc_map.h"
 
+#include <algorithm>
+#include <vector>
+
 #include "gflags/gflags.h"
 #include "gtest/gtest.h"
 
-#include "cyber/common/file.h"
+#include "modules/common/util/file.h"
 #include "modules/common/util/string_util.h"
 #include "modules/map/hdmap/hdmap.h"
 #include "modules/map/hdmap/hdmap_util.h"
@@ -44,12 +47,12 @@ class PncMapTest : public ::testing::Test {
     AINFO << "map file: " << FLAGS_test_map_file;
     if (hdmap_.LoadMapFromFile(FLAGS_test_map_file) != 0) {
       AERROR << "Failed to load map: " << FLAGS_test_map_file;
-      ACHECK(false);
+      CHECK(false);
     }
     pnc_map_.reset(new PncMap(&hdmap_));
-    if (!cyber::common::GetProtoFromFile(FLAGS_test_routing_file, &routing_)) {
+    if (!common::util::GetProtoFromFile(FLAGS_test_routing_file, &routing_)) {
       AERROR << "Failed to load routing: " << FLAGS_test_routing_file;
-      ACHECK(false);
+      CHECK(false);
     }
     pnc_map_->UpdateRoutingResponse(routing_);
   }

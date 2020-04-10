@@ -1,5 +1,5 @@
 cc_library(
-    name = "yaml-cpp",
+    name = "yaml",
     srcs = glob([
         "src/*.cpp",
     ]),

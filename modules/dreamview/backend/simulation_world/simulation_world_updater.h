@@ -18,21 +18,18 @@
  * @file
  */
 
-#pragma once
+#ifndef MODULES_DREAMVIEW_BACKEND_SIMULATION_WORLD_SIM_WORLD_UPDATER_H_
+#define MODULES_DREAMVIEW_BACKEND_SIMULATION_WORLD_SIM_WORLD_UPDATER_H_
 
-#include <boost/thread/locks.hpp>
-#include <boost/thread/shared_mutex.hpp>
-#include <memory>
 #include <string>
 
-#include "absl/strings/str_cat.h"
-#include "cyber/common/log.h"
-#include "cyber/cyber.h"
+#include "boost/thread/locks.hpp"
+#include "boost/thread/shared_mutex.hpp"
 
-#include "modules/dreamview/backend/data_collection_monitor/data_collection_monitor.h"
+#include "modules/common/log.h"
+#include "modules/common/util/string_util.h"
 #include "modules/dreamview/backend/handlers/websocket_handler.h"
 #include "modules/dreamview/backend/map/map_service.h"
-#include "modules/dreamview/backend/perception_camera_updater/perception_camera_updater.h"
 #include "modules/dreamview/backend/sim_control/sim_control.h"
 #include "modules/dreamview/backend/simulation_world/simulation_world_service.h"
 #include "modules/routing/proto/poi.pb.h"
@@ -62,10 +59,7 @@ class SimulationWorldUpdater {
    * @param routing_from_file whether to read initial routing from file.
    */
   SimulationWorldUpdater(WebSocketHandler *websocket, WebSocketHandler *map_ws,
-                         WebSocketHandler *camera_ws, SimControl *sim_control,
-                         const MapService *map_service,
-                         DataCollectionMonitor *data_collection_monitor,
-                         PerceptionCameraUpdater *perception_camera_updater,
+                         SimControl *sim_control, const MapService *map_service,
                          bool routing_from_file = false);
 
   /**
@@ -81,8 +75,9 @@ class SimulationWorldUpdater {
   /**
    * @brief The callback function to get updates from SimulationWorldService,
    * and update simulation_world_json_.
+   * @param event Timer event
    */
-  void OnTimer();
+  void OnTimer(const ros::TimerEvent &event);
 
   /**
    * @brief The function to construct a routing request from the given json,
@@ -97,13 +92,6 @@ class SimulationWorldUpdater {
   bool ValidateCoordinate(const nlohmann::json &json);
 
   /**
-   * @brief Check if routing point is located on a lane that is CITY_DRIVING
-   * @param json that contains point's coordinate x and y
-   * @return True if the lane is CITY_DRIVING
-   */
-  nlohmann::json CheckRoutingPoint(const nlohmann::json &json);
-
-  /**
    * @brief Tries to load the points of interest from the file if it has
    * not been.
    * @return False if failed to load from file,
@@ -111,16 +99,34 @@ class SimulationWorldUpdater {
    */
   bool LoadPOI();
 
+  /**
+   * @brief Dumps the latest received message to file.
+   * @param adapter the adapter to perfom dumping
+   * @param adapter_name the name of the adapter
+   */
+  template <typename AdapterType>
+  void DumpMessage(AdapterType *adapter, std::string adapter_name) {
+    if (adapter->DumpLatestMessage()) {
+      sim_world_service_.PublishMonitorMessage(
+          common::monitor::MonitorMessageItem::INFO,
+          common::util::StrCat("Dumped latest ", adapter_name,
+                               " message under /tmp/", adapter_name, "."));
+    } else {
+      sim_world_service_.PublishMonitorMessage(
+          common::monitor::MonitorMessageItem::WARN,
+          common::util::StrCat("Failed to dump latest ", adapter_name,
+                               " message."));
+    }
+  }
+
   void RegisterMessageHandlers();
 
+  ros::Timer timer_;
   SimulationWorldService sim_world_service_;
   const MapService *map_service_ = nullptr;
   WebSocketHandler *websocket_ = nullptr;
   WebSocketHandler *map_ws_ = nullptr;
-  WebSocketHandler *camera_ws_ = nullptr;
   SimControl *sim_control_ = nullptr;
-  DataCollectionMonitor *data_collection_monitor_ = nullptr;
-  PerceptionCameraUpdater *perception_camera_updater_ = nullptr;
 
   // End point for requesting default route
   apollo::routing::POI poi_;
@@ -136,9 +142,9 @@ class SimulationWorldUpdater {
   // Mutex to protect concurrent access to simulation_world_json_.
   // NOTE: Use boost until we have std version of rwlock support.
   boost::shared_mutex mutex_;
-
-  std::unique_ptr<cyber::Timer> timer_;
 };
 
 }  // namespace dreamview
 }  // namespace apollo
+
+#endif  // MODULES_DREAMVIEW_BACKEND_SIMULATION_WORLD_SIM_WORLD_UPDATER_H_

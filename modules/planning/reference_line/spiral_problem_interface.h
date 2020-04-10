@@ -18,15 +18,15 @@
  * spiral_problem_interface.h
  */
 
-#pragma once
+#ifndef MODULES_PLANNING_REFERENCE_LINE_SPIRAL_PROBLEM_INTERFACE_H_
+#define MODULES_PLANNING_REFERENCE_LINE_SPIRAL_PROBLEM_INTERFACE_H_
 
-#include <coin/IpTNLP.hpp>
-#include <coin/IpTypes.hpp>
 #include <vector>
 
 #include "Eigen/Dense"
-
-#include "modules/planning/math/curve1d/quintic_spiral_path_with_derivation.h"
+#include "IpTNLP.hpp"
+#include "IpTypes.hpp"
+#include "modules/planning/math/curve1d/quintic_spiral_path.h"
 
 namespace apollo {
 namespace planning {
@@ -52,6 +52,8 @@ class SpiralProblemInterface : public Ipopt::TNLP {
   void set_element_weight_kappa(const double weight_kappa);
 
   void set_element_weight_dkappa(const double weight_dkappa);
+
+  void set_element_weight_d2kappa(const double weight_d2kappa);
 
   void get_optimization_results(std::vector<double>* ptr_theta,
                                 std::vector<double>* ptr_kappa,
@@ -83,16 +85,15 @@ class SpiralProblemInterface : public Ipopt::TNLP {
   bool eval_g(int n, const double* x, bool new_x, int m, double* g) override;
 
   /** Method to return:
-   *   1) The structure of the jacobian (if "values" is nullptr)
-   *   2) The values of the jacobian (if "values" is not nullptr)
+   *   1) The structure of the jacobian (if "values" is NULL)
+   *   2) The values of the jacobian (if "values" is not NULL)
    */
   bool eval_jac_g(int n, const double* x, bool new_x, int m, int nele_jac,
                   int* iRow, int* jCol, double* values) override;
 
   /** Method to return:
-   *   1) The structure of the hessian of the lagrangian (if "values" is
-   * nullptr) 2) The values of the hessian of the lagrangian (if "values" is not
-   * nullptr)
+   *   1) The structure of the hessian of the lagrangian (if "values" is NULL)
+   *   2) The values of the hessian of the lagrangian (if "values" is not NULL)
    */
   bool eval_h(int n, const double* x, bool new_x, double obj_factor, int m,
               const double* lambda, bool new_lambda, int nele_hess, int* iRow,
@@ -126,21 +127,23 @@ class SpiralProblemInterface : public Ipopt::TNLP {
 
   std::vector<double> point_distances_;
 
-  int num_of_variables_ = 0;
+  std::size_t num_of_variables_ = 0;
 
-  int num_of_constraints_ = 0;
+  std::size_t num_of_constraints_ = 0;
 
-  int num_of_points_ = 0;
+  std::size_t nnz_jac_g_ = 0;
+
+  std::size_t nnz_h_lag_ = 0;
+
+  std::size_t num_of_points_ = 0;
 
   double default_max_point_deviation_ = 0.0;
 
-  const int num_of_internal_points_ = 5;
+  const std::size_t num_of_internal_points_ = 5;
 
   std::vector<double> relative_theta_;
 
-  static constexpr size_t N = 10;
-
-  std::vector<QuinticSpiralPathWithDerivation<N>> piecewise_paths_;
+  std::vector<QuinticSpiralPath> piecewise_paths_;
 
   bool has_fixed_start_point_ = false;
 
@@ -173,7 +176,11 @@ class SpiralProblemInterface : public Ipopt::TNLP {
   double weight_kappa_ = 1.0;
 
   double weight_dkappa_ = 1.0;
+
+  double weight_d2kappa_ = 1.0;
 };
 
 }  // namespace planning
 }  // namespace apollo
+
+#endif  // MODULES_PLANNING_REFERENCE_LINE_SPIRAL_PROBLEM_INTERFACE_H_

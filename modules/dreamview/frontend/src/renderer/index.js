@@ -1,17 +1,14 @@
 import * as THREE from "three";
+import OrbitControls from "three/examples/js/controls/OrbitControls.js";
 import Stats from "stats.js";
 
-import Styles from "styles/main.scss";
-const _ = require('lodash');
-
+import PARAMETERS from "store/config/parameters.yml";
 import Coordinates from "renderer/coordinates";
 import AutoDrivingCar from "renderer/adc";
-import CheckPoints from "renderer/check_points.js";
 import Ground from "renderer/ground";
 import TileGround from "renderer/tileground";
 import Map from "renderer/map";
 import PlanningTrajectory from "renderer/trajectory.js";
-import PlanningStatus from "renderer/status.js";
 import PerceptionObstacles from "renderer/obstacles.js";
 import Decision from "renderer/decision.js";
 import Prediction from "renderer/prediction.js";
@@ -20,6 +17,7 @@ import RoutingEditor from "renderer/routing_editor.js";
 import Gnss from "renderer/gnss.js";
 import PointCloud from "renderer/point_cloud.js";
 
+const _ = require('lodash');
 
 class Renderer {
     constructor() {
@@ -28,14 +26,10 @@ class Renderer {
 
         this.coordinates = new Coordinates();
         this.renderer = new THREE.WebGLRenderer({
-            antialias: useAntialias,
-            // Transparent background
-            alpha: true,
+            antialias: useAntialias
         });
         this.scene = new THREE.Scene();
-        if (OFFLINE_PLAYBACK) {
-            this.scene.background = new THREE.Color(0x000C17);
-        }
+        this.scene.background = new THREE.Color(0x000C17);
 
         // The dimension of the scene
         this.dimension = {
@@ -45,7 +39,7 @@ class Renderer {
 
         // The ground.
         this.ground = (PARAMETERS.ground.type === 'tile' || OFFLINE_PLAYBACK)
-                      ? new TileGround(this.renderer) : new Ground();
+                      ? new TileGround() : new Ground();
 
         // The map.
         this.map = new Map();
@@ -56,14 +50,8 @@ class Renderer {
         // The car that projects the starting point of the planning trajectory
         this.planningAdc = OFFLINE_PLAYBACK ? null : new AutoDrivingCar('planningAdc', this.scene);
 
-        // The shadow localization
-        this.shadowAdc = new AutoDrivingCar('shadowAdc', this.scene);
-
         // The planning trajectory.
         this.planningTrajectory = new PlanningTrajectory();
-
-        // The planning status
-        this.planningStatus = new PlanningStatus();
 
         // The perception obstacles.
         this.perceptionObstacles = new PerceptionObstacles();
@@ -85,8 +73,6 @@ class Renderer {
 
         this.pointCloud = new PointCloud();
 
-        this.checkPoints = OFFLINE_PLAYBACK && new CheckPoints(this.coordinates, this.scene);
-
         // The Performance Monitor
         this.stats = null;
         if (PARAMETERS.debug.performanceMonitor) {
@@ -99,12 +85,11 @@ class Renderer {
         }
 
         // Geolocation of the mouse
-        this.geolocation = { x: 0, y: 0 };
+        this.geolocation = {x: 0, y:0};
     }
 
-    initialize(canvasId, width, height, options, cameraData) {
+    initialize(canvasId, width, height, options) {
         this.options = options;
-        this.cameraData = cameraData;
         this.canvasId = canvasId;
 
         // Camera
@@ -114,7 +99,7 @@ class Renderer {
             PARAMETERS.camera.laneWidthToViewDistanceRatio);
         this.camera = new THREE.PerspectiveCamera(
             PARAMETERS.camera[this.options.cameraAngle].fov,
-            width / height,
+            window.innerWidth / window.innerHeight,
             PARAMETERS.camera[this.options.cameraAngle].near,
             PARAMETERS.camera[this.options.cameraAngle].far
         );
@@ -130,13 +115,6 @@ class Renderer {
         const ambient = new THREE.AmbientLight(0x444444);
         const directionalLight = new THREE.DirectionalLight(0xffeedd);
         directionalLight.position.set(0, 0, 1).normalize();
-
-        // The orbit axis of the OrbitControl depends on camera's up vector
-        // and can only be set during creation of the controls. Thus,
-        // setting camera up here. Note: it's okay if the camera.up doesn't
-        // match the point of view setting, the value will be adjusted during
-        // each update cycle.
-        this.camera.up.set(0, 0, 1);
 
         // Orbit control for moving map
         this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
@@ -161,11 +139,6 @@ class Renderer {
     }
 
     updateDimension(width, height) {
-        if (width < Styles.MIN_MAIN_VIEW_WIDTH / 2 && this.dimension.width >= width) {
-            // Reach minimum, do not update camera/renderer dimension anymore.
-            return;
-        }
-
         this.camera.aspect = width / height;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(width, height);
@@ -174,34 +147,22 @@ class Renderer {
         this.dimension.height = height;
     }
 
-    enableOrbitControls(enableRotate) {
-        // update camera
+    enableOrbitControls() {
         const carPosition = this.adc.mesh.position;
+        this.controls.enabled = true;
+        this.controls.enableRotate = false;
+        this.controls.reset();
+        this.controls.minDistance = 20;
+        this.controls.maxDistance = 1000;
+        this.controls.target.set(carPosition.x, carPosition.y, 0);
+
         this.camera.position.set(carPosition.x, carPosition.y, 50);
         if (this.coordinates.systemName === "FLU") {
             this.camera.up.set(1, 0, 0);
         } else {
-            this.camera.up.set(0, 0, 1);
+            this.camera.up.set(0, 1, 0);
         }
-        const lookAtPosition = new THREE.Vector3(carPosition.x, carPosition.y, 0);
-        this.camera.lookAt(lookAtPosition);
-
-        // update control reset values to match current camera's
-        this.controls.target0 = lookAtPosition.clone();
-        this.controls.position0 = this.camera.position.clone();
-        this.controls.zoom0 = this.camera.zoom;
-
-        // set distance control
-        this.controls.minDistance = 4;
-        this.controls.maxDistance = 4000;
-
-        // set vertical angle control
-        this.controls.minPolarAngle = 0;
-        this.controls.maxPolarAngle = Math.PI / 2;
-
-        this.controls.enabled = true;
-        this.controls.enableRotate = enableRotate;
-        this.controls.reset();
+        this.camera.lookAt(carPosition.x, carPosition.y, 0);
     }
 
     adjustCamera(target, pov) {
@@ -213,7 +174,7 @@ class Renderer {
         this.camera.near = PARAMETERS.camera[pov].near;
         this.camera.far = PARAMETERS.camera[pov].far;
 
-        switch (pov) {
+        switch(pov) {
         case "Default":
             let deltaX = (this.viewDistance * Math.cos(target.rotation.y)
                 * Math.cos(this.viewAngle));
@@ -226,8 +187,8 @@ class Renderer {
             this.camera.position.z = target.position.z + deltaZ;
             this.camera.up.set(0, 0, 1);
             this.camera.lookAt({
-                x: target.position.x + deltaX,
-                y: target.position.y + deltaY,
+                x: target.position.x + 2 * deltaX,
+                y: target.position.y + 2 * deltaY,
                 z: 0
             });
 
@@ -245,8 +206,8 @@ class Renderer {
             this.camera.position.z = target.position.z + deltaZ;
             this.camera.up.set(0, 0, 1);
             this.camera.lookAt({
-                x: target.position.x + deltaX,
-                y: target.position.y + deltaY,
+                x: target.position.x + 2 * deltaX,
+                y: target.position.y + 2 * deltaY,
                 z: 0
             });
 
@@ -275,36 +236,15 @@ class Renderer {
             break;
         case "Map":
             if (!this.controls.enabled) {
-                this.enableOrbitControls(true);
+                this.enableOrbitControls();
             }
             break;
-        case "CameraView": {
-            const { position, rotation } = this.cameraData.get();
-
-            const { x, y, z } = this.coordinates.applyOffset(position);
-            this.camera.position.set(x, y, z);
-
-            // Threejs camera is default facing towards to Z-axis negative direction,
-            // but the actual camera is looking at Z-axis positive direction. So we need
-            // to adjust the camera rotation considering the default camera orientation.
-            this.camera.rotation.set(rotation.x + Math.PI, -rotation.y, -rotation.z);
-
-            this.controls.enabled = false;
-
-            const image = document.getElementById('camera-image');
-            if (image && this.cameraData.imageSrcData) {
-                image.src = this.cameraData.imageSrcData;
-            }
-
-            break;
         }
-        }
-
         this.camera.updateProjectionMatrix();
     }
 
     enableRouteEditing() {
-        this.enableOrbitControls(false);
+        this.enableOrbitControls();
         this.routingEditor.enableEditingMode(this.camera, this.adc);
 
         document.getElementById(this.canvasId).addEventListener('mousedown',
@@ -315,26 +255,15 @@ class Renderer {
     disableRouteEditing() {
         this.routingEditor.disableEditingMode(this.scene);
 
-        const element = document.getElementById(this.canvasId);
-        if (element) {
-            element.removeEventListener('mousedown',
-                                        this.onMouseDownHandler,
-                                        false);
-        }
+        document.getElementById(this.canvasId).removeEventListener('mousedown',
+                                                                   this.onMouseDownHandler,
+                                                                   false);
     }
 
     addDefaultEndPoint(points) {
         for (let i = 0; i < points.length; i++) {
             this.routingEditor.addRoutingPoint(points[i], this.coordinates, this.scene);
         }
-    }
-
-    removeInvalidRoutingPoint(pointId, error) {
-        this.routingEditor.removeInvalidRoutingPoint(pointId, error, this.scene);
-    }
-
-    setParkingInfo(info) {
-        this.routingEditor.setParkingInfo(info);
     }
 
     removeAllRoutingPoints() {
@@ -347,7 +276,6 @@ class Renderer {
 
     sendRoutingRequest() {
         return this.routingEditor.sendRoutingRequest(this.adc.mesh.position,
-                                                     this.adc.mesh.rotation.y,
                                                      this.coordinates);
     }
 
@@ -407,44 +335,18 @@ class Renderer {
     }
 
     updateWorld(world) {
-        const adcPose = world.autoDrivingCar;
-        this.adc.update(this.coordinates, adcPose);
-        if (!_.isNumber(adcPose.positionX) || !_.isNumber(adcPose.positionY)) {
-            console.error(`Invalid ego car position: ${adcPose.positionX}, ${adcPose.positionY}!`);
-            return;
-        }
-
-        this.adc.updateRssMarker(world.isRssSafe);
+        this.adc.update(this.coordinates, world.autoDrivingCar);
         this.ground.update(world, this.coordinates, this.scene);
         this.planningTrajectory.update(world, world.planningData, this.coordinates, this.scene);
-        this.planningStatus.update(world.planningData, this.coordinates, this.scene);
-
-        const isBirdView = ['Overhead', 'Map'].includes(_.get(this, 'options.cameraAngle'));
-        this.perceptionObstacles.update(world, this.coordinates, this.scene, isBirdView);
+        this.perceptionObstacles.update(world, this.coordinates, this.scene);
         this.decision.update(world, this.coordinates, this.scene);
         this.prediction.update(world, this.coordinates, this.scene);
         this.updateRouting(world.routingTime, world.routePath);
         this.gnss.update(world, this.coordinates, this.scene);
-        this.map.update(world);
 
-        const planningAdcPose = _.get(world, 'planningData.initPoint.pathPoint');
-        if (this.planningAdc && planningAdcPose) {
-            const pose = {
-                positionX: planningAdcPose.x,
-                positionY: planningAdcPose.y,
-                heading: planningAdcPose.theta,
-            };
-            this.planningAdc.update(this.coordinates, pose);
-        }
-
-        const shadowLocalizationPose = world.shadowLocalization;
-        if (shadowLocalizationPose) {
-            const shadowAdcPose = {
-                positionX: shadowLocalizationPose.positionX,
-                positionY: shadowLocalizationPose.positionY,
-                heading: shadowLocalizationPose.heading,
-            };
-            this.shadowAdc.update(this.coordinates, shadowAdcPose);
+        if (this.planningAdc &&
+            world.planningTrajectory && world.planningTrajectory.length) {
+            this.planningAdc.update(this.coordinates, world.planningTrajectory[0]);
         }
     }
 
@@ -456,8 +358,8 @@ class Renderer {
         this.ground.updateImage(mapName);
     }
 
-    updateGroundMetadata(mapInfo) {
-        this.ground.initialize(mapInfo);
+    updateGroundMetadata(serverUrl, mapInfo) {
+        this.ground.initialize(serverUrl, mapInfo);
     }
 
     updateMap(newData, removeOldMap = false) {
@@ -476,7 +378,7 @@ class Renderer {
 
     updateMapIndex(hash, elementIds, radius) {
         if (!this.routingEditor.isInEditingMode() ||
-            PARAMETERS.routingEditor.radiusOfMapRequest === radius) {
+             this.routingEditor.EDITING_MAP_RADIUS === radius) {
             this.map.updateIndex(hash, elementIds, this.scene);
         }
     }
@@ -509,25 +411,6 @@ class Renderer {
         const geo = this.coordinates.applyOffset(pos, true);
 
         return geo;
-    }
-
-    // Debugging purpose function:
-    //  For detecting names of the lanes that your mouse cursor points to.
-    getMouseOverLanes(event) {
-        const canvasPosition = event.currentTarget.getBoundingClientRect();
-        const mouse = new THREE.Vector3(
-            ((event.clientX - canvasPosition.left) / this.dimension.width) * 2 - 1,
-            -((event.clientY - canvasPosition.top) / this.dimension.height) * 2 + 1,
-            0);
-
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(mouse, this.camera);
-        const objects = this.map.data['lane'].reduce((result, current) => {
-            return result.concat(current.drewObjects);
-        }, []);
-        const intersects = raycaster.intersectObjects(objects);
-        const names = intersects.map(intersect => intersect.object.name);
-        return names;
     }
 }
 

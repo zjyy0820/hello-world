@@ -16,39 +16,82 @@
 
 #include "modules/dreamview/backend/sim_control/sim_control.h"
 
-#include "cyber/blocker/blocker_manager.h"
+#include <cmath>
+
+#include "ros/include/ros/ros.h"
+
+#include "modules/common/adapters/proto/adapter_config.pb.h"
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-
-#include "modules/canbus/proto/chassis.pb.h"
-#include "modules/common/adapters/adapter_gflags.h"
-#include "modules/common/math/quaternion.h"
 #include "modules/common/time/time.h"
 
+#include "modules/common/adapters/adapter_manager.h"
+#include "modules/common/math/quaternion.h"
+
 using apollo::canbus::Chassis;
+using apollo::common::adapter::AdapterManager;
+using apollo::common::adapter::AdapterManagerConfig;
 using apollo::common::math::HeadingToQuaternion;
 using apollo::common::time::Clock;
-using apollo::cyber::blocker::BlockerManager;
 using apollo::localization::LocalizationEstimate;
-using apollo::planning::ADCTrajectory;
-using apollo::prediction::PredictionObstacles;
+using apollo::routing::RoutingResponse;
 
 namespace apollo {
 namespace dreamview {
 
 class SimControlTest : public ::testing::Test {
  public:
-  static void SetUpTestCase() {
-    cyber::GlobalData::Instance()->EnableSimulationMode();
-  }
-
-  virtual void SetUp() {
+  SimControlTest() {
     FLAGS_map_dir = "modules/dreamview/backend/testdata";
     FLAGS_base_map_filename = "garage.bin";
 
     map_service_.reset(new MapService(false));
     sim_control_.reset(new SimControl(map_service_.get()));
+
+    AdapterManagerConfig config;
+    config.set_is_ros(false);
+    {
+      auto *sub_config = config.add_config();
+      sub_config->set_mode(
+          apollo::common::adapter::AdapterConfig::PUBLISH_ONLY);
+      sub_config->set_type(apollo::common::adapter::AdapterConfig::CHASSIS);
+    }
+
+    {
+      auto *sub_config = config.add_config();
+      sub_config->set_mode(
+          apollo::common::adapter::AdapterConfig::PUBLISH_ONLY);
+      sub_config->set_type(
+          apollo::common::adapter::AdapterConfig::LOCALIZATION);
+    }
+
+    {
+      auto *sub_config = config.add_config();
+      sub_config->set_mode(
+          apollo::common::adapter::AdapterConfig::RECEIVE_ONLY);
+      sub_config->set_type(
+          apollo::common::adapter::AdapterConfig::PLANNING_TRAJECTORY);
+    }
+
+    {
+      auto *sub_config = config.add_config();
+      sub_config->set_mode(
+          apollo::common::adapter::AdapterConfig::RECEIVE_ONLY);
+      sub_config->set_type(
+          apollo::common::adapter::AdapterConfig::ROUTING_RESPONSE);
+    }
+
+    {
+      auto *sub_config = config.add_config();
+      sub_config->set_mode(
+          apollo::common::adapter::AdapterConfig::RECEIVE_ONLY);
+      sub_config->set_type(apollo::common::adapter::AdapterConfig::NAVIGATION);
+    }
+
+    AdapterManager::Init(config);
+
+    sim_control_->Start();
   }
 
  protected:
@@ -73,13 +116,9 @@ void SetTrajectory(const std::vector<double> &xs, const std::vector<double> &ys,
     point->mutable_path_point()->set_kappa(ks[i]);
     point->set_relative_time(ts[i]);
   }
-  adc_trajectory->set_gear(Chassis::GEAR_DRIVE);
 }
 
 TEST_F(SimControlTest, Test) {
-  sim_control_->Init(false);
-  sim_control_->enabled_ = true;
-
   planning::ADCTrajectory adc_trajectory;
   std::vector<double> xs(5);
   std::vector<double> ys(5);
@@ -107,21 +146,17 @@ TEST_F(SimControlTest, Test) {
   adc_trajectory.mutable_header()->set_timestamp_sec(timestamp);
 
   sim_control_->SetStartPoint(adc_trajectory.trajectory_point(0));
-  sim_control_->OnPlanning(std::make_shared<ADCTrajectory>(adc_trajectory));
+  AdapterManager::PublishPlanning(adc_trajectory);
 
   {
     Clock::SetMode(Clock::MOCK);
-    Clock::SetNowInSeconds(100.01);
+    const auto timestamp = apollo::common::time::From(100.01);
+    Clock::SetNow(timestamp.time_since_epoch());
     sim_control_->RunOnce();
 
-    BlockerManager::Instance()->Observe();
-    auto localization =
-        BlockerManager::Instance()
-            ->GetBlocker<LocalizationEstimate>(FLAGS_localization_topic)
-            ->GetLatestObservedPtr();
-    auto chassis = BlockerManager::Instance()
-                       ->GetBlocker<Chassis>(FLAGS_chassis_topic)
-                       ->GetLatestObservedPtr();
+    const Chassis *chassis = AdapterManager::GetChassis()->GetLatestPublished();
+    const LocalizationEstimate *localization =
+        AdapterManager::GetLocalization()->GetLatestPublished();
 
     EXPECT_TRUE(chassis->engine_started());
     EXPECT_EQ(Chassis::COMPLETE_AUTO_DRIVE, chassis->driving_mode());
@@ -165,50 +200,5 @@ TEST_F(SimControlTest, Test) {
   }
 }
 
-TEST_F(SimControlTest, TestDummyPrediction) {
-  Clock::SetMode(Clock::MOCK);
-
-  sim_control_->Init(false);
-  sim_control_->enabled_ = true;
-
-  auto obstacles = std::make_shared<PredictionObstacles>();
-
-  {
-    const double timestamp = 100.01;
-    Clock::SetNowInSeconds(timestamp);
-    obstacles->mutable_header()->set_timestamp_sec(timestamp);
-    obstacles->mutable_header()->set_module_name("NoneSimPrediction");
-    sim_control_->OnPredictionObstacles(obstacles);
-
-    sim_control_->PublishDummyPrediction();
-
-    BlockerManager::Instance()->Observe();
-    EXPECT_FALSE(sim_control_->send_dummy_prediction_);
-    EXPECT_TRUE(BlockerManager::Instance()
-                    ->GetBlocker<PredictionObstacles>(FLAGS_prediction_topic)
-                    ->IsObservedEmpty());
-  }
-
-  sim_control_->InternalReset();
-
-  {
-    const double timestamp = 100.2;
-    Clock::SetNowInSeconds(timestamp);
-    obstacles->mutable_header()->set_timestamp_sec(timestamp);
-    obstacles->mutable_header()->set_module_name("SimPrediction");
-    sim_control_->OnPredictionObstacles(obstacles);
-
-    sim_control_->PublishDummyPrediction();
-
-    EXPECT_TRUE(sim_control_->send_dummy_prediction_);
-    BlockerManager::Instance()->Observe();
-    auto prediction =
-        BlockerManager::Instance()
-            ->GetBlocker<PredictionObstacles>(FLAGS_prediction_topic)
-            ->GetLatestObservedPtr();
-    EXPECT_EQ("SimPrediction", prediction->header().module_name());
-    EXPECT_DOUBLE_EQ(prediction->header().timestamp_sec(), timestamp);
-  }
-}
 }  // namespace dreamview
 }  // namespace apollo

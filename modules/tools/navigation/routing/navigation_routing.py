@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 ###############################################################################
 # Copyright 2017 The Apollo Authors. All Rights Reserved.
@@ -16,30 +16,24 @@
 # limitations under the License.
 ###############################################################################
 
-import json
-import math
 import os
+import rospy
+import math
+import thread
 import requests
-import _thread
-
-from flask import Flask
+import json
+import pyproj
+from std_msgs.msg import String
 from flask import jsonify
+from flask import Flask
 from flask import request
 from flask_cors import CORS
-from numpy.polynomial.polynomial import polyval
 from shapely.geometry import LineString, Point
-from std_msgs.msg import String
-import certifi
-import pyproj
-import rospy
-import urllib3
-import urllib3.contrib.pyopenssl
-
-from modules.drivers.proto import mobileye_pb2
+from numpy.polynomial.polynomial import polyval
 from modules.localization.proto import localization_pb2
-from modules.map.relative_map.proto import navigation_pb2
 from modules.planning.proto import planning_pb2
-
+from modules.map.relative_map.proto import navigation_pb2
+from modules.drivers.proto import mobileye_pb2
 
 # pip install -U flask-cors
 # is currently required in docker
@@ -58,8 +52,6 @@ line_we = None
 line_revloop = None
 
 projector = pyproj.Proj(proj='utm', zone=10, ellps='WGS84')
-urllib3.contrib.pyopenssl.inject_into_urllib3()
-http = urllib3.PoolManager(cert_reqs='CERT_REQUIRED', ca_certs=certifi.where())
 
 
 def add_listener():
@@ -70,6 +62,42 @@ def add_listener():
 
 
 @app.route('/routing', methods=["POST", "GET"])
+def navigation():
+    request_json = request.json
+    if "start_lat" not in request_json:
+        return jsonify([])
+    if "start_lon" not in request_json:
+        return jsonify([])
+    if "end_lat" not in request_json:
+        return jsonify([])
+    if "end_lon" not in request_json:
+        return jsonify([])
+    start_latlon = str(request_json["start_lat"]) + "," + \
+                   str(request_json["start_lon"])
+    end_latlon = str(request_json["end_lat"]) + "," + \
+                 str(request_json["end_lon"])
+    url = "http://navi-env.axty8vi3ic.us-west-2." \
+          "elasticbeanstalk.com/dreamview/navigation?origin=" + \
+          start_latlon + "&destination=" + end_latlon + "&heading=0"
+
+    res = requests.get(url)
+    if res.status_code != 200:
+        return jsonify([])
+    # send to ros
+    navigation_info = navigation_pb2.NavigationInfo()
+    navigation_info.ParseFromString(res.content)
+    routing_pub.publish(navigation_info)
+    # send to browser
+    latlon_path = []
+    for path in navigation_info.navigation_path:
+        for point in path.path.path_point:
+            lons, lats = projector(point.x, point.y, inverse=True)
+            latlon_path.append({'lat': lats, 'lng': lons})
+    if len(latlon_path) > 0:
+        latlon_path[0]['human'] = True
+    return jsonify(latlon_path)
+
+
 def request_routing(request_json):
     if "start_lat" not in request_json:
         return None
@@ -81,17 +109,17 @@ def request_routing(request_json):
         return None
 
     start_latlon = str(request_json["start_lat"]) + "," + \
-        str(request_json["start_lon"])
+                   str(request_json["start_lon"])
     end_latlon = str(request_json["end_lat"]) + "," + \
-        str(request_json["end_lon"])
+                 str(request_json["end_lon"])
 
     url = "https://maps.googleapis.com/maps/api/directions/json?origin=" + \
           start_latlon + "&destination=" + end_latlon + "&key=" + API_KEY
 
-    res = http.request('GET', url)
-    if res.status != 200:
+    res = requests.get(url)
+    if res.status_code != 200:
         return None
-    response = json.loads(res.data)
+    response = json.loads(res.content)
     if len(response['routes']) < 1:
         return None
     steps = response['routes'][0]['legs'][0]['steps']
@@ -281,9 +309,13 @@ def routing():
     return jsonify(latlon_path)
 
 
+def run_flask():
+    app.run(debug=False, port=5002, host='0.0.0.0')
+
+
 if __name__ == "__main__":
     key_file_name = os.path.dirname(os.path.abspath(__file__)) + \
-        "/map_api_key/api_key"
+                    "/map_api_key/api_key"
     try:
         f = open(key_file_name, 'r')
         with f:
@@ -291,10 +323,10 @@ if __name__ == "__main__":
                 API_KEY = line.replace('\n', "")
                 break
     except IOError:
-        print("Could not read file:", key_file_name)
+        print "Could not read file:", key_file_name
 
     load_drive_data()
     add_listener()
-    _thread.start_new_thread(run_flask, ())
+    thread.start_new_thread(run_flask, ())
     # app.run(debug=False, port=5001, host='localhost')
     rospy.spin()

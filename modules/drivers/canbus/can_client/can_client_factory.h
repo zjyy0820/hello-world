@@ -19,13 +19,13 @@
  * @brief Defines the CanClientFactory class.
  */
 
-#pragma once
+#ifndef MODULES_DRIVERS_CANBUS_CAN_CLIENT_CAN_CLIENT_FACTORY_H_
+#define MODULES_DRIVERS_CANBUS_CAN_CLIENT_CAN_CLIENT_FACTORY_H_
 
 #include <memory>
 #include <unordered_map>
 
-#include "cyber/common/macros.h"
-
+#include "modules/common/macro.h"
 #include "modules/common/util/factory.h"
 #include "modules/drivers/canbus/can_client/can_client.h"
 
@@ -39,7 +39,7 @@ namespace canbus {
 
 /**
  * @class CanClientFactory
- * @brief CanClientFactory inherites apollo::common::util::Factory.
+ * @brief CanClientFactory inherites apollo::common::util::Facotory.
  */
 class CanClientFactory
     : public apollo::common::util::Factory<CANCardParameter::CANCardBrand,
@@ -61,9 +61,11 @@ class CanClientFactory
   std::unique_ptr<CanClient> CreateCANClient(const CANCardParameter &parameter);
 
  private:
-  DECLARE_SINGLETON(CanClientFactory)
+  DECLARE_SINGLETON(CanClientFactory);
 };
 
 }  // namespace canbus
 }  // namespace drivers
 }  // namespace apollo
+
+#endif  // MODULES_DRIVERS_CANBUS_CAN_CLIENT_CAN_CLIENT_FACTORY_H_

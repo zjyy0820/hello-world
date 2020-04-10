@@ -1,20 +1,5 @@
 #!/usr/bin/env bash
 
-###############################################################################
-# Copyright 2017 The Apollo Authors. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-###############################################################################
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "${DIR}"
@@ -56,29 +41,30 @@ function print_usage() {
   ${BLUE}version${NONE}: display current commit and date
   ${BLUE}push${NONE}: pushes the images to Docker hub
   ${BLUE}gen${NONE}: generate a docker release image
-  ${BLUE}ota_gen${NONE}: generate an ota docker release image
+  ${BLUE}ota_gen${NONE}: generate a ota docker release image
   "
 }
 
 function start_build_docker() {
-  docker ps --format "{{.Names}}" | grep apollo_dev_$USER 1>/dev/null 2>&1
-  if [ $? != 0 ]; then
-    # If Google is reachable, we fetch the docker image directly.
+  docker ps --format "{{.Names}}" | grep apollo_dev 1>/dev/null 2>&1
+  if [ $? != 0 ]; then    
+    # If Google is reachable, we fetch the docker image directly. 
     if ping -q -c 1 -W 1 www.google.com 1>/dev/null 2>&1; then
       opt=""
+    # If Google is unreachable but Baidu reachable, we fetch the docker image from China. 
+    elif ping -q -c 1 -W 1 www.baidu.com 1>/dev/null 2>&1; then
+      opt="-C"
+    # If Baidu is unreachable, we use local images. 
     else
-      ping -q -c 1 -W 1 www.baidu.com 1>/dev/null 2>&1
-      # If Baidu is unreachable, we use local images.
-      if [ $? -ne 0 ]; then
-        opt="-l"
-      fi
+      opt="-l"
     fi
+    #echo ${opt}
     bash docker/scripts/dev_start.sh ${opt}
   fi
 }
 
 function gen_docker() {
-  IMG="apolloauto/apollo:run-${MACHINE_ARCH}-20181017_1330"
+  IMG="apolloauto/apollo:run-${MACHINE_ARCH}-20180302_1123"
   RELEASE_DIR=${HOME}/.cache/apollo_release
   APOLLO_DIR="${RELEASE_DIR}/apollo"
 
@@ -162,6 +148,6 @@ case $1 in
     gen_docker
     ;;
   *)
-    docker exec -u $USER apollo_dev_$USER bash -c "./apollo.sh $@"
+    docker exec -u $USER apollo_dev bash -c "./apollo.sh $@"
     ;;
 esac

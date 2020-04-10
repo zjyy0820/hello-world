@@ -19,7 +19,8 @@
  * @brief This file provides the declaration of the class "NaviPlanner".
  */
 
-#pragma once
+#ifndef MODULES_PLANNING_PLANNER_NAVI_NAVI_PLANNER_H_
+#define MODULES_PLANNING_PLANNER_NAVI_NAVI_PLANNER_H_
 
 #include <memory>
 #include <string>
@@ -33,10 +34,10 @@
 #include "modules/common/util/factory.h"
 #include "modules/planning/common/reference_line_info.h"
 #include "modules/planning/math/curve1d/quintic_polynomial_curve1d.h"
-#include "modules/planning/navi/decider/navi_task.h"
 #include "modules/planning/planner/planner.h"
 #include "modules/planning/reference_line/reference_line.h"
 #include "modules/planning/reference_line/reference_point.h"
+#include "modules/planning/tasks/task.h"
 
 /**
  * @namespace apollo::planning
@@ -54,13 +55,11 @@ namespace planning {
  * mode by setting "FLAGS_use_navigation_mode" to "true") and do not use it in
  * standard mode.
  */
-class NaviPlanner : public PlannerWithReferenceLine {
+class NaviPlanner : public Planner {
  public:
   NaviPlanner() = default;
 
   virtual ~NaviPlanner() = default;
-
-  std::string Name() override { return "NAVI"; }
 
   common::Status Init(const PlanningConfig& config) override;
 
@@ -71,10 +70,7 @@ class NaviPlanner : public PlannerWithReferenceLine {
    * @return OK if planning succeeds; error otherwise.
    */
   common::Status Plan(const common::TrajectoryPoint& planning_init_point,
-                      Frame* frame,
-                      ADCTrajectory* ptr_computed_trajectory) override;
-
-  void Stop() override {}
+                      Frame* frame) override;
 
   /**
    * @brief Override function Plan in parent class Planner.
@@ -102,7 +98,8 @@ class NaviPlanner : public PlannerWithReferenceLine {
   void GenerateFallbackPathProfile(const ReferenceLineInfo* reference_line_info,
                                    PathData* path_data);
 
-  void GenerateFallbackSpeedProfile(SpeedData* speed_data);
+  void GenerateFallbackSpeedProfile(
+      const ReferenceLineInfo* reference_line_info, SpeedData* speed_data);
 
   SpeedData GenerateStopProfile(const double init_speed,
                                 const double init_acc) const;
@@ -118,9 +115,11 @@ class NaviPlanner : public PlannerWithReferenceLine {
                        const std::string& name, const double time_diff_ms);
 
  private:
-  apollo::common::util::Factory<TaskConfig::TaskType, NaviTask> task_factory_;
-  std::vector<std::unique_ptr<NaviTask>> tasks_;
+  apollo::common::util::Factory<TaskType, Task> task_factory_;
+  std::vector<std::unique_ptr<Task>> tasks_;
 };
 
 }  // namespace planning
 }  // namespace apollo
+
+#endif  // MODULES_PLANNING_PLANNER_NAVI_NAVI_PLANNER_H_

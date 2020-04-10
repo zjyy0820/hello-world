@@ -19,12 +19,11 @@
  * @brief Math-related util functions.
  */
 
-#pragma once
+#ifndef MODULES_COMMON_MATH_MATH_UTILS_H_
+#define MODULES_COMMON_MATH_MATH_UTILS_H_
 
 #include <limits>
 #include <utility>
-
-#include "Eigen/Dense"
 
 #include "modules/common/math/vec2d.h"
 
@@ -108,7 +107,7 @@ double NormalizeAngle(const double angle);
  * @brief Calculate the difference between angle from and to
  * @param from the start angle
  * @param from the end angle
- * @return The difference between from and to. The range is between [-PI, PI).
+ * @return The difference between from and to. The range is between [0, PI).
  */
 double AngleDiff(const double from, const double to);
 
@@ -166,10 +165,14 @@ T Clamp(const T value, T bound1, T bound2) {
 // Gaussian
 double Gaussian(const double u, const double std, const double x);
 
-inline double Sigmoid(const double x) { return 1.0 / (1.0 + std::exp(-x)); }
+// Sigmoid
+double Sigmoid(const double x);
 
-// Rotate a 2d vector counter-clockwise by theta
-Eigen::Vector2d RotateVector2d(const Eigen::Vector2d &v_in, const double theta);
+// Rotate Axis (2D):
+// convert a point (x0, y0) in axis1 to a point (x1, y1) in axis2 where the
+// angle from axis1 to axis2 is theta (counter clockwise)
+void RotateAxis(const double theta, const double x0, const double y0,
+                double *x1, double *y1);
 
 inline std::pair<double, double> RFUToFLU(const double x, const double y) {
   return std::make_pair(y, -x);
@@ -184,12 +187,12 @@ inline void L2Norm(int feat_dim, float *feat_data) {
     return;
   }
   // feature normalization
-  float l2norm = 0.0f;
+  float l2norm = 0.0;
   for (int i = 0; i < feat_dim; ++i) {
     l2norm += feat_data[i] * feat_data[i];
   }
   if (l2norm == 0) {
-    float val = 1.f / std::sqrt(static_cast<float>(feat_dim));
+    float val = 1.0 / std::sqrt(feat_dim);
     for (int i = 0; i < feat_dim; ++i) {
       feat_data[i] = val;
     }
@@ -201,9 +204,8 @@ inline void L2Norm(int feat_dim, float *feat_data) {
   }
 }
 
-// Cartesian coordinates to Polar coordinates
-std::pair<double, double> Cartesian2Polar(double x, double y);
-
 }  // namespace math
 }  // namespace common
 }  // namespace apollo
+
+#endif  // MODULES_COMMON_MATH_UTILS_H_

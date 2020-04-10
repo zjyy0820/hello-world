@@ -20,11 +20,13 @@
 
 #include "modules/planning/reference_line/spiral_reference_line_smoother.h"
 
-#include <coin/IpIpoptApplication.hpp>
-#include <coin/IpSolveStatistics.hpp>
-
 #include <algorithm>
+#include <iomanip>
+#include <limits>
 #include <utility>
+
+#include "IpIpoptApplication.hpp"
+#include "IpSolveStatistics.hpp"
 
 #include "modules/common/time/time.h"
 #include "modules/planning/common/planning_gflags.h"
@@ -38,7 +40,9 @@ using apollo::common::time::Clock;
 
 SpiralReferenceLineSmoother::SpiralReferenceLineSmoother(
     const ReferenceLineSmootherConfig& config)
-    : ReferenceLineSmoother(config) {}
+    : ReferenceLineSmoother(config) {
+  default_max_point_deviation_ = config.spiral().max_deviation();
+}
 
 bool SpiralReferenceLineSmoother::Smooth(
     const ReferenceLine& raw_reference_line,
@@ -71,7 +75,7 @@ bool SpiralReferenceLineSmoother::Smooth(
     Smooth(raw_point2d, &opt_theta, &opt_kappa, &opt_dkappa, &opt_s, &opt_x,
            &opt_y);
   } else {
-    size_t start_index = 0;
+    std::size_t start_index = 0;
     for (const auto& anchor_point : anchor_points_) {
       if (anchor_point.enforced) {
         start_index++;
@@ -88,7 +92,7 @@ bool SpiralReferenceLineSmoother::Smooth(
       }
     } else {
       std::vector<double> overhead_s;
-      for (size_t i = 0; i + 1 < start_index; ++i) {
+      for (std::size_t i = 0; i + 1 < start_index; ++i) {
         const auto& p0 = anchor_points_[i];
         const auto& p1 = anchor_points_[i + 1];
         overhead_s.push_back(p1.path_point.s() - p0.path_point.s());
@@ -99,7 +103,7 @@ bool SpiralReferenceLineSmoother::Smooth(
       std::vector<double> overhead_dkappa;
       std::vector<double> overhead_x;
       std::vector<double> overhead_y;
-      for (size_t i = 0; i < anchor_points_.size(); ++i) {
+      for (std::size_t i = 0; i < anchor_points_.size(); ++i) {
         const auto& p = anchor_points_[i];
         if (i + 1 < start_index) {
           overhead_theta.push_back(p.path_point.theta());
@@ -157,7 +161,7 @@ bool SpiralReferenceLineSmoother::Smooth(
     const double dkappa = p.dkappa();
 
     common::SLPoint ref_sl_point;
-    if (!raw_reference_line.XYToSL(p, &ref_sl_point)) {
+    if (!raw_reference_line.XYToSL({p.x(), p.y()}, &ref_sl_point)) {
       return false;
     }
     if (ref_sl_point.s() < 0 ||
@@ -184,62 +188,6 @@ bool SpiralReferenceLineSmoother::Smooth(
   return true;
 }
 
-int SpiralReferenceLineSmoother::SmoothStandAlone(
-    std::vector<Eigen::Vector2d> point2d, std::vector<double>* ptr_theta,
-    std::vector<double>* ptr_kappa, std::vector<double>* ptr_dkappa,
-    std::vector<double>* ptr_s, std::vector<double>* ptr_x,
-    std::vector<double>* ptr_y) const {
-  CHECK_GT(point2d.size(), 1);
-
-  SpiralProblemInterface* ptop = new SpiralProblemInterface(point2d);
-
-  ptop->set_default_max_point_deviation(config_.spiral().max_deviation());
-  ptop->set_element_weight_curve_length(config_.spiral().weight_curve_length());
-  ptop->set_element_weight_kappa(config_.spiral().weight_kappa());
-  ptop->set_element_weight_dkappa(config_.spiral().weight_dkappa());
-
-  Ipopt::SmartPtr<Ipopt::TNLP> problem = ptop;
-
-  // Create an instance of the IpoptApplication
-  Ipopt::SmartPtr<Ipopt::IpoptApplication> app = IpoptApplicationFactory();
-
-  app->Options()->SetStringValue("hessian_approximation", "limited-memory");
-  app->Options()->SetIntegerValue("max_iter", config_.spiral().max_iteration());
-  app->Options()->SetNumericValue("tol", config_.spiral().opt_tol());
-  app->Options()->SetNumericValue("acceptable_tol",
-                                  config_.spiral().opt_acceptable_tol());
-
-  Ipopt::ApplicationReturnStatus status = app->Initialize();
-  if (status != Ipopt::Solve_Succeeded) {
-    ADEBUG << "*** Error during initialization!";
-    return -1;
-  }
-
-  status = app->OptimizeTNLP(problem);
-
-  if (status == Ipopt::Solve_Succeeded ||
-      status == Ipopt::Solved_To_Acceptable_Level) {
-    // Retrieve some statistics about the solve
-    Ipopt::Index iter_count = app->Statistics()->IterationCount();
-    ADEBUG << "*** The problem solved in " << iter_count << " iterations!";
-
-    Ipopt::Number final_obj = app->Statistics()->FinalObjective();
-    ADEBUG << "*** The final value of the objective function is " << final_obj
-           << '.';
-  } else {
-    ADEBUG << "Return status: " << int(status);
-  }
-
-  ptop->get_optimization_results(ptr_theta, ptr_kappa, ptr_dkappa, ptr_s, ptr_x,
-                                 ptr_y);
-
-  if (!(status == Ipopt::Solve_Succeeded) &&
-      !(status == Ipopt::Solved_To_Acceptable_Level)) {
-    return -1;
-  }
-  return app->Statistics()->IterationCount();
-}
-
 bool SpiralReferenceLineSmoother::Smooth(std::vector<Eigen::Vector2d> point2d,
                                          std::vector<double>* ptr_theta,
                                          std::vector<double>* ptr_kappa,
@@ -251,16 +199,18 @@ bool SpiralReferenceLineSmoother::Smooth(std::vector<Eigen::Vector2d> point2d,
 
   SpiralProblemInterface* ptop = new SpiralProblemInterface(point2d);
 
-  ptop->set_default_max_point_deviation(config_.spiral().max_deviation());
+  ptop->set_default_max_point_deviation(default_max_point_deviation_);
   if (fixed_start_point_) {
     ptop->set_start_point(fixed_start_x_, fixed_start_y_, fixed_start_theta_,
                           fixed_start_kappa_, fixed_start_dkappa_);
   }
 
   ptop->set_end_point_position(fixed_end_x_, fixed_end_y_);
-  ptop->set_element_weight_curve_length(config_.spiral().weight_curve_length());
-  ptop->set_element_weight_kappa(config_.spiral().weight_kappa());
-  ptop->set_element_weight_dkappa(config_.spiral().weight_dkappa());
+  ptop->set_element_weight_curve_length(
+      config_.spiral().opt_weight_curve_length());
+  ptop->set_element_weight_kappa(config_.spiral().opt_weight_kappa());
+  ptop->set_element_weight_dkappa(config_.spiral().opt_weight_dkappa());
+  ptop->set_element_weight_d2kappa(config_.spiral().opt_weight_d2kappa());
 
   Ipopt::SmartPtr<Ipopt::TNLP> problem = ptop;
 
@@ -316,7 +266,7 @@ std::vector<common::PathPoint> SpiralReferenceLineSmoother::Interpolate(
                     dkappa.front());
   smoothed_point2d.push_back(first_point);
 
-  for (size_t i = 0; i + 1 < theta.size(); ++i) {
+  for (std::size_t i = 0; i + 1 < theta.size(); ++i) {
     double start_x = x[i];
     double start_y = y[i];
 
@@ -343,11 +293,9 @@ std::vector<common::PathPoint> SpiralReferenceLineSmoother::Interpolate(
 
   QuinticSpiralPath spiral_curve(theta0, kappa0, dkappa0, theta0 + angle_diff,
                                  kappa1, dkappa1, delta_s);
-  size_t num_of_points =
-      static_cast<size_t>(std::ceil(delta_s / resolution) + 1);
-  for (size_t i = 1; i <= num_of_points; ++i) {
-    const double inter_s =
-        delta_s / static_cast<double>(num_of_points) * static_cast<double>(i);
+  std::size_t num_of_points = std::ceil(delta_s / resolution) + 1;
+  for (std::size_t i = 1; i <= num_of_points; ++i) {
+    const double inter_s = delta_s / num_of_points * i;
     const double dx = spiral_curve.ComputeCartesianDeviationX<10>(inter_s);
     const double dy = spiral_curve.ComputeCartesianDeviationY<10>(inter_s);
 

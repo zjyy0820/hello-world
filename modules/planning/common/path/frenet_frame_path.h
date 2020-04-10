@@ -18,9 +18,9 @@
  * @file frenet_frame_path.h
  **/
 
-#pragma once
+#ifndef MODULES_PLANNING_COMMON_PATH_FRENET_FRAME_PATH_H_
+#define MODULES_PLANNING_COMMON_PATH_FRENET_FRAME_PATH_H_
 
-#include <utility>
 #include <vector>
 
 #include "modules/common/proto/pnc_point.pb.h"
@@ -29,12 +29,18 @@
 namespace apollo {
 namespace planning {
 
-class FrenetFramePath : public std::vector<common::FrenetFramePoint> {
+class FrenetFramePath {
  public:
   FrenetFramePath() = default;
-  explicit FrenetFramePath(std::vector<common::FrenetFramePoint> points);
+  explicit FrenetFramePath(
+      const std::vector<common::FrenetFramePoint> &sl_points);
+  virtual ~FrenetFramePath() = default;
 
+  void set_points(const std::vector<common::FrenetFramePoint> &points);
+  const std::vector<common::FrenetFramePoint> &points() const;
+  std::uint32_t NumOfPoints() const;
   double Length() const;
+  const common::FrenetFramePoint &PointAt(const std::uint32_t index) const;
   common::FrenetFramePoint EvaluateByS(const double s) const;
 
   /**
@@ -42,6 +48,8 @@ class FrenetFramePath : public std::vector<common::FrenetFramePoint> {
    * smallest l() in SLBoundary's s range [start_s(), end_s()]
    */
   common::FrenetFramePoint GetNearestPoint(const SLBoundary &sl) const;
+
+  virtual void Clear();
 
  private:
   static bool LowerBoundComparator(const common::FrenetFramePoint &p,
@@ -52,7 +60,11 @@ class FrenetFramePath : public std::vector<common::FrenetFramePoint> {
                                    const common::FrenetFramePoint &p) {
     return s < p.s();
   }
+
+  std::vector<common::FrenetFramePoint> points_;
 };
 
 }  // namespace planning
 }  // namespace apollo
+
+#endif  // MODULES_PLANNING_COMMON_PATH_FRENET_FRAME_PATH_H_

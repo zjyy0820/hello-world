@@ -18,7 +18,8 @@
  * @file:
  **/
 
-#pragma once
+#ifndef MODULES_PLANNING_COMMON_INDEXED_QUEUE_H_
+#define MODULES_PLANNING_COMMON_INDEXED_QUEUE_H_
 
 #include <memory>
 #include <queue>
@@ -34,7 +35,7 @@ template <typename I, typename T>
 class IndexedQueue {
  public:
   // Get infinite capacity with 0.
-  explicit IndexedQueue(size_t capacity) : capacity_(capacity) {}
+  explicit IndexedQueue(std::size_t capacity) : capacity_(capacity) {}
 
   const T *Find(const I id) const {
     auto *result = apollo::common::util::FindOrNull(map_, id);
@@ -56,7 +57,7 @@ class IndexedQueue {
       map_.erase(queue_.front().first);
       queue_.pop();
     }
-    queue_.emplace(id, ptr.get());
+    queue_.push(std::make_pair(id, ptr.get()));
     map_[id] = std::move(ptr);
     return true;
   }
@@ -70,10 +71,12 @@ class IndexedQueue {
   }
 
  public:
-  size_t capacity_ = 0;
+  std::size_t capacity_ = 0;
   std::queue<std::pair<I, const T *>> queue_;
   std::unordered_map<I, std::unique_ptr<T>> map_;
 };
 
 }  // namespace planning
 }  // namespace apollo
+
+#endif  // MODULES_PLANNING_COMMON_INDEXED_QUEUE_H_

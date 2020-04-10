@@ -4,33 +4,35 @@ package(default_visibility = ["//visibility:public"])
 
 cc_library(
     name = "routing_lib",
-    srcs = ["routing.cc"],
-    hdrs = ["routing.h"],
-    copts = ['-DMODULE_NAME=\\"routing\\"'],
-    deps = [
-        "//modules/common/adapters:adapter_gflags",
-        "//modules/common/monitor_log",
-        "//modules/common/util:point_factory",
-        "//modules/map/hdmap:hdmap_util",
-        "//modules/routing/core",
+    srcs = [
+        "routing.cc",
     ],
-)
-
-cc_library(
-    name = "routing_component_lib",
-    srcs = ["routing_component.cc"],
-    hdrs = ["routing_component.h"],
-    copts = ['-DMODULE_NAME=\\"routing\\"'],
+    hdrs = [
+        "routing.h",
+    ],
     deps = [
-        ":routing_lib",
+        "//modules/common",
+        "//modules/common:apollo_app",
+        "//modules/common/adapters:adapter_manager",
+        "//modules/common/monitor_log",
+        "//modules/common/status",
+        "//modules/common/util",
+        "//modules/map/hdmap:hdmap_util",
+        "//modules/routing/common:routing_gflags",
+        "//modules/routing/core",
+        "//modules/routing/graph",
+        "//modules/routing/proto:routing_proto",
+        "@ros//:ros_common",
     ],
 )
 
 cc_binary(
-    name = "librouting_component.so",
-    linkshared = True,
-    linkstatic = False,
-    deps = [":routing_component_lib"],
+    name = "routing",
+    srcs = ["main.cc"],
+    deps = [
+        ":routing_lib",
+        "//external:gflags",
+    ],
 )
 
 filegroup(

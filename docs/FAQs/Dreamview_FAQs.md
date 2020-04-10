@@ -28,11 +28,6 @@ Ex:
 This way, dreamview can be accessed from http://localhost:<PORT_NUMBER> (http://localhost:5555 from the example)
 
 ---
-## Dreamview is too slow. How do I resolve it?
-
-If you feel Dreamview is taking too long to load/work, please run both the [WebGL reports](http://webglreport.com/?v=1). If there are any missing drivers, please install them
-
----
 ## How to draw anything in DreamView (e.g. an arrow)
 
 Dreamview uses https://github.com/mrdoob/three.js as graphics library. You can modify the frontend code to draw an arrow using the corresponding API of the library. After that you need to run a `./apollo.sh build_fe` to compile.
@@ -43,13 +38,6 @@ Dreamview uses https://github.com/mrdoob/three.js as graphics library. You can m
 Use dreamview and enable sim_control on dreamview to test your planning algorithm.
 
 ---
-
-## Adding a new point of interest permanently in the Dreamview interface
-
-There's a default_end_way_point file for each map to specify point of interest, you can refer to [the following file](https://github.com/ApolloAuto/apollo/blob/master/modules/map/data/demo/default_end_way_point.txt).
-
----
-
 ## What's the function of sim_control in the backend of dreamview
 
 It simulates a SDC's control module, and moves the car based on planning result. This is a really convenient way to visualize and test planning module
@@ -72,7 +60,8 @@ Purpose of sim control: drive the car based on the planning trajectory. Good for
     bash scripts/bootstrap.sh start
 ```
  
-**Please note**, planning and routing modules (see image below) should be ON while using SimControl. To navigate the ego-car, select either “route editing” or “default routing” from the side bar to define a route. You can turn the sim_control on and off from the toggle. However, a new routing request is needed each time the sim_control is restarted.
+**Please note**, planning and routing modules (see image below) should be ON while using SimControl. To navigate the ego-car, select either “route editing” or “default routing” from the side bar to define a route.
+
 ![](images/sim_control_2.0.png)
 
 ---
@@ -202,19 +191,4 @@ And finally restart Dreamview using
     bash scripts/bootstrap.sh start
 ```
 
----
-
-## I want to plot my own graphs for my algorithms, where should I go?
-
-Go to the PnC Monitor section in [Dreamview Doc](https://github.com/ApolloAuto/apollo/blob/master/docs/specs/dreamview_usage_table.md).
-
---- 
-
-## What is Dreamland?
-
-Dreamland is Apollo's web-based simulation platform. Based on an enormous amount of driving scenario data and large-scale cloud computing capacity, Apollo simulation engine creates a powerful testing environment for the development of an autonomous driving system, from algorithms to grading, and then back to improved algorithms. It enables the developers and start-ups to run millions of miles of simulation daily, which dramatically accelerates the development cycle.
-
-To access Dreamland, please visit [our Simulation website](http://apollo.auto/platform/simulation.html) and join now!
-
----
 **More DreamView FAQs to follow.**

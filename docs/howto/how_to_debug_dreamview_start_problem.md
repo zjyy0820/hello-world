@@ -7,8 +7,9 @@ If you encounter problems when starting Dreamview in the `docker/scripts/dev` se
 ```bash
 $ bash docker/scripts/dev_start.sh
 $ bash docker/scripts/dev_into.sh
+$ cd /apollo
 $ bash apollo.sh build
-$ bash scripts/bootstrap.sh
+$ bash scripts/dreamview.sh
 ```
 ### Dreamview Fails to Start
 
@@ -48,13 +49,11 @@ $ start_gdb dreamview
 
 Once gdb is launched, press `r` and `enter` key to run,  if dreamview crashes, then get the backtrace with `bt`.
 
-### CPU does not support FMA/FMA3 instructions
-
 If you see an error `Illegal instruction` and something related with **libpcl_sample_consensus.so.1.7** in gdb backtrace, then you probably need to rebuild pcl lib from source by yourself and replace the one in the docker.
 
 This usually happens when you're trying to run Apollo/dreamview on a machine that the CPU does not support FMA/FMA3 instructions, it will fail because the prebuilt pcl lib shipped with docker image is compiled with FMA/FMA3 support.
 
-There are 2 steps to resolve this issue:
+There are 2 steps to deducing this issue:
 1. Identify if the issue is due to pcl lib through gdb:
     find the coredump file under /apollo/data/core/ with name core_dreamview.$PID.
 If you see logs like:
@@ -100,7 +99,7 @@ Program terminated with signal SIGILL, Illegal instruction.
 #9  0x0000000000000000 in ?? ()
 (gdb) q
 
-@in_dev_docker:/apollo$ addr2line -C -f -e /usr/local/lib/libpcl_sample_consensus.so.1.7.2 0x375bec
+@in_dev_docker:/apollo$ addr2line -C -f -e /usr/local/lib/libpcl_sample_consensus.so.1.7.2 0x375bec 
 double boost::math::detail::erf_inv_imp<double, boost::math::policies::policy<boost::math::policies::promote_float<false>, boost::math::policies::promote_double<false>, boost::math::policies::default_policy, boost::math::policies::default_policy, boost::math::policies::default_policy, boost::math::policies::default_policy, boost::math::policies::default_policy, boost::math::policies::default_policy, boost::math::policies::default_policy, boost::math::policies::default_policy, boost::math::policies::default_policy, boost::math::policies::default_policy, boost::math::policies::default_policy> >(double const&, double const&, boost::math::policies::policy<boost::math::policies::promote_float<false>, boost::math::policies::promote_double<false>, boost::math::policies::default_policy, boost::math::policies::default_policy, boost::math::policies::default_policy, boost::math::policies::default_policy, boost::math::policies::default_policy, boost::math::policies::default_policy, boost::math::policies::default_policy, boost::math::policies::default_policy, boost::math::policies::default_policy, boost::math::policies::default_policy, boost::math::policies::default_policy> const&, mpl_::int_<64> const*)
 ??:?
 ```
@@ -118,24 +117,17 @@ apolloauto/apollo   map_volume-sunnyvale_big_loop-latest   80aca30fa08a        3
 apolloauto/apollo   localization_volume-x86_64-latest      be947abaa650        2 months ago        5.74MB
 apolloauto/apollo   map_volume-sunnyvale_loop-latest       36dc0d1c2551        2 months ago        906MB
 
-build cmd:
+build cmd: 
 in_dev_docker:/apollo$ ./apollo.sh build_no_perception dbg
 ```
 2. Compile pcl and copy the pcl library files to `/usr/local/lib`:
 
-See [/apollo/WORKSPACE.in](https://github.com/ApolloAuto/apollo/blob/master/WORKSPACE.in) to identify your pcl library version:
-- Prior to Apollo 5.0 (inclusive): pcl-1.7
-- After Apollo 5.0: pcl-1.9
-
 Inside docker:
 ```
 (to keep pcl in host, we save pcl under /apollo)
-cd /apollo
+cd /apollo 
 git clone https://github.com/PointCloudLibrary/pcl.git
-
-git checkout -b <your pcl-lib version> pcl-<your pcl-lib version>
-Ex: git checkout -b 1.7.2 pcl-1.7.2
-    git checkout -b 1.9.1 pcl-1.9.1
+git checkout -b 1.7.2 pcl-1.7.2
 ```
 then hack CMakeLists.txt with :
 ```
@@ -145,9 +137,9 @@ index f0a5600..42c182e 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -7,6 +7,15 @@ endif()
-
+ 
  set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "possible configurations" FORCE)
-
+ 
 +if (CMAKE_VERSION VERSION_LESS "3.1")
 +# if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 +    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
@@ -168,7 +160,6 @@ cd pcl
 mkdir build
 cd build
 cmake  ..
-make
 (We don't know the parameters that Apollo used, so we keep it by default)
 
 #backup pcl lib
@@ -187,21 +178,3 @@ And finally restart Dreamview using
     bash scripts/bootstrap.sh start
 ```
 
-### CPU does not support AVX instructions
-
-If CPU does not support AVX instructions, and you gdb the coredump file under /apollo/data/core/ with name core_dreamview.$PID, you may see logs like:
-
-```
-Program terminated with signal SIGILL, Illegal instruction.
-#0  0x000000000112b70a in std::_Hashtable<std::string, std::string, std::allocator<std::string>, std::__detail::_Identity, std::equal_to<std::string>, google::protobuf::hash<std::string>, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<true, true, true> >::_Hashtable (this=0x3640288, __bucket_hint=10,
-    __h1=..., __h2=..., __h=..., __eq=..., __exk=..., __a=...)
----Type <return> to continue, or q <return> to quit---
-    at /usr/include/c++/4.8/bits/hashtable.h:828
-828          _M_rehash_policy()
-```
-
-To resolve this issue, in apollo/apollo.sh, comment or delete:
-```
---copt=-mavx2
-```
-Then try to build and start dreamview again.

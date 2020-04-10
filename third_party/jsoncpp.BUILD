@@ -8,4 +8,6 @@ cc_library(
         "lib/libjsoncpp.so",
         "lib/libjsoncpp.so.0",
     ],
+    linkopts = [
+    ],
 )

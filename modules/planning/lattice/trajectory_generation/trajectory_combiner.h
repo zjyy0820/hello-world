@@ -18,7 +18,8 @@
  * @file
  **/
 
-#pragma once
+#ifndef MODULES_PLANNING_LATTICE_TRAJECTORY_GENERATION_TRAJECTORY_COMBINER_H_
+#define MODULES_PLANNING_LATTICE_TRAJECTORY_GENERATION_TRAJECTORY_COMBINER_H_
 
 #include <vector>
 
@@ -39,3 +40,5 @@ class TrajectoryCombiner {
 
 }  // namespace planning
 }  // namespace apollo
+
+#endif  // MODULES_PLANNING_LATTICE_TRAJECTORY_GENERATION_TRAJECTORY_COMBINER_H_

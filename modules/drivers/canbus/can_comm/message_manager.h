@@ -18,17 +18,18 @@
  * @file message_manager.h
  * @brief The class of MessageManager
  */
-#pragma once
+#ifndef MODULES_DRIVERS_CANBUS_CAN_COMM_MESSAGE_MANAGER_H_
+#define MODULES_DRIVERS_CANBUS_CAN_COMM_MESSAGE_MANAGER_H_
 
-#include <condition_variable>
 #include <memory>
 #include <mutex>
 #include <set>
 #include <thread>
 #include <unordered_map>
 #include <vector>
+#include <condition_variable>
 
-#include "cyber/common/log.h"
+#include "modules/common/log.h"
 #include "modules/common/proto/error_code.pb.h"
 #include "modules/common/time/time.h"
 #include "modules/drivers/canbus/can_comm/protocol_data.h"
@@ -68,8 +69,8 @@ template <typename SensorType>
 class MessageManager {
  public:
   /*
-   * @brief constructor function
-   */
+  * @brief constructor function
+  */
   MessageManager() {}
   /*
    * @brief destructor function
@@ -87,7 +88,7 @@ class MessageManager {
 
   void ClearSensorData();
 
-  std::condition_variable *GetMutableCVar();
+  std::condition_variable* GetMutableCVar();
 
   /**
    * @brief get mutable protocol data by message id
@@ -192,12 +193,11 @@ void MessageManager<SensorType>::Parse(const uint32_t message_id,
   // check if need to check period
   const auto it = check_ids_.find(message_id);
   if (it != check_ids_.end()) {
-    const int64_t time = absl::ToUnixMicros(Clock::Now());
+    const int64_t time = apollo::common::time::AsInt64<micros>(Clock::Now());
     it->second.real_period = time - it->second.last_time;
     // if period 1.5 large than base period, inc error_count
     const double period_multiplier = 1.5;
-    if (static_cast<double>(it->second.real_period) >
-        (static_cast<double>(it->second.period) * period_multiplier)) {
+    if (it->second.real_period > (it->second.period * period_multiplier)) {
       it->second.error_count += 1;
     } else {
       it->second.error_count = 0;
@@ -213,7 +213,7 @@ void MessageManager<SensorType>::ClearSensorData() {
 }
 
 template <typename SensorType>
-std::condition_variable *MessageManager<SensorType>::GetMutableCVar() {
+std::condition_variable* MessageManager<SensorType>::GetMutableCVar() {
   return &cvar_;
 }
 
@@ -243,3 +243,5 @@ void MessageManager<SensorType>::ResetSendMessages() {
 }  // namespace canbus
 }  // namespace drivers
 }  // namespace apollo
+
+#endif  // MODULES_DRIVERS_CANBUS_CAN_COMM_MESSAGE_MANAGER_H_

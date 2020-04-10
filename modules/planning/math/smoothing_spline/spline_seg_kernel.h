@@ -22,13 +22,15 @@
  *           P is the kernel of k-th smooth kernel
  **/
 
-#pragma once
+#ifndef MODULES_PLANNING_MATH_SMOOTHING_SPLINE_SPLINE_SEG_KERNEL_H_
+#define MODULES_PLANNING_MATH_SMOOTHING_SPLINE_SPLINE_SEG_KERNEL_H_
 
+#include <cstddef>
 #include <string>
 
 #include "Eigen/Core"
 
-#include "cyber/common/macros.h"
+#include "modules/common/macro.h"
 
 namespace apollo {
 namespace planning {
@@ -65,8 +67,10 @@ class SplineSegKernel {
   Eigen::MatrixXd kernel_second_order_derivative_;
   Eigen::MatrixXd kernel_third_order_derivative_;
 
-  DECLARE_SINGLETON(SplineSegKernel)
+  DECLARE_SINGLETON(SplineSegKernel);
 };
 
 }  // namespace planning
 }  // namespace apollo
+
+#endif  // MODULES_PLANNING_MATH_SMOOTHING_SPLINE_SPLINE_SEG_KERNEL_H_

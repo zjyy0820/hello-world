@@ -1,49 +1,38 @@
-#!/usr/bin/env python3
-
-###############################################################################
-# Copyright 2019 The Apollo Authors. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-###############################################################################
-
 """
 print received perception message
 """
 import argparse
-from cyber_py3 import cyber
+import math
+import time
 
+import numpy
+import rospy
+from std_msgs.msg import String
+
+from modules.perception.proto.perception_obstacle_pb2 import PerceptionObstacle
 from modules.perception.proto.perception_obstacle_pb2 import PerceptionObstacles
 
 
 def receiver(data):
     """receiver"""
-    print(data)
+    perception = PerceptionObstacles()
+    perception.ParseFromString(data.data)
+    print str(perception)
 
 
-def perception_receiver(perception_channel):
+def perception_receiver(perception_topic):
     """publisher"""
-    cyber.init()
-    node = cyber.Node("perception")
-    node.create_reader(perception_channel, PerceptionObstacles, receiver)
-    node.spin()
+    rospy.init_node('perception', anonymous=True)
+    pub = rospy.Subscriber(perception_topic, String, receiver)
+    rospy.spin()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="create fake perception obstacles",
-                                     prog="print_perception.py")
-    parser.add_argument("-c", "--channel", action="store", type=str,
-                        default="/apollo/perception/obstacles",
-                        help="set the perception channel")
-
+            prog="replay_perception.py")
+    parser.add_argument("-t", "--topic", action="store", type=str, default="/perception/obstacles",
+            help="set the perception topic")
+    parser.add_argument("-p", "--period", action="store", type=float, default=0.1,
+            help="set the perception topic publish time duration")
     args = parser.parse_args()
-    perception_receiver(args.channel)
+    perception_receiver(args.topic)

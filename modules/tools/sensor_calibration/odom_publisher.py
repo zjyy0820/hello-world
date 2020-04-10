@@ -5,19 +5,17 @@ import atexit
 import logging
 import os
 import sys
-import time
 
-#from common.logger import Logger
-from cyber_py import cyber
-from cyber_py import cyber_time
+import rospy
+from gflags import FLAGS
 
 from modules.localization.proto import localization_pb2
 from modules.localization.proto import gps_pb2
 
 class OdomPublisher(object):
-    def __init__(self, node):
+    def __init__(self):
         self.localization = localization_pb2.LocalizationEstimate()
-        self.gps_odom_pub = node.create_writer('/apollo/sensor/gnss/odometry', gps_pb2.Gps) 
+        self.gps_odom_pub = rospy.Publisher('/apollo/sensor/gnss/odometry', gps_pb2.Gps, queue_size=1) 
         self.sequence_num = 0
         self.terminating = False
         self.position_x = 0
@@ -47,14 +45,10 @@ class OdomPublisher(object):
         self.linear_velocity_y = self.localization.pose.linear_velocity.y
         self.linear_velocity_z = self.localization.pose.linear_velocity.z
 
-    def publish_odom(self):
+    def odom_callback(self):
         odom = gps_pb2.Gps()
-        now = cyber_time.Time.now().to_sec()
+        now = rospy.get_time()
         odom.header.timestamp_sec = now
-        odom.header.module_name = "odometry"
-        odom.header.sequence_num = self.sequence_num
-        self.sequence_num = self.sequence_num + 1
-
         odom.localization.position.x = self.position_x
         odom.localization.position.y = self.position_y
         odom.localization.position.z = self.position_z
@@ -65,32 +59,32 @@ class OdomPublisher(object):
         odom.localization.linear_velocity.x = self.linear_velocity_x
         odom.localization.linear_velocity.y = self.linear_velocity_y
         odom.localization.linear_velocity.z = self.linear_velocity_z
-        #self.logger.info("%s"%odom)
-        self.gps_odom_pub.write(odom)
+        rospy.loginfo("%s"%odom)
+        self.gps_odom_pub.publish(odom)
 
     def shutdown(self):
         """
         shutdown rosnode
         """
         self.terminating = True
-        #self.logger.info("Shutting Down...")
-        time.sleep(0.2)
+        self.logger.info("Shutting Down...")
+        self.file_handler.close()
+        rospy.sleep(0.1)
 
 def main():
     """
     Main rosnode
     """
-    node = cyber.Node('odom_publisher')
-    odom = OdomPublisher(node)
-    node.create_reader('/apollo/localization/pose', localization_pb2.LocalizationEstimate, odom.localization_callback)
-    while not cyber.is_shutdown():
-        now = cyber_time.Time.now().to_sec()
-        odom.publish_odom()
-        sleep_time = 0.01 - (cyber_time.Time.now().to_sec() - now)
-        if sleep_time > 0:
-            time.sleep(sleep_time)
+    rospy.init_node('odom_publisher', anonymous=True)
+    odom = OdomPublisher()
+    rospy.Subscriber('/apollo/localization/pose', localization_pb2.LocalizationEstimate, odom.localization_callback)
+    rate = rospy.Rate(100)
+    while not rospy.is_shutdown():
+        odom.odom_callback()
+        rate.sleep()
 
 if __name__ == '__main__':
-    cyber.init()
-    main()
-    cyber.shutdown()
+    try:
+        main()
+    except rospy.ROSInterruptException:
+        pass

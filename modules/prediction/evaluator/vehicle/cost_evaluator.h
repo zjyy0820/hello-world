@@ -14,13 +14,13 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef MODULES_PREDICTION_EVALUATOR_VEHICLE_COST_EVALUATOR_H_
+#define MODULES_PREDICTION_EVALUATOR_VEHICLE_COST_EVALUATOR_H_
 
-#include <string>
-
+#include "modules/prediction/container/obstacles/obstacle.h"
 #include "modules/prediction/evaluator/evaluator.h"
-
-#include "modules/prediction/container/obstacles/obstacles_container.h"
+#include "modules/prediction/proto/feature.pb.h"
+#include "modules/prediction/proto/lane_graph.pb.h"
 
 namespace apollo {
 namespace prediction {
@@ -30,7 +30,7 @@ class CostEvaluator : public Evaluator {
   /**
    * @brief Constructor
    */
-  CostEvaluator();
+  CostEvaluator() = default;
 
   /**
    * @brief Destructor
@@ -40,15 +40,8 @@ class CostEvaluator : public Evaluator {
   /**
    * @brief Override Evaluate
    * @param Obstacle pointer
-   * @param Obstacles container
    */
-  bool Evaluate(Obstacle* obstacle_ptr,
-                ObstaclesContainer* obstacles_container) override;
-
-  /**
-   * @brief Get the name of evaluator.
-   */
-  std::string GetName() override { return "COST_EVALUATOR"; }
+  void Evaluate(Obstacle* obstacle_ptr) override;
 
  private:
   double ComputeProbability(const double obstacle_length,
@@ -62,3 +55,5 @@ class CostEvaluator : public Evaluator {
 
 }  // namespace prediction
 }  // namespace apollo
+
+#endif  // MODULES_PREDICTION_EVALUATOR_VEHICLE_COST_EVALUATOR_H_

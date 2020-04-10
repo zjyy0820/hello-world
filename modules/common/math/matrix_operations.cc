@@ -21,7 +21,6 @@
 
 #include <cmath>
 #include <utility>
-
 #include "Eigen/Dense"
 #include "Eigen/SVD"
 

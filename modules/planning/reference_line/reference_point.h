@@ -18,7 +18,8 @@
  * @file reference_point.h
  **/
 
-#pragma once
+#ifndef MODULES_PLANNING_REFERENCE_LINE_REFERENCE_POINT_H_
+#define MODULES_PLANNING_REFERENCE_LINE_REFERENCE_POINT_H_
 
 #include <string>
 #include <vector>
@@ -53,3 +54,5 @@ class ReferencePoint : public hdmap::MapPathPoint {
 
 }  // namespace planning
 }  // namespace apollo
+
+#endif  // MODULES_PLANNING_REFERENCE_LINE_REFERENCE_POINT_H_

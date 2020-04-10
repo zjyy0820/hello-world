@@ -19,7 +19,8 @@
  * @brief Defines the Byte class.
  */
 
-#pragma once
+#ifndef MODULES_DRIVERS_CANBUS_COMMON_BYTE_H_
+#define MODULES_DRIVERS_CANBUS_COMMON_BYTE_H_
 
 #include <string>
 
@@ -177,3 +178,5 @@ class Byte {
 }  // namespace canbus
 }  // namespace drivers
 }  // namespace apollo
+
+#endif  // MODULES_DRIVERS_CANBUS_COMMON_BYTE_H_

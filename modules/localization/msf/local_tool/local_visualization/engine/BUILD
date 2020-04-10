@@ -12,17 +12,17 @@ cc_library(
         "visualization_engine.h",
         "visualization_manager.h",
     ],
-    copts = [
-        "-O2",
-        "-DMODULE_NAME=\\\"localization_visualizer\\\"",
+    linkopts = [
+        "-lboost_filesystem",
+        "-lboost_system",
+        "-lboost_program_options",
     ],
     deps = [
-        "//cyber",
+        "//modules/common:log",
         "//modules/common/util",
         "//modules/localization/msf/common/io:localization_msf_common_io",
-        "//modules/localization/msf/local_pyramid_map/base_map:localization_pyramid_map_base_map",
-        "//third_party:boost",
-        "@eigen",
+        "//modules/localization/msf/local_map/base_map:localization_msf_base_map",
+        "@eigen//:eigen",
     ],
 )
 

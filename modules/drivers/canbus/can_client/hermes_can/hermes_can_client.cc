@@ -16,10 +16,11 @@
 
 #include "modules/drivers/canbus/can_client/hermes_can/hermes_can_client.h"
 
-#include <cstdio>
-#include <cstring>
-#include <iostream>
+#include <stdio.h>
+#include <string.h>
 #include <vector>
+
+#include <iostream>
 
 namespace apollo {
 namespace drivers {
@@ -67,7 +68,7 @@ ErrorCode HermesCanClient::Start() {
            << ", channel id: " << _card_port;
     return ErrorCode::CAN_CLIENT_ERROR_BASE;
   }
-  AINFO << "Open device succ code: " << ret << ", channel id: " << _card_port;
+  AERROR << "Open device succ code: " << ret << ", channel id: " << _card_port;
 
   // 1. set baudrate to 500k
   ret = bcan_set_baudrate(_dev_handler, BCAN_BAUDRATE_500K);

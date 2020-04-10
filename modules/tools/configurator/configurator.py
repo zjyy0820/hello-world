@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 ###############################################################################
 # Copyright 2017 The Apollo Authors. All Rights Reserved.
@@ -21,8 +21,6 @@ Tool to modify configuration files
 import curses
 import os
 import traceback
-import six
-from six.moves import xrange  # pylint: disable=redefined-builtin
 
 from ModuleConf import ModuleConf
 
@@ -55,7 +53,7 @@ class Configurator(object):
                 module_name, proto_file, proto_class, conf_file = line.strip(
                 ).split(' ')
                 if module_name == 'MODULE' or proto_file == '#' or\
-                        proto_class == "#" or conf_file == '#':
+                    proto_class == "#" or conf_file == '#':
                     pass
                 else:
                     moduleconf = ModuleConf(module_name, proto_file,
@@ -89,7 +87,7 @@ class Configurator(object):
         self.stdscr.addstr(1, 50, "Class", curses.A_BOLD)
         self.stdscr.addstr(1, 65, "Configuration File", curses.A_BOLD)
 
-        for idx in range(len(self.moduleconf)):
+        for idx in xrange(len(self.moduleconf)):
             lidx = idx + 2
             if idx == self.select:
                 self.stdscr.addstr(lidx, 2, self.moduleconf[idx].name,
@@ -100,8 +98,8 @@ class Configurator(object):
             self.stdscr.addstr(lidx, 10, self.moduleconf[idx].proto_file)
             self.stdscr.addstr(lidx, 50, self.moduleconf[idx].proto_class)
             self.stdscr.addstr(lidx, 65, self.moduleconf[idx].conf_file,
-                               curses.color_pair(1 if not self.moduleconf[idx]
-                                                 .found_conf else 2))
+                               curses.color_pair(1 if self.moduleconf[idx]
+                                                 .found_conf == False else 2))
 
         if self.select == len(self.moduleconf):
             self.stdscr.addstr(
@@ -128,7 +126,7 @@ class Configurator(object):
         """
         Update Main Screen
         """
-        for idx in range(len(self.moduleconf)):
+        for idx in xrange(len(self.moduleconf)):
             lidx = idx + 2
             if idx == self.select:
                 self.stdscr.addstr(lidx, 2, self.moduleconf[idx].name,
@@ -162,4 +160,4 @@ if __name__ == '__main__':
         curses.wrapper(main)
     except Exception as e:
         tb = traceback.format_exc()
-        print(tb)
+        print tb

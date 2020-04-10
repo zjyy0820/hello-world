@@ -4,10 +4,13 @@ package(default_visibility = ["//visibility:public"])
 
 cc_library(
     name = "gnss_util",
-    srcs = [],
+    srcs = [
+        "utils.cc",
+    ],
     hdrs = [
         "macros.h",
-        "time_conversion.h",
+        "utils.h",
+        "time_conversion.h"
     ],
     deps = [
         "//modules/drivers/gnss/proto:gnss_proto",

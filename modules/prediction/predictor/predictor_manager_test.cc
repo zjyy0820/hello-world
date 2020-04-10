@@ -16,16 +16,27 @@
 
 #include "modules/prediction/predictor/predictor_manager.h"
 
-#include "cyber/common/file.h"
+#include <string>
+
+#include "gtest/gtest.h"
+
+#include "modules/common/util/file.h"
+#include "modules/common/adapters/adapter_manager.h"
+#include "modules/map/hdmap/hdmap.h"
+#include "modules/common/adapters/proto/adapter_config.pb.h"
+#include "modules/perception/proto/perception_obstacle.pb.h"
+#include "modules/prediction/proto/prediction_conf.pb.h"
 #include "modules/prediction/common/kml_map_based_test.h"
 #include "modules/prediction/common/prediction_gflags.h"
 #include "modules/prediction/container/container_manager.h"
+#include "modules/prediction/container/obstacles/obstacle.h"
 #include "modules/prediction/container/obstacles/obstacles_container.h"
 #include "modules/prediction/evaluator/evaluator_manager.h"
 
 namespace apollo {
 namespace prediction {
 
+using apollo::common::adapter::AdapterManager;
 using apollo::common::adapter::AdapterConfig;
 
 class PredictorManagerTest : public KMLMapBasedTest {
@@ -33,7 +44,7 @@ class PredictorManagerTest : public KMLMapBasedTest {
   void SetUp() override {
     std::string file =
         "modules/prediction/testdata/single_perception_vehicle_onlane.pb.txt";
-    ACHECK(cyber::common::GetProtoFromFile(file, &perception_obstacles_));
+    CHECK(apollo::common::util::GetProtoFromFile(file, &perception_obstacles_));
   }
 
  protected:
@@ -45,31 +56,26 @@ class PredictorManagerTest : public KMLMapBasedTest {
 TEST_F(PredictorManagerTest, General) {
   FLAGS_enable_trim_prediction_trajectory = false;
   std::string conf_file = "modules/prediction/testdata/adapter_conf.pb.txt";
-  bool ret_load_conf =
-      cyber::common::GetProtoFromFile(conf_file, &adapter_conf_);
+  bool ret_load_conf = common::util::GetProtoFromFile(
+      conf_file, &adapter_conf_);
   EXPECT_TRUE(ret_load_conf);
   EXPECT_TRUE(adapter_conf_.IsInitialized());
 
-  ContainerManager::Instance()->Init(adapter_conf_);
-  EvaluatorManager::Instance()->Init(prediction_conf_);
-  PredictorManager::Instance()->Init(prediction_conf_);
+  ContainerManager::instance()->Init(adapter_conf_);
+  EvaluatorManager::instance()->Init(prediction_conf_);
+  PredictorManager::instance()->Init(prediction_conf_);
 
-  auto obstacles_container =
-      ContainerManager::Instance()->GetContainer<ObstaclesContainer>(
-          AdapterConfig::PERCEPTION_OBSTACLES);
+  ObstaclesContainer* obstacles_container = dynamic_cast<ObstaclesContainer*>(
+      ContainerManager::instance()->GetContainer(
+          AdapterConfig::PERCEPTION_OBSTACLES));
   CHECK_NOTNULL(obstacles_container);
   obstacles_container->Insert(perception_obstacles_);
 
-  auto adc_trajectory_container =
-      ContainerManager::Instance()->GetContainer<ADCTrajectoryContainer>(
-          AdapterConfig::PLANNING_TRAJECTORY);
-
-  EvaluatorManager::Instance()->Run(obstacles_container);
-  PredictorManager::Instance()->Run(
-      perception_obstacles_, adc_trajectory_container, obstacles_container);
+  EvaluatorManager::instance()->Run(perception_obstacles_);
+  PredictorManager::instance()->Run(perception_obstacles_);
 
   const PredictionObstacles& prediction_obstacles =
-      PredictorManager::Instance()->prediction_obstacles();
+      PredictorManager::instance()->prediction_obstacles();
   EXPECT_EQ(prediction_obstacles.prediction_obstacle_size(), 1);
 }
 

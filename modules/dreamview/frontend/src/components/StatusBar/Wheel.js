@@ -1,9 +1,8 @@
 import React from "react";
 import { observer } from "mobx-react";
 
-import classNames from "classnames";
 
-class Wheel extends React.PureComponent {
+class Wheel extends React.Component {
     render() {
         const { steeringAngle } = this.props;
 
@@ -12,7 +11,7 @@ class Wheel extends React.PureComponent {
                 <circle className="wheel-background" cx="50" cy="50" r="45" />
                 <g className="wheel-arm" transform={`rotate(${steeringAngle} 50 50)`}>
                     <rect x="45" y="7" height="10" width="10" />
-                    <line x1="50" y1="50" x2="50" y2="5" />
+                    <line x1="50" y1="50" x2="50" y2="5"/>
                 </g>
             </svg>
         );
@@ -21,19 +20,29 @@ class Wheel extends React.PureComponent {
 
 @observer
 export default class WheelPanel extends React.Component {
+    constructor(props) {
+        super(props);
+        this.signalColor = {
+            off: '#30435E',
+            on: '#006AFF',
+        };
+    }
+
     render() {
         const { steeringPercentage, steeringAngle, turnSignal } = this.props;
 
-        const isLeftOn = (turnSignal === 'LEFT' || turnSignal === 'EMERGENCY');
-        const isRightOn = (turnSignal === 'RIGHT' || turnSignal === 'EMERGENCY');
+        const leftArrowColor = (turnSignal === 'LEFT' || turnSignal === 'EMERGENCY')
+                               ? this.signalColor.on : this.signalColor.off;
+        const rightArrowColor = (turnSignal === 'RIGHT' || turnSignal === 'EMERGENCY')
+                                ? this.signalColor.on : this.signalColor.off;
 
         return (
             <div className="wheel-panel">
                 <div className="steerangle-read">{steeringPercentage}</div>
                 <div className="steerangle-unit">%</div>
-                <div className={classNames({ "left-arrow": true, "blink-left": isLeftOn })} />
+                <div className="left-arrow" style={{borderRightColor: leftArrowColor}} />
                 <Wheel steeringAngle={steeringAngle} />
-                <div className={classNames({ "right-arrow": true, "blink-right": isRightOn })} />
+                <div className="right-arrow" style={{borderLeftColor: rightArrowColor}} />
             </div>
         );
     }

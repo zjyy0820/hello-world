@@ -19,7 +19,8 @@
  * @brief Define the data container base class
  */
 
-#pragma once
+#ifndef MODULES_PREDICTION_CONTAINER_CONTAINER_H_
+#define MODULES_PREDICTION_CONTAINER_CONTAINER_H_
 
 #include "google/protobuf/message.h"
 
@@ -51,3 +52,5 @@ class Container {
 
 }  // namespace prediction
 }  // namespace apollo
+
+#endif  // MODULES_PREDICTION_CONTAINER_CONTAINER_H_

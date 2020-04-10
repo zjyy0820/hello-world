@@ -18,7 +18,8 @@
  * @file
  * @brief The engine for localization visualization.
  */
-#pragma once
+#ifndef MODULES_LOCALIZATION_MSF_LOCAL_TOOL_VISUALIZATION_ENGINE_H_
+#define MODULES_LOCALIZATION_MSF_LOCAL_TOOL_VISUALIZATION_ENGINE_H_
 
 #include <list>
 #include <map>
@@ -291,3 +292,5 @@ class VisualizationEngine {
 }  // namespace msf
 }  // namespace localization
 }  // namespace apollo
+
+#endif  // MODULES_LOCALIZATION_MSF_LOCAL_TOOL_VISUALIZATION_ENGINE_H_

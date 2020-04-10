@@ -18,9 +18,9 @@
  * @file
  */
 
-#pragma once
+#ifndef MODULES_PREDICTION_PREDICTOR_EMPTY_EMPTY_PREDICTOR_H_
+#define MODULES_PREDICTION_PREDICTOR_EMPTY_EMPTY_PREDICTOR_H_
 
-#include "modules/prediction/container/obstacles/obstacles_container.h"
 #include "modules/prediction/predictor/predictor.h"
 
 namespace apollo {
@@ -31,7 +31,7 @@ class EmptyPredictor : public Predictor {
   /**
    * @brief Constructor
    */
-  EmptyPredictor();
+  EmptyPredictor() = default;
 
   /**
    * @brief Destructor
@@ -41,13 +41,11 @@ class EmptyPredictor : public Predictor {
   /**
    * @brief Make prediction
    * @param Obstacle pointer
-   * @param Obstacles container
-   * @return If predicted successfully
    */
-  bool Predict(const ADCTrajectoryContainer* adc_trajectory_container,
-               Obstacle* obstacle,
-               ObstaclesContainer* obstacles_container) override;
+  void Predict(Obstacle* obstacle) override;
 };
 
 }  // namespace prediction
 }  // namespace apollo
+
+#endif  // MODULES_PREDICTION_PREDICTOR_EMPTY_EMPTY_PREDICTOR_H_

@@ -20,66 +20,60 @@
 
 #include "modules/planning/common/path_decision.h"
 
-#include "modules/perception/proto/perception_obstacle.pb.h"
+#include <memory>
+#include <utility>
 
-#include "modules/common/configs/vehicle_config_helper.h"
 #include "modules/common/util/util.h"
 
 namespace apollo {
 namespace planning {
 
-Obstacle *PathDecision::AddObstacle(const Obstacle &obstacle) {
-  return obstacles_.Add(obstacle.Id(), obstacle);
+using IndexedPathObstacles = IndexedList<std::string, PathObstacle>;
+
+PathObstacle *PathDecision::AddPathObstacle(const PathObstacle &path_obstacle) {
+  std::lock_guard<std::mutex> lock(obstacle_mutex_);
+  return path_obstacles_.Add(path_obstacle.Id(), path_obstacle);
 }
 
-const IndexedObstacles &PathDecision::obstacles() const { return obstacles_; }
-
-Obstacle *PathDecision::Find(const std::string &object_id) {
-  return obstacles_.Find(object_id);
+const IndexedPathObstacles &PathDecision::path_obstacles() const {
+  return path_obstacles_;
 }
 
-const Obstacle *PathDecision::Find(const std::string &object_id) const {
-  return obstacles_.Find(object_id);
+PathObstacle *PathDecision::Find(const std::string &object_id) {
+  return path_obstacles_.Find(object_id);
 }
 
-const perception::PerceptionObstacle *PathDecision::FindPerceptionObstacle(
-    const std::string &perception_obstacle_id) const {
-  for (const auto *obstacle : obstacles_.Items()) {
-    if (std::to_string(obstacle->Perception().id()) == perception_obstacle_id) {
-      return &(obstacle->Perception());
-    }
-  }
-
-  return nullptr;
+const PathObstacle *PathDecision::Find(const std::string &object_id) const {
+  return path_obstacles_.Find(object_id);
 }
 
-void PathDecision::SetSTBoundary(const std::string &id,
-                                 const STBoundary &boundary) {
-  auto *obstacle = obstacles_.Find(id);
+void PathDecision::SetStBoundary(const std::string &id,
+                                 const StBoundary &boundary) {
+  auto *obstacle = path_obstacles_.Find(id);
 
   if (!obstacle) {
     AERROR << "Failed to find obstacle : " << id;
     return;
   } else {
-    obstacle->set_path_st_boundary(boundary);
+    obstacle->SetStBoundary(boundary);
   }
 }
 
 bool PathDecision::AddLateralDecision(const std::string &tag,
                                       const std::string &object_id,
                                       const ObjectDecisionType &decision) {
-  auto *obstacle = obstacles_.Find(object_id);
-  if (!obstacle) {
+  auto *path_obstacle = path_obstacles_.Find(object_id);
+  if (!path_obstacle) {
     AERROR << "failed to find obstacle";
     return false;
   }
-  obstacle->AddLateralDecision(tag, decision);
+  path_obstacle->AddLateralDecision(tag, decision);
   return true;
 }
 
 void PathDecision::EraseStBoundaries() {
-  for (const auto *obstacle : obstacles_.Items()) {
-    auto *obstacle_ptr = obstacles_.Find(obstacle->Id());
+  for (const auto *path_obstacle : path_obstacles_.Items()) {
+    auto *obstacle_ptr = path_obstacles_.Find(path_obstacle->Id());
     obstacle_ptr->EraseStBoundary();
   }
 }
@@ -87,12 +81,12 @@ void PathDecision::EraseStBoundaries() {
 bool PathDecision::AddLongitudinalDecision(const std::string &tag,
                                            const std::string &object_id,
                                            const ObjectDecisionType &decision) {
-  auto *obstacle = obstacles_.Find(object_id);
-  if (!obstacle) {
+  auto *path_obstacle = path_obstacles_.Find(object_id);
+  if (!path_obstacle) {
     AERROR << "failed to find obstacle";
     return false;
   }
-  obstacle->AddLongitudinalDecision(tag, decision);
+  path_obstacle->AddLongitudinalDecision(tag, decision);
   return true;
 }
 
@@ -100,25 +94,23 @@ bool PathDecision::MergeWithMainStop(const ObjectStop &obj_stop,
                                      const std::string &obj_id,
                                      const ReferenceLine &reference_line,
                                      const SLBoundary &adc_sl_boundary) {
-  common::PointENU stop_point = obj_stop.stop_point();
+  apollo::common::PointENU stop_point = obj_stop.stop_point();
   common::SLPoint stop_line_sl;
-  reference_line.XYToSL(stop_point, &stop_line_sl);
+  reference_line.XYToSL({stop_point.x(), stop_point.y()}, &stop_line_sl);
 
   double stop_line_s = stop_line_sl.s();
-  if (stop_line_s < 0.0 || stop_line_s > reference_line.Length()) {
+  if (stop_line_s < 0 || stop_line_s > reference_line.Length()) {
     AERROR << "Ignore object:" << obj_id << " fence route_s[" << stop_line_s
            << "] not in range[0, " << reference_line.Length() << "]";
     return false;
   }
 
   // check stop_line_s vs adc_s, ignore if it is further way than main stop
-  const auto &vehicle_config = common::VehicleConfigHelper::GetConfig();
-  stop_line_s = std::fmax(
-      stop_line_s, adc_sl_boundary.end_s() -
-                       vehicle_config.vehicle_param().front_edge_to_center());
+  const double kStopBuff = 1.0;
+  stop_line_s = std::fmax(stop_line_s, adc_sl_boundary.end_s() - kStopBuff);
 
   if (stop_line_s >= stop_reference_line_s_) {
-    ADEBUG << "stop point is farther than current main stop point.";
+    ADEBUG << "stop point is further than current main stop point.";
     return false;
   }
 

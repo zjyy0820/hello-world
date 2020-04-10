@@ -15,7 +15,6 @@
  *****************************************************************************/
 
 #include "modules/drivers/canbus/can_client/hermes_can/hermes_can_client.h"
-
 #include "gtest/gtest.h"
 
 namespace apollo {

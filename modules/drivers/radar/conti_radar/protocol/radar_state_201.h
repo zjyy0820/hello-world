@@ -14,7 +14,8 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef MODULES_DRIVERS_RADAR_CONTI_RADAR_PROTOCOL_RADAR_STATE_201_H_
+#define MODULES_DRIVERS_RADAR_CONTI_RADAR_PROTOCOL_RADAR_STATE_201_H_
 
 #include "modules/drivers/canbus/can_comm/protocol_data.h"
 #include "modules/drivers/proto/conti_radar.pb.h"
@@ -51,3 +52,5 @@ class RadarState201 : public apollo::drivers::canbus::ProtocolData<ContiRadar> {
 }  // namespace conti_radar
 }  // namespace drivers
 }  // namespace apollo
+
+#endif  // MODULES_CANBUS_VEHICL_ESR_PROTOCOL_RADAR_STATE_201_H_

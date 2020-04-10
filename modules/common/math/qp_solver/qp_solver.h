@@ -23,7 +23,8 @@
  *                          C * x >= d (inequality constraint)
  **/
 
-#pragma once
+#ifndef MODULES_COMMON_MATH_QP_SOLVER_QP_SOLVER_H_
+#define MODULES_COMMON_MATH_QP_SOLVER_QP_SOLVER_H_
 
 #include "Eigen/Core"
 #include "Eigen/LU"
@@ -69,3 +70,5 @@ class QpSolver {
 }  // namespace math
 }  // namespace common
 }  // namespace apollo
+
+#endif  // MODULES_COMMON_MATH_QP_SOLVER_QP_SOLVER_H_

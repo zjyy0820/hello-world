@@ -7,8 +7,7 @@ export default [
             1: 'Default',
             2: 'Near',
             3: 'Overhead',
-            4: 'Map',
-            5: 'CameraView',
+            4: 'Map'
         },
         supportInOfflineView: true,
     },
@@ -38,9 +37,7 @@ export default [
         type: 'checkbox',
         data: {
             predictionMajor: 'Major Prediction Line',
-            predictionMinor: 'Minor Prediction Line',
-            predictionGaussianInfo: 'Gaussian Info',
-            predictionPriority: 'Priority'
+            predictionMinor: 'Minor Prediction Line'
         },
         supportInOfflineView: true,
     }, {
@@ -66,8 +63,10 @@ export default [
         type: 'checkbox',
         data: {
             planningCar: 'Planning Car',
-            planningTrajectory: 'Planning Trajectory',
-            rssInfo: 'RSS Info'
+            planningLine: 'Planning Line',
+            planningQpOptimizer: 'Qp Optimizer Line',
+            planningDpOptimizer: 'Dp Optimizer Line',
+            planningReference: 'Reference Line',
         },
         supportInOfflineView: true,
     }, {
@@ -77,9 +76,8 @@ export default [
         data: {
             positionLocalization: 'Localization',
             positionGps: 'GPS',
-            positionShadow: 'Shadow',
         },
-        supportInOfflineView: true,
+        supportInOfflineView: false,
     }, {
         id: 'map',
         title: 'Map',
@@ -88,15 +86,10 @@ export default [
             mapCrosswalk: 'Crosswalk',
             mapClearArea: 'Clear Area',
             mapJunction: 'Junction',
-            mapPncJunction: 'PNC Junction',
             mapLane: 'Lane',
             mapRoad: 'Road',
             mapSignal: 'Signal',
             mapStopSign: 'Stop Sign',
-            mapYield: 'Yield Sign',
-            mapSpeedBump: 'Speed Bump',
-            mapParkingSpace: 'Parking Space',
-            mapLaneId: 'Lane Id'
         },
         supportInOfflineView: false,
     },

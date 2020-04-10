@@ -18,7 +18,8 @@
  * @file
  **/
 
-#pragma once
+#ifndef MODULES_PLANNING_LATTICE_BEHAVIOR_PREDICTION_QUERIER_H_
+#define MODULES_PLANNING_LATTICE_BEHAVIOR_PREDICTION_QUERIER_H_
 
 #include <memory>
 #include <string>
@@ -32,17 +33,19 @@ namespace planning {
 
 class PredictionQuerier {
  public:
-  PredictionQuerier(const std::vector<const Obstacle*>& obstacles,
-                    const std::shared_ptr<std::vector<common::PathPoint>>&
-                        ptr_reference_line);
+  explicit PredictionQuerier(
+      const std::vector<const Obstacle*>& obstacles,
+      const std::shared_ptr<std::vector<common::PathPoint>>&
+      ptr_reference_line);
 
   virtual ~PredictionQuerier() = default;
 
   std::vector<const Obstacle*> GetObstacles() const;
 
-  double ProjectVelocityAlongReferenceLine(const std::string& obstacle_id,
-                                           const double s,
-                                           const double t) const;
+  double ProjectVelocityAlongReferenceLine(
+      const std::string& obstacle_id,
+      const double s,
+      const double t) const;
 
  private:
   std::unordered_map<std::string, const Obstacle*> id_obstacle_map_;
@@ -54,3 +57,5 @@ class PredictionQuerier {
 
 }  // namespace planning
 }  // namespace apollo
+
+#endif /* MODULES_PLANNING_LATTICE_BEHAVIOR_PREDICTION_QUERIER_H_ */

@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-#pragma once
+#ifndef MODULES_CANBUS_VEHICL_LINCOLN_PROTOCOL_LICENSE_7E_H
+#define MODULES_CANBUS_VEHICL_LINCOLN_PROTOCOL_LICENSE_7E_H
 
 #include <string>
 
@@ -240,3 +241,5 @@ class License7e : public ::apollo::drivers::canbus::ProtocolData<
 }  // namespace lincoln
 }  // namespace canbus
 }  // namespace apollo
+
+#endif  // MODULES_CANBUS_VEHICL_LINCOLN_PROTOCOL_LICENSE_7E_H_

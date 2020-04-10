@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-
 #include "modules/dreamview/backend/hmi/hmi_worker.h"
 
 #include "gtest/gtest.h"
@@ -21,14 +20,9 @@
 namespace apollo {
 namespace dreamview {
 
-TEST(HMIWorker, LoadConfigAndMode) {
-  const HMIConfig config = HMIWorker::LoadConfig();
-  for (const auto& iter : config.modes()) {
-    const std::string& mode_conf_file = iter.second;
-    const HMIMode& mode = HMIWorker::LoadMode(mode_conf_file);
-    EXPECT_FALSE(mode.modules().empty())
-        << "No HMI module loaded from " << mode_conf_file;
-  }
+TEST(HMIWorkerTest, Init) {
+  const auto& hmi_config = HMIWorker::instance()->GetConfig();
+  EXPECT_GT(hmi_config.available_vehicles().size(), 0);
 }
 
 }  // namespace dreamview

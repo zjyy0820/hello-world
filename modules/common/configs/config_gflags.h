@@ -14,7 +14,8 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef MODULES_COMMON_CONFIGS_GFLAGS_H_
+#define MODULES_COMMON_CONFIGS_GFLAGS_H_
 
 #include "gflags/gflags.h"
 
@@ -30,12 +31,9 @@ DECLARE_string(routing_map_filename);
 DECLARE_string(end_way_point_filename);
 DECLARE_string(speed_control_filename);
 
-DECLARE_double(look_forward_time_sec);
-
 DECLARE_string(vehicle_config_path);
-DECLARE_string(vehicle_model_config_filename);
 
-DECLARE_bool(use_cyber_time);
+DECLARE_bool(use_ros_time);
 
 DECLARE_string(localization_tf2_frame_id);
 DECLARE_string(localization_tf2_child_frame_id);
@@ -44,9 +42,4 @@ DECLARE_string(navigation_mode_end_way_point_file);
 
 DECLARE_double(half_vehicle_width);
 
-DECLARE_bool(use_sim_time);
-
-DECLARE_bool(reverse_heading_vehicle_state);
-
-DECLARE_bool(state_transform_to_com_reverse);
-DECLARE_bool(state_transform_to_com_drive);
+#endif  // MODULES_COMMON_CONFIGS_GFLAGS_H_

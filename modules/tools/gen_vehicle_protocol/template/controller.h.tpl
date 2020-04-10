@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright 2019 The Apollo Authors. All Rights Reserved.
+ * Copyright 2017 The Apollo Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,8 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef MODULES_CANBUS_VEHICLE_%(car_type_upper)s_%(car_type_upper)s_PROTOCOL_MANAGER_H_
+#define MODULES_CANBUS_VEHICLE_%(car_type_upper)s_%(car_type_upper)s_PROTOCOL_MANAGER_H_
 
 #include <memory>
 #include <thread>
@@ -24,6 +25,7 @@
 #include "modules/canbus/proto/canbus_conf.pb.h"
 #include "modules/canbus/proto/chassis.pb.h"
 #include "modules/canbus/proto/vehicle_parameter.pb.h"
+#include "modules/common/macro.h"
 #include "modules/common/proto/error_code.pb.h"
 #include "modules/control/proto/control_cmd.pb.h"
 
@@ -78,10 +80,6 @@ class %(car_type_cap)sController final : public VehicleController {
   // gas:0.00~99.99 unit:
   void Throttle(double throttle) override;
 
-  // drive with acceleration/deceleration
-  // acc:-7.0~5.0 unit:m/s^2
-  void Acceleration(double acc) override;
-
   // steering with old angle speed
   // angle:-99.99~0.00~99.99, unit:, left:+, right:-
   void Steer(double angle) override;
@@ -127,3 +125,5 @@ class %(car_type_cap)sController final : public VehicleController {
 }  // namespace %(car_type_lower)s
 }  // namespace canbus
 }  // namespace apollo
+
+#endif  // MODULES_CANBUS_VEHICLE_%(car_type_upper)s_%(car_type_upper)s_PROTOCOL_MANAGER_H_

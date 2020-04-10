@@ -1,23 +1,17 @@
-import { action, computed, observable, runInAction } from 'mobx';
-import { LinearInterpolant } from 'three';
-import { parseChartDataFromProtoBuf } from 'utils/chart';
-import SETTING from "store/config/PlanningGraph.yml";
-
-const MAX_SCENARIO_LENGTH = 5;
-
-const PATH_DISPLAY_NAME = SETTING.nameMapper;
+import {action, computed, observable, runInAction} from 'mobx';
+import {LinearInterpolant} from 'three';
 
 export default class PlanningData {
-  @observable planningTimeSec = null;
+  @observable planningTime = null;
 
   data = this.initData();
 
-  chartData = [];
+  latencyGraph = {
+      planning: []
+  };
 
-  scenarioHistory = [];
-
-  @action updatePlanningTime(newTimeInSec) {
-    this.planningTimeSec = newTimeInSec;
+  @action updatePlanningTime(newTime) {
+    this.planningTime = newTime;
   }
 
   initData() {
@@ -30,6 +24,7 @@ export default class PlanningData {
       thetaGraph: {},
       kappaGraph: {},
       dkappaGraph: {},
+      dpPolyGraph: {},
     };
   }
 
@@ -163,14 +158,13 @@ export default class PlanningData {
     const graph = this.data.speedGraph;
     if (speedPlans) {
       for (const plan of speedPlans) {
-        const name = PATH_DISPLAY_NAME[plan.name] || plan.name;
-        graph[name] = this.extractDataPoints(plan.speedPoint, 't', 'v');
+        graph[plan.name] = this.extractDataPoints(plan.speedPoint, 't', 'v');
       }
     }
 
     if (trajectory) {
-      graph.VehicleSpeed = this.extractDataPoints(
-        trajectory, 'timestampSec', 'speed', false /* loop back */, -this.planningTimeSec);
+      graph.finalSpeed = this.extractDataPoints(
+        trajectory, 'timestampSec', 'speed', false /* loop back */, -this.planningTime);
     }
   }
 
@@ -178,101 +172,85 @@ export default class PlanningData {
     const graph = this.data.accelerationGraph;
     if (trajectory) {
       graph.acceleration = this.extractDataPoints(
-        trajectory, 'timestampSec', 'speedAcceleration', false /* loop back */, -this.planningTimeSec);
+        trajectory, 'timestampSec', 'speedAcceleration', false /* loop back */, -this.planningTime);
     }
   }
 
-  updatePathThetaGraph(paths) {
+  updateThetaGraph(paths) {
     for (const path of paths) {
-      const name = PATH_DISPLAY_NAME[path.name] || path.name;
+      const name = path.name === "planning_reference_line" ? "ReferenceLine" : path.name;
       this.data.thetaGraph[name] =
         this.extractDataPoints(path.pathPoint, 's', 'theta');
     }
   }
 
-  updateTrajectoryThetaGraph(trajectory) {
-    if (trajectory) {
-      this.data.thetaGraph['Trajectory'] =
-        this.extractDataPoints(trajectory, 'timestampSec', 'heading');
-    }
-  }
-
-  updatePathKappaGraph(paths) {
+  updateKappaGraph(paths) {
     for (const path of paths) {
-      const name = PATH_DISPLAY_NAME[path.name] || path.name;
+      const name = path.name === "planning_reference_line" ? "ReferenceLine" : path.name;
       this.data.kappaGraph[name] =
         this.extractDataPoints(path.pathPoint, 's', 'kappa');
     }
   }
 
-  updateTrajectoryKappaGraph(trajectory) {
-    if (trajectory) {
-      this.data.kappaGraph['Trajectory'] =
-        this.extractDataPoints(trajectory, 'timestampSec', 'kappa');
-    }
-  }
-
-  updatePathDkappaGraph(paths) {
+  updateDkappaGraph(paths) {
     for (const path of paths) {
-      const name = PATH_DISPLAY_NAME[path.name] || path.name;
+      const name = path.name === "planning_reference_line" ? "ReferenceLine" : path.name;
       this.data.dkappaGraph[name] =
         this.extractDataPoints(path.pathPoint, 's', 'dkappa');
     }
   }
 
-  updateTrajectoryDkappaGraph(trajectory) {
-    if (trajectory) {
-      this.data.dkappaGraph['Trajectory'] =
-        this.extractDataPoints(trajectory, 'timestampSec', 'dkappa');
+  updateLatencyGraph(currentTime, latencyStates) {
+    const timeRange = 300000; // 5 min
+    for (const moduleName in this.latencyGraph) {
+      let graph = this.latencyGraph[moduleName];
+      if (graph.length > 0) {
+        const startTime = graph[0].x;
+        const endTime = graph[graph.length - 1].x;
+        const diff = currentTime - startTime;
+        if (currentTime < endTime) {
+          // new data set, clean up existing one
+          this.latencyGraph[moduleName] = [];
+          graph = this.latencyGraph[moduleName];
+
+        } else if (diff > timeRange) {
+          // shift out old data
+          graph.shift();
+        }
+      }
+
+      if (graph.length === 0 ||
+          graph[graph.length - 1].x !== currentTime) {
+          graph.push({x: currentTime, y: latencyStates.planning});
+      }
     }
   }
 
-  updateScenario(newScenario, newTimeInSec) {
-    if (!newScenario) {
-      return;
-    }
+  updateDpPolyGraph(dpPolyData) {
+    const graph = this.data.dpPolyGraph;
 
-    const currScenario = this.scenarioHistory.length > 0
-            ? this.scenarioHistory[this.scenarioHistory.length - 1] : {};
-
-    if (currScenario.timeSec && newTimeInSec < currScenario.timeSec) {
-        // new data set, clean up existing one
-        this.scenarioHistory = [];
-    }
-
-    if (currScenario.scenarioType !== newScenario.scenarioType ||
-        currScenario.stageType !== newScenario.stageType) {
-      this.scenarioHistory.push({
-        timeSec: newTimeInSec,
-        scenarioType: newScenario.scenarioType,
-        stageType: newScenario.stageType,
-      });
-      if (this.scenarioHistory.length > MAX_SCENARIO_LENGTH) {
-        this.scenarioHistory.shift();
+    if (dpPolyData.sampleLayer) {
+      graph.sampleLayer = [];
+      for (const sample of dpPolyData.sampleLayer) {
+        sample.slPoint.map(({s, l}) => {
+          graph.sampleLayer.push({x:s, y:l});
+        });
       }
+    }
+
+    if (dpPolyData.minCostPoint) {
+      graph.minCostPoint = this.extractDataPoints(dpPolyData.minCostPoint, 's', 'l');
     }
   }
 
   update(world) {
     const planningData = world.planningData;
     if (planningData) {
-      const newPlanningTime = world.latency.planning.timestampSec;
-      if (this.planningTimeSec === newPlanningTime) {
+      if (this.planningTime === world.planningTime) {
         return;
       }
 
-      if (planningData.scenario) {
-        this.updateScenario(planningData.scenario, newPlanningTime);
-      }
-
-      this.chartData = [];
       this.data = this.initData();
-
-      if (planningData.chart) {
-        for (const chart of planningData.chart) {
-          this.chartData.push(parseChartDataFromProtoBuf(chart));
-        }
-      }
 
       if (planningData.slFrame && planningData.slFrame.length >= 2) {
         this.updateSLFrame(planningData.slFrame);
@@ -289,18 +267,23 @@ export default class PlanningData {
 
       if (world.planningTrajectory) {
         this.updateAccelerationGraph(world.planningTrajectory);
-        this.updateTrajectoryThetaGraph(world.planningTrajectory);
-        this.updateTrajectoryKappaGraph(world.planningTrajectory);
-        this.updateTrajectoryDkappaGraph(world.planningTrajectory);
       }
 
       if (planningData.path) {
-        this.updatePathKappaGraph(planningData.path);
-        this.updatePathDkappaGraph(planningData.path);
-        this.updatePathThetaGraph(planningData.path);
+        this.updateKappaGraph(planningData.path);
+        this.updateDkappaGraph(planningData.path);
+        this.updateThetaGraph(planningData.path);
       }
 
-      this.updatePlanningTime(newPlanningTime);
+      if (planningData.dpPolyGraph) {
+        this.updateDpPolyGraph(planningData.dpPolyGraph);
+      }
+
+      if (world.latency) {
+        this.updateLatencyGraph(world.planningTime, world.latency);
+      }
+
+      this.updatePlanningTime(world.planningTime);
     }
   }
 }

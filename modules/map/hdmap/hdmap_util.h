@@ -13,16 +13,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 =========================================================================*/
 
-#pragma once
+#ifndef MODULES_MAP_HDMAP_HDMAP_UTIL_H_
+#define MODULES_MAP_HDMAP_HDMAP_UTIL_H_
 
 #include <memory>
+#include <mutex>
 #include <string>
 
-#include "absl/strings/str_cat.h"
-#include "modules/common/configs/config_gflags.h"
-#include "modules/map/hdmap/hdmap.h"
 #include "modules/map/proto/map_id.pb.h"
-#include "modules/map/relative_map/proto/navigation.pb.h"
+#include "modules/map/proto/map_speed_control.pb.h"
+
+#include "modules/common/configs/config_gflags.h"
+#include "modules/common/util/file.h"
+#include "modules/common/util/string_util.h"
+#include "modules/map/hdmap/hdmap.h"
 
 /**
  * @namespace apollo::hdmap
@@ -55,11 +59,20 @@ std::string RoutingMapFile();
  */
 inline std::string EndWayPointFile() {
   if (FLAGS_use_navigation_mode) {
-    return absl::StrCat(FLAGS_navigation_mode_end_way_point_file);
+    return apollo::common::util::StrCat(
+        FLAGS_navigation_mode_end_way_point_file);
   } else {
-    return absl::StrCat(FLAGS_map_dir, "/", FLAGS_end_way_point_filename);
+    return apollo::common::util::StrCat(FLAGS_map_dir, "/",
+                                        FLAGS_end_way_point_filename);
   }
 }
+
+inline std::string SpeedControlFile() {
+  return apollo::common::util::StrCat(FLAGS_map_dir, "/",
+                                      FLAGS_speed_control_filename);
+}
+
+const SpeedControls* GetSpeedControls();
 
 /**
  * @brief create a Map ID given a string.
@@ -79,7 +92,6 @@ class HDMapUtil {
   // Get default base map from the file specified by global flags.
   // Return nullptr if failed to load.
   static const HDMap* BaseMapPtr();
-  static const HDMap* BaseMapPtr(const relative_map::MapMsg& map_msg);
   // Guarantee to return a valid base_map, or else raise fatal error.
   static const HDMap& BaseMap();
 
@@ -106,3 +118,5 @@ class HDMapUtil {
 
 }  // namespace hdmap
 }  // namespace apollo
+
+#endif  // MODULES_MAP_HDMAP_HDMAP_UTIL_H_

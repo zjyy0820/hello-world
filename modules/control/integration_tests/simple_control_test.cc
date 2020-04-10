@@ -14,15 +14,21 @@
  * limitations under the License.
  *****************************************************************************/
 
-#include "cyber/common/log.h"
+#include <memory>
+#include <string>
+#include <utility>
+
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
 #include "gtest/gtest.h"
+#include "modules/common/log.h"
 
 #include "modules/common/time/time.h"
 #include "modules/common/util/util.h"
 #include "modules/control/common/control_gflags.h"
 #include "modules/control/integration_tests/control_test_base.h"
+
+using apollo::common::time::Clock;
 
 namespace apollo {
 namespace control {
@@ -30,8 +36,7 @@ namespace control {
 class SimpleControlTest : public ControlTestBase {
  public:
   virtual void SetUp() {
-    FLAGS_test_data_dir =
-        "/apollo/modules/control/testdata/simple_control_test/";
+    FLAGS_test_data_dir = "modules/control/testdata/simple_control_test/";
   }
 };
 

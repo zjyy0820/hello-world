@@ -14,7 +14,8 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef BCAN_DEFS_H
+#define BCAN_DEFS_H
 
 #ifndef __KERNEL__
 #include <sys/time.h>
@@ -52,3 +53,5 @@ enum bcan_err_code {
   BCAN_OK, /* 0 */
   BCAN_PARTIAL_OK
 };
+
+#endif

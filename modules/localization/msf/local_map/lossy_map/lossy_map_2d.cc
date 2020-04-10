@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright 2018 The Apollo Authors. All Rights Reserved.
+ * Copyright 2017 The Apollo Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ void LossyMap2D::PreloadMapArea(const Eigen::Vector3d& location,
                                 unsigned int resolution_id,
                                 unsigned int zone_id) {
   BaseMap::PreloadMapArea(location, trans_diff, resolution_id, zone_id);
+  return;
 }
 
 bool LossyMap2D::LoadMapArea(const Eigen::Vector3d& seed_pt3d,

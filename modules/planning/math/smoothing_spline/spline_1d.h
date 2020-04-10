@@ -26,9 +26,12 @@
  *the piecewise spline;
  **/
 
-#pragma once
+#ifndef MODULES_PLANNING_MATH_SMOOTHING_SPLINE_SPLINE_1D_H_
+#define MODULES_PLANNING_MATH_SMOOTHING_SPLINE_SPLINE_1D_H_
 
 #include <vector>
+
+#include "Eigen/Core"
 
 #include "modules/planning/math/polynomial_xd.h"
 #include "modules/planning/math/smoothing_spline/affine_constraint.h"
@@ -54,8 +57,6 @@ class Spline1d {
   const std::vector<double>& x_knots() const;
   uint32_t spline_order() const;
 
-  const std::vector<Spline1dSeg>& splines() const;
-
  private:
   uint32_t FindIndex(const double x) const;
 
@@ -67,3 +68,5 @@ class Spline1d {
 
 }  // namespace planning
 }  // namespace apollo
+
+#endif  // MODULES_PLANNING_MATH_SMOOTHING_SPLINE_SPLINE_1D_H_

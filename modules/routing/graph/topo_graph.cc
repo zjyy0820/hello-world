@@ -1,22 +1,25 @@
 /******************************************************************************
- * Copyright 2017 The Apollo Authors. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *****************************************************************************/
+  * Copyright 2017 The Apollo Authors. All Rights Reserved.
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+  * You may obtain a copy of the License at
+  *
+  * http://www.apache.org/licenses/LICENSE-2.0
+  *
+  * Unless required by applicable law or agreed to in writing, software
+  * distributed under the License is distributed on an "AS IS" BASIS,
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  *****************************************************************************/
 
 #include "modules/routing/graph/topo_graph.h"
 
 #include <utility>
+
+#include "modules/common/util/file.h"
+#include "modules/routing/graph/topo_node.h"
 
 namespace apollo {
 namespace routing {
@@ -28,12 +31,12 @@ void TopoGraph::Clear() {
 }
 
 bool TopoGraph::LoadNodes(const Graph& graph) {
-  if (graph.node().empty()) {
+  if (graph.node_size() == 0) {
     AERROR << "No nodes found in topology graph.";
     return false;
   }
   for (const auto& node : graph.node()) {
-    node_index_map_[node.lane_id()] = static_cast<int>(topo_nodes_.size());
+    node_index_map_[node.lane_id()] = topo_nodes_.size();
     std::shared_ptr<TopoNode> topo_node;
     topo_node.reset(new TopoNode(node));
     road_node_map_[node.road_id()].insert(topo_node.get());
@@ -44,7 +47,7 @@ bool TopoGraph::LoadNodes(const Graph& graph) {
 
 // Need to execute load_nodes() firstly
 bool TopoGraph::LoadEdges(const Graph& graph) {
-  if (graph.edge().empty()) {
+  if (graph.edge_size() == 0) {
     AINFO << "0 edges found in topology graph, but it's fine";
     return true;
   }
@@ -80,7 +83,7 @@ bool TopoGraph::LoadGraph(const Graph& graph) {
     AERROR << "Failed to load edges from topology graph.";
     return false;
   }
-  AINFO << "Load Topo data successful.";
+  AINFO << "Load Topo data succesful.";
   return true;
 }
 

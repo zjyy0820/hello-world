@@ -20,12 +20,15 @@
 
 #include "modules/planning/common/path/frenet_frame_path.h"
 
+#include <vector>
+
 #include "gtest/gtest.h"
 
 namespace apollo {
 namespace planning {
 
 using apollo::common::FrenetFramePoint;
+using apollo::common::PathPoint;
 
 class FrenetFramePathTest : public ::testing::Test {
  public:
@@ -35,7 +38,7 @@ class FrenetFramePathTest : public ::testing::Test {
     std::vector<double> dl{1, 0, -1, 0, -1, 0, 1, 1, 1, 0};
     std::vector<double> ddl{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     std::vector<FrenetFramePoint> sl_points;
-    for (size_t i = 0; i < s.size(); ++i) {
+    for (std::size_t i = 0; i < s.size(); ++i) {
       sl_points.emplace_back();
       FrenetFramePoint& point = sl_points.back();
       point.set_s(s[i]);
@@ -43,7 +46,7 @@ class FrenetFramePathTest : public ::testing::Test {
       point.set_dl(dl[i]);
       point.set_ddl(ddl[i]);
     }
-    path_.reset(new FrenetFramePath(std::move(sl_points)));
+    path_.reset(new FrenetFramePath(sl_points));
   }
   void SetUp() { InitFrenetFramePath(); }
 
@@ -59,10 +62,10 @@ TEST_F(FrenetFramePathTest, GetNearestPoint) {
     sl_boundary.set_start_l(0);
     sl_boundary.set_end_l(1);
     auto nearest = path_->GetNearestPoint(sl_boundary);
-    EXPECT_DOUBLE_EQ(nearest.s(), 1.0);
-    EXPECT_DOUBLE_EQ(nearest.l(), 1.0);
-    EXPECT_DOUBLE_EQ(nearest.dl(), 1.0);
-    EXPECT_DOUBLE_EQ(nearest.ddl(), 0.0);
+    EXPECT_FLOAT_EQ(nearest.s(), 1.0);
+    EXPECT_FLOAT_EQ(nearest.l(), 1.0);
+    EXPECT_FLOAT_EQ(nearest.dl(), 1.0);
+    EXPECT_FLOAT_EQ(nearest.ddl(), 0.0);
   }
   {
     // at the end
@@ -71,10 +74,10 @@ TEST_F(FrenetFramePathTest, GetNearestPoint) {
     sl_boundary.set_start_l(0);
     sl_boundary.set_end_l(1);
     auto nearest = path_->GetNearestPoint(sl_boundary);
-    EXPECT_DOUBLE_EQ(nearest.s(), 10.0);
-    EXPECT_DOUBLE_EQ(nearest.l(), 2.0);
-    EXPECT_DOUBLE_EQ(nearest.dl(), 0.0);
-    EXPECT_DOUBLE_EQ(nearest.ddl(), 0.0);
+    EXPECT_FLOAT_EQ(nearest.s(), 10.0);
+    EXPECT_FLOAT_EQ(nearest.l(), 2.0);
+    EXPECT_FLOAT_EQ(nearest.dl(), 0.0);
+    EXPECT_FLOAT_EQ(nearest.ddl(), 0.0);
   }
 
   {
@@ -84,10 +87,10 @@ TEST_F(FrenetFramePathTest, GetNearestPoint) {
     sl_boundary.set_start_l(3);
     sl_boundary.set_end_l(4);
     auto nearest = path_->GetNearestPoint(sl_boundary);
-    EXPECT_DOUBLE_EQ(nearest.s(), 2.0);
-    EXPECT_DOUBLE_EQ(nearest.l(), 2.0);
-    EXPECT_DOUBLE_EQ(nearest.dl(), 0.0);
-    EXPECT_DOUBLE_EQ(nearest.ddl(), 0.0);
+    EXPECT_FLOAT_EQ(nearest.s(), 2.0);
+    EXPECT_FLOAT_EQ(nearest.l(), 2.0);
+    EXPECT_FLOAT_EQ(nearest.dl(), 0.0);
+    EXPECT_FLOAT_EQ(nearest.ddl(), 0.0);
   }
   {
     // in the middle, right side
@@ -96,10 +99,10 @@ TEST_F(FrenetFramePathTest, GetNearestPoint) {
     sl_boundary.set_start_l(-4);
     sl_boundary.set_end_l(-3);
     auto nearest = path_->GetNearestPoint(sl_boundary);
-    EXPECT_DOUBLE_EQ(nearest.s(), 6.0);
-    EXPECT_DOUBLE_EQ(nearest.l(), -2.0);
-    EXPECT_DOUBLE_EQ(nearest.dl(), 0.0);
-    EXPECT_DOUBLE_EQ(nearest.ddl(), 0.0);
+    EXPECT_FLOAT_EQ(nearest.s(), 6.0);
+    EXPECT_FLOAT_EQ(nearest.l(), -2.0);
+    EXPECT_FLOAT_EQ(nearest.dl(), 0.0);
+    EXPECT_FLOAT_EQ(nearest.ddl(), 0.0);
   }
   {
     // in the middle, cross
@@ -108,10 +111,10 @@ TEST_F(FrenetFramePathTest, GetNearestPoint) {
     sl_boundary.set_start_l(-1);
     sl_boundary.set_end_l(0);
     auto nearest = path_->GetNearestPoint(sl_boundary);
-    EXPECT_DOUBLE_EQ(nearest.s(), 4.0);
-    EXPECT_DOUBLE_EQ(nearest.l(), 0.0);
-    EXPECT_DOUBLE_EQ(nearest.dl(), 0.0);
-    EXPECT_DOUBLE_EQ(nearest.ddl(), 0.0);
+    EXPECT_FLOAT_EQ(nearest.s(), 4.0);
+    EXPECT_FLOAT_EQ(nearest.l(), 0.0);
+    EXPECT_FLOAT_EQ(nearest.dl(), 0.0);
+    EXPECT_FLOAT_EQ(nearest.ddl(), 0.0);
   }
 }
 

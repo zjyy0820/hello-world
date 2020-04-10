@@ -18,10 +18,12 @@
  * @file
  **/
 
-#pragma once
+#ifndef MODULES_PREDICTION_COMMON_VALIDATION_CHECKER_H_
+#define MODULES_PREDICTION_COMMON_VALIDATION_CHECKER_H_
 
 #include <vector>
 
+#include "modules/common/proto/pnc_point.pb.h"
 #include "modules/prediction/proto/lane_graph.pb.h"
 
 namespace apollo {
@@ -30,21 +32,21 @@ namespace prediction {
 class ValidationChecker {
  public:
   /**
-   * @brief Compute the probability by centripetal acceleration
+   * @brief Compute the probability by centripedal acceleration
    * @param lane sequence
    * @param current speed of obstacle
    * @return probability
    */
-  static double ProbabilityByCentripetalAcceleration(
+  static double ProbabilityByCentripedalAcceleration(
       const LaneSequence& lane_sequence, const double speed);
 
   /**
-   * @brief Check the validity of trajectory's centripetal acceleration
-   * @param The discretized trajectory
-   * @return The validity of trajectory's centripetal acceleration
+   * @brief Check the validity of trajectory's centripedal acceleration
+   * @param trajectory_points The input trajectory points
+   * @return The validity of trajectory's centripedal acceleration
    */
-  static bool ValidCentripetalAcceleration(
-      const std::vector<common::TrajectoryPoint>& discretized_trajectory);
+  static bool ValidCentripedalAcceleration(
+      const std::vector<::apollo::common::TrajectoryPoint>& trajectory_points);
 
   /**
    * @brief Check if a trajectory point is valid
@@ -52,7 +54,7 @@ class ValidationChecker {
    * @return True if the trajectory point is valid
    */
   static bool ValidTrajectoryPoint(
-      const common::TrajectoryPoint& trajectory_point);
+      const ::apollo::common::TrajectoryPoint& trajectory_point);
 
  private:
   ValidationChecker() = delete;
@@ -60,3 +62,5 @@ class ValidationChecker {
 
 }  // namespace prediction
 }  // namespace apollo
+
+#endif  // MODULES_PREDICTION_COMMON_VALIDATION_CHECKER_H_

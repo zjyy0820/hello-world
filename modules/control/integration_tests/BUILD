@@ -4,49 +4,60 @@ package(default_visibility = ["//visibility:public"])
 
 cc_library(
     name = "control_test_base",
-    srcs = ["control_test_base.cc"],
-    hdrs = ["control_test_base.h"],
+    srcs = [
+        "control_test_base.cc",
+    ],
+    hdrs = [
+        "control_test_base.h",
+    ],
     deps = [
-        "//cyber",
-        "//modules/common/proto:geometry_proto",
+        "//modules/common:log",
+        "//modules/common/adapters:adapter_manager",
+        "//modules/common/proto:common_proto",
         "//modules/common/time",
-        "//modules/control:control_component_lib",
+        "//modules/control:control_lib",
         "//modules/control/common:control_gflags",
         "//modules/control/proto:control_proto",
-        "@com_google_googletest//:gtest_main",
+        "@gtest//:main",
     ],
 )
 
 cc_test(
     name = "simple_control_test",
     size = "small",
-    srcs = ["simple_control_test.cc"],
+    srcs = [
+        "simple_control_test.cc",
+    ],
     data = ["//modules/control:control_testdata"],
     deps = [
         ":control_test_base",
-        "@com_google_googletest//:gtest",
+        "@gtest//:gtest",
     ],
 )
 
 cc_test(
     name = "relative_position_test",
     size = "small",
-    srcs = ["relative_position_test.cc"],
+    srcs = [
+        "relative_position_test.cc",
+    ],
     data = ["//modules/control:control_testdata"],
     deps = [
         ":control_test_base",
-        "@com_google_googletest//:gtest",
+        "@gtest//:gtest",
     ],
 )
 
 cc_test(
     name = "mpc_controller_test",
     size = "small",
-    srcs = ["mpc_controller_test.cc"],
+    srcs = [
+        "mpc_controller_test.cc",
+    ],
     data = ["//modules/control:control_testdata"],
     deps = [
         ":control_test_base",
-        "@com_google_googletest//:gtest",
+        "@gtest//:gtest",
     ],
 )
 

@@ -19,11 +19,11 @@
  * @brief Define the Polygon2d class.
  */
 
-#pragma once
+#ifndef MODULES_COMMON_MATH_POLYGON2D_H_
+#define MODULES_COMMON_MATH_POLYGON2D_H_
 
 #include <string>
 #include <vector>
-
 #include "modules/common/math/box2d.h"
 #include "modules/common/math/line_segment2d.h"
 #include "modules/common/math/vec2d.h"
@@ -251,22 +251,10 @@ class Polygon2d {
    * @param other_polygon The target polygon. To compute its overlap with
    *        this polygon.
    * @param overlap_polygon The overlapped polygon.
-   * @param If there is an overlapped polygon.
+   * @param If there is a overlapped polygon.
    */
   bool ComputeOverlap(const Polygon2d &other_polygon,
                       Polygon2d *const overlap_polygon) const;
-
-  // Only compute intersection over union ratio between two convex polygons.
-  /**
-   * @brief Compute intersection over union ratio of this polygon and the other
-   * polygon. Note: this function only works for computing overlap
-   * between two convex polygons.
-   * @param other_polygon The target polygon. To compute its overlap with
-   *        this polygon.
-   * @return A value between 0.0 and 1.0, meaning no intersection to fully
-   * overlaping
-   */
-  double ComputeIoU(const Polygon2d &other_polygon) const;
 
   /**
    * @brief Get the axis-aligned bound box of the polygon.
@@ -339,3 +327,5 @@ class Polygon2d {
 }  // namespace math
 }  // namespace common
 }  // namespace apollo
+
+#endif /* MODULES_COMMON_MATH_POLYGON2D_H_ */

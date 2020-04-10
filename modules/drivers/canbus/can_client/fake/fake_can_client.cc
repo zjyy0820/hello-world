@@ -17,7 +17,6 @@
 #include "modules/drivers/canbus/can_client/fake/fake_can_client.h"
 
 #include <cstring>
-#include <thread>
 
 namespace apollo {
 namespace drivers {
@@ -62,13 +61,13 @@ ErrorCode FakeCanClient::Receive(std::vector<CanFrame> *const frames,
   const int MOCK_LEN = 8;
   for (size_t i = 0; i < frames->size(); ++i) {
     for (int j = 0; j < MOCK_LEN; ++j) {
-      (*frames)[i].data[j] = static_cast<uint8_t>(j);
+      (*frames)[i].data[j] = j;
     }
-    (*frames)[i].id = static_cast<uint32_t>(i);
+    (*frames)[i].id = i;
     (*frames)[i].len = MOCK_LEN;
     ADEBUG << (*frames)[i].CanFrameString() << "frame_num[" << i << "]";
   }
-  std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  usleep(USLEEP_INTERVAL);
   ++recv_counter_;
   return ErrorCode::OK;
 }

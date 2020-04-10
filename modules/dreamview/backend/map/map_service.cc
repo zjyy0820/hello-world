@@ -18,7 +18,6 @@
 
 #include <algorithm>
 #include <fstream>
-#include <utility>
 
 #include "modules/common/util/json_util.h"
 #include "modules/common/util/string_util.h"
@@ -28,22 +27,23 @@ namespace apollo {
 namespace dreamview {
 
 using apollo::common::PointENU;
+using apollo::common::util::JsonUtil;
 using apollo::hdmap::ClearAreaInfoConstPtr;
 using apollo::hdmap::CrosswalkInfoConstPtr;
 using apollo::hdmap::HDMapUtil;
 using apollo::hdmap::Id;
 using apollo::hdmap::JunctionInfoConstPtr;
-using apollo::hdmap::Lane;
 using apollo::hdmap::LaneInfoConstPtr;
 using apollo::hdmap::Map;
-using apollo::hdmap::MapPathPoint;
-using apollo::hdmap::ParkingSpaceInfoConstPtr;
 using apollo::hdmap::Path;
-using apollo::hdmap::PNCJunctionInfoConstPtr;
+using apollo::hdmap::PncMap;
+using apollo::hdmap::RoadInfoConstPtr;
+using apollo::hdmap::RouteSegments;
 using apollo::hdmap::SignalInfoConstPtr;
-using apollo::hdmap::SpeedBumpInfoConstPtr;
+using apollo::hdmap::SimMapFile;
 using apollo::hdmap::StopSignInfoConstPtr;
 using apollo::hdmap::YieldSignInfoConstPtr;
+using apollo::routing::RoutingRequest;
 using apollo::routing::RoutingResponse;
 using google::protobuf::RepeatedPtrField;
 
@@ -52,9 +52,33 @@ namespace {
 template <typename MapElementInfoConstPtr>
 void ExtractIds(const std::vector<MapElementInfoConstPtr> &items,
                 RepeatedPtrField<std::string> *ids) {
-  ids->Reserve(static_cast<unsigned int>(items.size()));
+  ids->Reserve(items.size());
   for (const auto &item : items) {
     ids->Add()->assign(item->id().id());
+  }
+  // The output is sorted so that the calculated hash will be
+  // invariant to the order of elements.
+  std::sort(ids->begin(), ids->end());
+}
+
+void ExtractOverlapIds(const std::vector<SignalInfoConstPtr> &items,
+                       RepeatedPtrField<std::string> *ids) {
+  for (const auto &item : items) {
+    for (auto &overlap_id : item->signal().overlap_id()) {
+      ids->Add()->assign(overlap_id.id());
+    }
+  }
+  // The output is sorted so that the calculated hash will be
+  // invariant to the order of elements.
+  std::sort(ids->begin(), ids->end());
+}
+
+void ExtractOverlapIds(const std::vector<StopSignInfoConstPtr> &items,
+                       RepeatedPtrField<std::string> *ids) {
+  for (const auto &item : items) {
+    for (auto &overlap_id : item->stop_sign().overlap_id()) {
+      ids->Add()->assign(overlap_id.id());
+    }
   }
   // The output is sorted so that the calculated hash will be
   // invariant to the order of elements.
@@ -64,8 +88,8 @@ void ExtractIds(const std::vector<MapElementInfoConstPtr> &items,
 void ExtractRoadAndLaneIds(const std::vector<LaneInfoConstPtr> &lanes,
                            RepeatedPtrField<std::string> *lane_ids,
                            RepeatedPtrField<std::string> *road_ids) {
-  lane_ids->Reserve(static_cast<unsigned int>(lanes.size()));
-  road_ids->Reserve(static_cast<unsigned int>(lanes.size()));
+  lane_ids->Reserve(lanes.size());
+  road_ids->Reserve(lanes.size());
 
   for (const auto &lane : lanes) {
     lane_ids->Add()->assign(lane->id().id());
@@ -186,36 +210,20 @@ void MapService::CollectMapElementIds(const PointENU &point, double radius,
   }
   ExtractIds(junctions, ids->mutable_junction());
 
-  std::vector<PNCJunctionInfoConstPtr> pnc_junctions;
-  if (SimMap()->GetPNCJunctions(point, radius, &pnc_junctions) != 0) {
-    AERROR << "Fail to get pnc junctions from sim_map.";
-  }
-  ExtractIds(pnc_junctions, ids->mutable_pnc_junction());
-
-  std::vector<ParkingSpaceInfoConstPtr> parking_spaces;
-  if (SimMap()->GetParkingSpaces(point, radius, &parking_spaces) != 0) {
-    AERROR << "Fail to get parking space from sim_map.";
-  }
-  ExtractIds(parking_spaces, ids->mutable_parking_space());
-
-  std::vector<SpeedBumpInfoConstPtr> speed_bumps;
-  if (SimMap()->GetSpeedBumps(point, radius, &speed_bumps) != 0) {
-    AERROR << "Fail to get speed bump from sim_map.";
-  }
-  ExtractIds(speed_bumps, ids->mutable_speed_bump());
-
   std::vector<SignalInfoConstPtr> signals;
   if (SimMap()->GetSignals(point, radius, &signals) != 0) {
     AERROR << "Failed to get signals from sim_map.";
   }
 
   ExtractIds(signals, ids->mutable_signal());
+  ExtractOverlapIds(signals, ids->mutable_overlap());
 
   std::vector<StopSignInfoConstPtr> stop_signs;
   if (SimMap()->GetStopSigns(point, radius, &stop_signs) != 0) {
     AERROR << "Failed to get stop signs from sim_map.";
   }
   ExtractIds(stop_signs, ids->mutable_stop_sign());
+  ExtractOverlapIds(stop_signs, ids->mutable_overlap());
 
   std::vector<YieldSignInfoConstPtr> yield_signs;
   if (SimMap()->GetYieldSigns(point, radius, &yield_signs) != 0) {
@@ -302,27 +310,11 @@ Map MapService::RetrieveMapElements(const MapElementIds &ids) const {
     }
   }
 
-  for (const auto &id : ids.parking_space()) {
+  for (const auto &id : ids.overlap()) {
     map_id.set_id(id);
-    auto element = SimMap()->GetParkingSpaceById(map_id);
+    auto element = SimMap()->GetOverlapById(map_id);
     if (element) {
-      *result.add_parking_space() = element->parking_space();
-    }
-  }
-
-  for (const auto &id : ids.speed_bump()) {
-    map_id.set_id(id);
-    auto element = SimMap()->GetSpeedBumpById(map_id);
-    if (element) {
-      *result.add_speed_bump() = element->speed_bump();
-    }
-  }
-
-  for (const auto &id : ids.pnc_junction()) {
-    map_id.set_id(id);
-    auto element = SimMap()->GetPNCJunctionById(map_id);
-    if (element) {
-      *result.add_pnc_junction() = element->pnc_junction();
+      *result.add_overlap() = element->overlap();
     }
   }
 
@@ -340,26 +332,6 @@ bool MapService::GetNearestLane(const double x, const double y,
   if (!MapReady() ||
       HDMap()->GetNearestLane(point, nearest_lane, nearest_s, nearest_l) < 0) {
     AERROR << "Failed to get nearest lane!";
-    return false;
-  }
-  return true;
-}
-
-bool MapService::GetNearestLaneWithHeading(const double x, const double y,
-                                           LaneInfoConstPtr *nearest_lane,
-                                           double *nearest_s, double *nearest_l,
-                                           const double heading) const {
-  boost::shared_lock<boost::shared_mutex> reader_lock(mutex_);
-
-  PointENU point;
-  point.set_x(x);
-  point.set_y(y);
-  static constexpr double kSearchRadius = 1.0;
-  static constexpr double kMaxHeadingDiff = 1.0;
-  if (!MapReady() || HDMap()->GetNearestLaneWithHeading(
-                         point, kSearchRadius, heading, kMaxHeadingDiff,
-                         nearest_lane, nearest_s, nearest_l) < 0) {
-    AERROR << "Failed to get nearest lane with heading.";
     return false;
   }
   return true;
@@ -394,61 +366,12 @@ bool MapService::ConstructLaneWayPoint(
     return false;
   }
 
-  if (!CheckRoutingPointLaneType(lane)) {
-    return false;
-  }
-
   laneWayPoint->set_id(lane->id().id());
   laneWayPoint->set_s(s);
   auto *pose = laneWayPoint->mutable_pose();
   pose->set_x(x);
   pose->set_y(y);
 
-  return true;
-}
-
-bool MapService::ConstructLaneWayPointWithHeading(
-    const double x, const double y, const double heading,
-    routing::LaneWaypoint *laneWayPoint) const {
-  double s, l;
-  LaneInfoConstPtr lane;
-  if (!GetNearestLaneWithHeading(x, y, &lane, &s, &l, heading)) {
-    return false;
-  }
-
-  if (!CheckRoutingPointLaneType(lane)) {
-    return false;
-  }
-
-  laneWayPoint->set_id(lane->id().id());
-  laneWayPoint->set_s(s);
-  auto *pose = laneWayPoint->mutable_pose();
-  pose->set_x(x);
-  pose->set_y(y);
-
-  return true;
-}
-
-bool MapService::CheckRoutingPoint(const double x, const double y) const {
-  double s, l;
-  LaneInfoConstPtr lane;
-  if (!GetNearestLane(x, y, &lane, &s, &l)) {
-    return false;
-  }
-  if (!CheckRoutingPointLaneType(lane)) {
-    return false;
-  }
-  return true;
-}
-
-bool MapService::CheckRoutingPointLaneType(LaneInfoConstPtr lane) const {
-  if (lane->lane().type() != Lane::CITY_DRIVING) {
-    AERROR
-        << "Failed to construct LaneWayPoint for RoutingRequest: Expected lane "
-        << lane->id().id() << " to be CITY_DRIVING, but was "
-        << apollo::hdmap::Lane::LaneType_Name(lane->lane().type());
-    return false;
-  }
   return true;
 }
 
@@ -466,10 +389,6 @@ bool MapService::GetStartPoint(apollo::common::PointENU *start_point) const {
 
 bool MapService::CreatePathsFromRouting(const RoutingResponse &routing,
                                         std::vector<Path> *paths) const {
-  if (routing.road().empty()) {
-    return false;
-  }
-
   for (const auto &road : routing.road()) {
     for (const auto &passage_region : road.passage()) {
       // Each passage region in a road forms a path
@@ -488,25 +407,20 @@ bool MapService::AddPathFromPassageRegion(
   }
   boost::shared_lock<boost::shared_mutex> reader_lock(mutex_);
 
-  std::vector<MapPathPoint> path_points;
+  RouteSegments segments;
   for (const auto &segment : passage_region.segment()) {
     auto lane_ptr = HDMap()->GetLaneById(hdmap::MakeMapId(segment.id()));
     if (!lane_ptr) {
       AERROR << "Failed to find lane: " << segment.id();
       return false;
     }
-    if (segment.start_s() >= segment.end_s()) {
-      continue;
-    }
-    auto points = MapPathPoint::GetPointsFromLane(lane_ptr, segment.start_s(),
-                                                  segment.end_s());
-    path_points.insert(path_points.end(), points.begin(), points.end());
+    segments.emplace_back(lane_ptr, segment.start_s(), segment.end_s());
   }
 
-  if (path_points.size() < 2) {
+  paths->emplace_back();
+  if (!PncMap::CreatePathFromLaneSegments(segments, &paths->back())) {
     return false;
   }
-  paths->emplace_back(Path(std::move(path_points)));
 
   return true;
 }

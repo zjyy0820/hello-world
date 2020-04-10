@@ -19,9 +19,10 @@
  * @brief: wrapper class for active set method in qpOases
  **/
 
-#pragma once
+#ifndef MODULES_COMMON_MATH_QP_SOLVER_ACTIVE_SET_QP_SOLVER_H_
+#define MODULES_COMMON_MATH_QP_SOLVER_ACTIVE_SET_QP_SOLVER_H_
 
-#include "qpOASES.hpp"
+#include <qpOASES.hpp>
 
 #include "modules/common/math/qp_solver/qp_solver.h"
 
@@ -110,3 +111,5 @@ class ActiveSetQpSolver : public QpSolver {
 }  // namespace math
 }  // namespace common
 }  // namespace apollo
+
+#endif  // MODULES_COMMON_MATH_QP_SOLVER_ACTIVE_SET_QP_SOLVER_H_

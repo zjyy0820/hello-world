@@ -356,7 +356,7 @@ Follow these steps:
   a. Locate and unscrew the eight screws (shown in the brown squares or	pointed by brown arrows) on the side of computer:
   ![Positions_of_Screws](images/IPC-6108GC-Screw-Positions_labeled.png)b. Remove the cover from the IPC. 3 PCI slots (one occupied by the	graphic card) locate on the base:
 
-  ![removing the cover](images/Removing_the_cover.jpg)
+  ![removing the cover](images/Removing_the_cover.JPG)
 
   ![Before installing the CAN card](images/Before_installing_the_can_card.png)
 
@@ -404,7 +404,7 @@ Follow these steps:
 
 c. Connect the power: 
 
-![IPC-6108GC-PowerCable.jpg](images/IPC-6108GC-PowerCable.jpg)
+![IPC-6108GC-PowerCable.JPG](images/IPC-6108GC-PowerCable.JPG)
 
 
 ### Installing the Software for the IPC
@@ -694,13 +694,13 @@ Each HDL-64E S3 LiDAR includes a cable bundle to connect the LiDAR to the power 
 
    Connect the power and signal cable to the matching ports on the LiDAR
 
-   ![HDL64_Cabling](images/HDL64_Cabling.jpg) 
+   ![HDL64_Cabling](images/HDL64_Cabling.JPG)    
 
 2. Connection to Power Source
 
    The two AWG 16 wires are used to power HDL-64E S3 LiDAR. It requires about 3A at 12V. To connect the power source, make full contact with the wires and tighten the screws. 
 
-   ![HDL64_Power_Cable](images/HDL64_PowerCable.jpg)
+   ![HDL64_Power_Cable](images/HDL64_PowerCable.JPG)
 
 3. Conection to IPC
 
@@ -873,7 +873,7 @@ Follow these steps:
 
 2.   Place the onboard computer system, the 6108GC, inside the trunk (recommended).
 
-     For example, Apollo 2.0 uses 4x4 self-tapping screws to bolt the 6108GC to the carpeted floor of the trunk. ![IPC-bolt_down-936x720](images/Mount_ipc_on_carpet.jpg)
+     For example, Apollo 2.0 uses 4x4 self-tapping screws to bolt the 6108GC to the carpeted floor of the trunk. ![IPC-bolt_down-936x720](images/Mount_ipc_on_carpet.JPG)
 
 3. Mount the IPC so that its front and back sides(where all ports are located) face the right side (passenger) or the left side(driver) of the trunk.
 
@@ -917,7 +917,7 @@ d. Connect:
 
 - (optional) the monitor:
 
-![IPC-power-842x636](images/cable_connected_incar.jpg)
+![IPC-power-842x636](images/cable_connected_incar.JPG)
 
 
 
@@ -963,32 +963,32 @@ psrdiffsource auto any
 
 SETIMUTOANTOFFSET 0.00 1.10866 1.14165 0.05 0.05 0.08
 SETINSOFFSET 0 0 0
-EVENTOUTCONTROL MARK2 ENABLE POSITIVE 999999990 10
-EVENTOUTCONTROL MARK1 ENABLE POSITIVE 500000000 500000000
+EVENTOUTCONTROLMARK2 ENABLE POSITIVE 999999990 10
+EVENTOUTCONTROLMARK1 ENABLE POSITIVE 500000000 500000000
 
 
 LOG COM2 GPRMC ONTIME 1.0 0.25
-LOG USB1 GPGGA ONTIME 1.0
+LOG GPGGA ONTIME 1.0
 
-log USB1 bestgnssposb ontime 1
-log USB1 bestgnssvelb ontime 1
-log USB1 bestposb ontime 1
-log USB1 INSPVAXB ontime 1
-log USB1 INSPVASB ontime 0.01
-log USB1 CORRIMUDATASB ontime 0.01
-log USB1 RAWIMUSXB onnew 0 0
-log USB1 mark1pvab onnew
+log bestgnssposb ontime 1
+log bestgnssvelb ontime 1
+log bestposb ontime 1
+log INSPVAXB ontime 1
+log INSPVASB ontime 0.01
+log CORRIMUDATASB ontime 0.01
+log RAWIMUSXB onnew 0 0
+log mark1pvab onnew
 
-log USB1 rangeb ontime 1
-log USB1 bdsephemerisb
-log USB1 gpsephemb
-log USB1 gloephemerisb
-log USB1 bdsephemerisb ontime 15
-log USB1 gpsephemb ontime 15
-log USB1 gloephemerisb ontime 15
+log rangeb ontime 1
+log bdsephemerisb
+log gpsephemb
+log gloephemerisb
+log bdsephemerisb ontime 15
+log gpsephemb ontime 15
+log gloephemerisb ontime 15
 
-log USB1 imutoantoffsetsb once
-log USB1 vehiclebodyrotationb onchanged
+log imutoantoffsetsb once
+log vehiclebodyrotationb onchanged
  
 SAVECONFIG
 
@@ -1016,32 +1016,32 @@ rtksource auto any
 psrdiffsource auto any
 SETIMUTOANTOFFSET 0.00 1.10866 1.14165 0.05 0.05 0.08
 SETINSOFFSET 0 0 0
-EVENTOUTCONTROL MARK2 ENABLE POSITIVE 999999990 10
-EVENTOUTCONTROL MARK1 ENABLE POSITIVE 500000000 500000000
+EVENTOUTCONTROLMARK2 ENABLE POSITIVE 999999990 10
+EVENTOUTCONTROLMARK1 ENABLE POSITIVE 500000000 500000000
 
 
 LOG COM2 GPRMC ONTIME 1.0 0.25
-LOG USB1 GPGGA ONTIME 1.0
+LOG GPGGA ONTIME 1.0
 
-log USB1 bestgnssposb ontime 1
-log USB1 bestgnssvelb ontime 1
-log USB1 bestposb ontime 1
-log USB1 INSPVAXB ontime 1
-log USB1 INSPVASB ontime 0.01
-log USB1 CORRIMUDATASB ontime 0.01
-log USB1 RAWIMUSXB onnew 0 0
-log USB1 mark1pvab onnew
+log bestgnssposb ontime 1
+log bestgnssvelb ontime 1
+log bestposb ontime 1
+log INSPVAXB ontime 1
+log INSPVASB ontime 0.01
+log CORRIMUDATASB ontime 0.01
+log RAWIMUSXB onnew 0 0
+log mark1pvab onnew
 
-log USB1 rangeb ontime 1
-log USB1 bdsephemerisb
-log USB1 gpsephemb
-log USB1 gloephemerisb
-log USB1 bdsephemerisb ontime 15
-log USB1 gpsephemb ontime 15
-log USB1 gloephemerisb ontime 15
+log rangeb ontime 1
+log bdsephemerisb
+log gpsephemb
+log gloephemerisb
+log bdsephemerisb ontime 15
+log gpsephemb ontime 15
+log gloephemerisb ontime 15
 
-log USB1 imutoantoffsetsb once
-log USB1 vehiclebodyrotationb onchanged
+log imutoantoffsetsb once
+log vehiclebodyrotationb onchanged
  
 SAVECONFIG
 ```

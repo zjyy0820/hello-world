@@ -3,31 +3,30 @@ load("//tools:cpplint.bzl", "cpplint")
 package(default_visibility = ["//visibility:public"])
 
 cc_binary(
-    name = "control_tester",
-    srcs = ["control_tester.cc"],
+    name = "pad_terminal",
+    srcs = ["terminal.cc"],
     deps = [
-        "//cyber",
+        "//external:gflags",
         "//modules/canbus/proto:canbus_proto",
-        "//modules/common/adapters:adapter_gflags",
-        "//modules/common/util",
-        "//modules/control/common:control_gflags",
+        "//modules/common:log",
+        "//modules/common/adapters:adapter_manager",
+        "//modules/control/common",
         "//modules/control/proto:control_proto",
-        "//modules/localization/proto:localization_proto",
-        "//modules/planning/proto:planning_proto",
+        "@ros//:ros_common",
     ],
 )
 
 cc_binary(
-    name = "pad_terminal",
-    srcs = ["pad_terminal.cc"],
+    name = "control_tester",
+    srcs = ["control_tester.cc"],
     deps = [
-        "//cyber",
         "//modules/canbus/proto:canbus_proto",
-        "//modules/common/adapters:adapter_gflags",
-        "//modules/common/util:message_util",
-        "//modules/control/common",
-        "//modules/control/proto:control_proto",
-        "@com_github_gflags_gflags//:gflags",
+        "//modules/common:log",
+        "//modules/common/adapters:adapter_manager",
+        "//modules/control/common:control_gflags",
+        "//modules/localization/proto:localization_proto",
+        "//modules/planning/proto:planning_proto",
+        "@ros//:ros_common",
     ],
 )
 

@@ -21,7 +21,7 @@
 
 #include "modules/planning/math/smoothing_spline/piecewise_linear_kernel.h"
 
-#include "cyber/common/log.h"
+#include "modules/common/log.h"
 
 namespace apollo {
 namespace planning {
@@ -34,7 +34,7 @@ PiecewiseLinearKernel::PiecewiseLinearKernel(const uint32_t dimension,
       offset_matrix_(Eigen::MatrixXd::Zero(dimension_, 1)) {}
 
 void PiecewiseLinearKernel::AddRegularization(const double param) {
-  kernel_matrix_ +=
+  Eigen::MatrixXd identity_matrix = kernel_matrix_ +=
       Eigen::MatrixXd::Identity(kernel_matrix_.rows(), kernel_matrix_.cols()) *
       param;
 }
@@ -51,7 +51,7 @@ void PiecewiseLinearKernel::AddSecondOrderDerivativeMatrix(
     const double init_derivative, const double weight) {
   Eigen::MatrixXd second_derivative_matrix =
       Eigen::MatrixXd::Zero(dimension_, dimension_);
-  for (size_t i = 0; i < dimension_; ++i) {
+  for (std::size_t i = 0; i < dimension_; ++i) {
     if (i == 0) {
       second_derivative_matrix(0, 0) += 1.0;
     } else if (i == 1) {
@@ -82,7 +82,7 @@ void PiecewiseLinearKernel::AddThirdOrderDerivativeMatrix(
     const double init_derivative, const double init_second_derivative,
     const double weight) {
   Eigen::MatrixXd jerk_matrix = Eigen::MatrixXd::Zero(dimension_, dimension_);
-  for (size_t i = 0; i < dimension_; ++i) {
+  for (std::size_t i = 0; i < dimension_; ++i) {
     if (i == 0) {
       jerk_matrix(0, 0) += 1.0;
     } else if (i == 1) {

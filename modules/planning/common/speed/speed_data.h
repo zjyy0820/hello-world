@@ -15,9 +15,10 @@
  *****************************************************************************/
 
 /**
- * @file
+ * @file speed_data.h
  **/
-#pragma once
+#ifndef MODULES_PLANNING_COMMON_SPEED_SPEED_DATA_H_
+#define MODULES_PLANNING_COMMON_SPEED_SPEED_DATA_H_
 
 #include <string>
 #include <vector>
@@ -27,13 +28,17 @@
 namespace apollo {
 namespace planning {
 
-class SpeedData : public std::vector<common::SpeedPoint> {
+class SpeedData {
  public:
   SpeedData() = default;
 
+  explicit SpeedData(std::vector<common::SpeedPoint> speed_points);
+
   virtual ~SpeedData() = default;
 
-  explicit SpeedData(std::vector<common::SpeedPoint> speed_points);
+  const std::vector<common::SpeedPoint>& speed_vector() const;
+
+  void set_speed_vector(std::vector<common::SpeedPoint> speed_points);
 
   void AppendSpeedPoint(const double s, const double time, const double v,
                         const double a, const double da);
@@ -41,17 +46,19 @@ class SpeedData : public std::vector<common::SpeedPoint> {
   bool EvaluateByTime(const double time,
                       common::SpeedPoint* const speed_point) const;
 
-  // Assuming spatial traversed distance is monotonous, which is the case for
-  // current usage on city driving scenario
-  bool EvaluateByS(const double s, common::SpeedPoint* const speed_point) const;
-
   double TotalTime() const;
 
-  // Assuming spatial traversed distance is monotonous
-  double TotalLength() const;
+  bool Empty() const { return speed_vector_.empty(); }
+
+  void Clear();
 
   virtual std::string DebugString() const;
+
+ private:
+  std::vector<common::SpeedPoint> speed_vector_;
 };
 
 }  // namespace planning
 }  // namespace apollo
+
+#endif  // MODULES_PLANNING_COMMON_SPEED_SPEED_DATA_H_

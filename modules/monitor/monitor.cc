@@ -15,70 +15,75 @@
  *****************************************************************************/
 #include "modules/monitor/monitor.h"
 
-#include "modules/common/time/time.h"
+#include "modules/common/adapters/adapter_manager.h"
 #include "modules/monitor/common/monitor_manager.h"
-#include "modules/monitor/hardware/esdcan_monitor.h"
-#include "modules/monitor/hardware/gps_monitor.h"
-#include "modules/monitor/hardware/resource_monitor.h"
-#include "modules/monitor/hardware/socket_can_monitor.h"
-#include "modules/monitor/software/channel_monitor.h"
-#include "modules/monitor/software/functional_safety_monitor.h"
-#include "modules/monitor/software/latency_monitor.h"
-#include "modules/monitor/software/localization_monitor.h"
+#include "modules/monitor/hardware/can/can_monitor.h"
+#include "modules/monitor/hardware/gps/gps_monitor.h"
+#include "modules/monitor/reporters/static_info_reporter.h"
+#include "modules/monitor/reporters/vehicle_state_reporter.h"
 #include "modules/monitor/software/process_monitor.h"
-#include "modules/monitor/software/recorder_monitor.h"
 #include "modules/monitor/software/summary_monitor.h"
+#include "modules/monitor/software/topic_monitor.h"
 
-DEFINE_bool(enable_functional_safety, true,
-            "Whether to enable functional safety check.");
+DEFINE_string(monitor_adapter_config_filename,
+              "modules/monitor/conf/adapter.conf",
+              "Directory which contains a group of related maps.");
+
+DEFINE_double(monitor_running_interval, 0.5, "Monitor running interval.");
 
 namespace apollo {
 namespace monitor {
 
-bool Monitor::Init() {
-  MonitorManager::Instance()->Init(node_);
+using apollo::common::Status;
+using apollo::common::adapter::AdapterManager;
+using std::make_unique;
 
-  // Only the one CAN card corresponding to current mode will take effect.
-  runners_.emplace_back(new EsdCanMonitor());
-  runners_.emplace_back(new SocketCanMonitor());
-  // To enable the GpsMonitor, you must add FLAGS_gps_component_name to the
-  // mode's monitored_components.
-  runners_.emplace_back(new GpsMonitor());
-  // To enable the LocalizationMonitor, you must add
-  // FLAGS_localization_component_name to the mode's monitored_components.
-  runners_.emplace_back(new LocalizationMonitor());
-  // Monitor if processes are running.
-  runners_.emplace_back(new ProcessMonitor());
-  // Monitor message processing latencies across modules
-  const std::shared_ptr<LatencyMonitor> latency_monitor(new LatencyMonitor());
-  runners_.emplace_back(latency_monitor);
-  // Monitor if channel messages are updated in time.
-  runners_.emplace_back(new ChannelMonitor(latency_monitor));
-  // Monitor if resources are sufficient.
-  runners_.emplace_back(new ResourceMonitor());
-
-  // Monitor all changes made by each sub-monitor, and summarize to a final
-  // overall status.
-  runners_.emplace_back(new SummaryMonitor());
-  // Check functional safety according to the summary.
-  if (FLAGS_enable_functional_safety) {
-    runners_.emplace_back(new FunctionalSafetyMonitor());
-  }
-
-  return true;
+Monitor::Monitor() : monitor_thread_(FLAGS_monitor_running_interval) {
 }
 
-bool Monitor::Proc() {
-  const double current_time = apollo::common::time::Clock::NowInSeconds();
-  if (!MonitorManager::Instance()->StartFrame(current_time)) {
-    return false;
-  }
-  for (auto& runner : runners_) {
-    runner->Tick(current_time);
-  }
-  MonitorManager::Instance()->EndFrame();
+Status Monitor::Init() {
+  AdapterManager::Init(FLAGS_monitor_adapter_config_filename);
 
-  return true;
+  monitor_thread_.RegisterRunner(make_unique<CanMonitor>());
+  monitor_thread_.RegisterRunner(make_unique<GpsMonitor>());
+  monitor_thread_.RegisterRunner(make_unique<ProcessMonitor>());
+
+  const auto &config = MonitorManager::GetConfig();
+  for (const auto &module : config.modules()) {
+    if (module.has_topic_conf()) {
+      auto *module_status = MonitorManager::GetModuleStatus(module.name());
+      monitor_thread_.RegisterRunner(make_unique<TopicMonitor>(
+          module.topic_conf(), module_status->mutable_topic_status()));
+    }
+  }
+  for (const auto &hardware : config.hardware()) {
+    if (hardware.has_topic_conf()) {
+      auto *hw_status = MonitorManager::GetHardwareStatus(hardware.name());
+      monitor_thread_.RegisterRunner(make_unique<TopicMonitor>(
+          hardware.topic_conf(), hw_status->mutable_topic_status()));
+    }
+  }
+
+  // Register online reporters.
+  if (MonitorManager::GetConfig().has_online_report_endpoint()) {
+    monitor_thread_.RegisterRunner(make_unique<VehicleStateReporter>());
+  }
+  // Register StaticInfo reporter.
+  monitor_thread_.RegisterRunner(make_unique<StaticInfoReporter>());
+
+  // Register the SummaryMonitor as last runner, so it will monitor all changes
+  // made by the previous runners.
+  monitor_thread_.RegisterRunner(make_unique<SummaryMonitor>());
+  return Status::OK();
+}
+
+Status Monitor::Start() {
+  monitor_thread_.Start();
+  return Status::OK();
+}
+
+void Monitor::Stop() {
+  monitor_thread_.Stop();
 }
 
 }  // namespace monitor

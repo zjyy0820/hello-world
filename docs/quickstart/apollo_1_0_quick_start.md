@@ -117,7 +117,7 @@ Follow these steps to perform autonomous driving:
 3. After arriving at your destination,  click the **Stop** button to stop replaying the recorded trajectory.
    ![](images/hmi_play_stop.png)
 
-## Shut Down
+## Shutdown
 
 1. Shut down the system from a terminal:
     ```sudo shutdown now```
@@ -128,5 +128,3 @@ Follow these steps to perform autonomous driving:
 
 4. Turn off the car.
 
-# Run Offline Demo
-See [Offline Demo Guide](https://github.com/ApolloAuto/apollo/blob/master/docs/demo_guide/README.md)

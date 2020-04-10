@@ -14,7 +14,8 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef DRIVERS_GNSS_TCP_STREAM_H
+#define DRIVERS_GNSS_TCP_STREAM_H
 
 namespace apollo {
 namespace drivers {
@@ -52,3 +53,5 @@ class TcpStream : public Stream {
 }  // namespace gnss
 }  // namespace drivers
 }  // namespace apollo
+
+#endif

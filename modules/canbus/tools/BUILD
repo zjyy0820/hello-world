@@ -6,11 +6,10 @@ cc_binary(
     name = "canbus_tester",
     srcs = ["canbus_tester.cc"],
     deps = [
-        "//cyber",
         "//modules/canbus:canbus_lib",
         "//modules/canbus/common:canbus_common",
-        "//modules/common/adapters:adapter_gflags",
-        "@com_github_gflags_gflags//:gflags",
+        "//modules/common",
+        "@ros//:ros_common",
     ],
 )
 
@@ -18,15 +17,12 @@ cc_binary(
     name = "teleop",
     srcs = ["teleop.cc"],
     deps = [
-        "//cyber",
-        "//modules/canbus/common:canbus_common",
+        "//external:gflags",
         "//modules/canbus/proto:canbus_proto",
-        "//modules/canbus/vehicle:vehicle_controller_base",
-        "//modules/common/adapters:adapter_gflags",
-        "//modules/common/configs:vehicle_config_helper",
-        "//modules/common/util:message_util",
+        "//modules/common",
+        "//modules/common/adapters:adapter_manager",
         "//modules/control/proto:control_proto",
-        "@com_github_gflags_gflags//:gflags",
+        "@ros//:ros_common",
     ],
 )
 

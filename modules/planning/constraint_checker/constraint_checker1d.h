@@ -18,7 +18,10 @@
  * @file
  **/
 
-#pragma once
+#ifndef MODULES_PLANNING_CONSTRAINT_CHECKER_CONSTRAINT_CHECKER1D_H_
+#define MODULES_PLANNING_CONSTRAINT_CHECKER_CONSTRAINT_CHECKER1D_H_
+
+#include <vector>
 
 #include "modules/planning/common/trajectory/discretized_trajectory.h"
 #include "modules/planning/math/curve1d/curve1d.h"
@@ -38,3 +41,5 @@ class ConstraintChecker1d {
 
 }  // namespace planning
 }  // namespace apollo
+
+#endif  // MODULES_PLANNING_CONSTRAINT_CHECKER_CONSTRAINT_CHECKER1D_H_

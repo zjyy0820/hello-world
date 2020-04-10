@@ -21,8 +21,6 @@
  **/
 
 #include "modules/drivers/canbus/can_client/esd/esd_can_client.h"
-#include "modules/drivers/canbus/common/byte.h"
-#include "modules/drivers/canbus/sensor_gflags.h"
 
 namespace apollo {
 namespace drivers {
@@ -59,10 +57,6 @@ ErrorCode EsdCanClient::Start() {
   // int32_t ret = canOpen(net, pCtx->mode, txbufsize, rxbufsize, 0, 0,
   // &dev_handler_);
   uint32_t mode = 0;
-
-  if (FLAGS_esd_can_extended_frame) {
-    mode = NTCAN_MODE_NO_RTR;
-  }
   // mode |= NTCAN_MODE_NO_RTR;
   if (port_ > MAX_CAN_PORT || port_ < 0) {
     AERROR << "can port number [" << port_ << "] is out of the range [0,"
@@ -88,15 +82,8 @@ ErrorCode EsdCanClient::Start() {
   // otherwise a
   // received  message or event is discarded by the driver for this handle.
   // 1. set receive message_id filter, ie white list
-
   int32_t id_count = 0x800;
   ret = canIdRegionAdd(dev_handler_, 0, &id_count);
-
-  if (FLAGS_esd_can_extended_frame) {
-    id_count = 0x1FFFFFFE;
-    ret = canIdRegionAdd(dev_handler_, 0x20000000, &id_count);
-  }
-
   if (ret != NTCAN_SUCCESS) {
     AERROR << "add receive msg id filter error code: " << ret << ", "
            << GetErrorString(ret);
@@ -290,7 +277,7 @@ std::string EsdCanClient::GetErrorString(const NTCAN_RESULT ntstatus) {
     char sz_error_text[60];
 
     res = canFormatError(ntstatus, NTCAN_ERROR_FORMAT_LONG, sz_error_text,
-                         static_cast<uint32_t>(sizeof(sz_error_text) - 1));
+                         sizeof(sz_error_text) - 1);
     if (NTCAN_SUCCESS == res) {
       snprintf(reinterpret_cast<char *>(str_buf), ERROR_BUF_SIZE, "%s - %s",
                es->str, sz_error_text);

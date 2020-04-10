@@ -19,6 +19,7 @@
  **/
 #include "modules/planning/math/smoothing_spline/spline_2d_constraint.h"
 
+#include "glog/logging.h"
 #include "gtest/gtest.h"
 
 namespace apollo {

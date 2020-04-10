@@ -32,7 +32,7 @@ Nuvo-6018GC is world's first industrial-grade GPU computer supporting high-end g
 
    b. 移除机器盖板
 
-   ![removing the cover](images/Removing_the_cover.jpg)
+   ![removing the cover](images/Removing_the_cover.JPG)
 
    在机箱底部将能看到固定着的3个PCI插槽（其中一个已经被显卡占据）
 
@@ -90,7 +90,7 @@ Nuvo-6018GC is world's first industrial-grade GPU computer supporting high-end g
 
 4.  连接电源：
 
-![IPC-6108GC-PowerCable.jpg](images/IPC-6108GC-PowerCable.jpg)
+![IPC-6108GC-PowerCable.JPG](images/IPC-6108GC-PowerCable.JPG)
 
 ### 参考资料
 

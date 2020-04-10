@@ -14,14 +14,15 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef MODULES_MONITOR_MONITOR_H_
+#define MODULES_MONITOR_MONITOR_H_
 
 #include <memory>
-#include <vector>
+#include <string>
 
-#include "cyber/component/timer_component.h"
-#include "cyber/cyber.h"
+#include "modules/common/apollo_app.h"
 #include "modules/monitor/common/recurrent_runner.h"
+#include "modules/monitor/proto/system_status.pb.h"
 
 /**
  * @namespace apollo::monitor
@@ -30,16 +31,20 @@
 namespace apollo {
 namespace monitor {
 
-class Monitor : public apollo::cyber::TimerComponent {
+class Monitor : public apollo::common::ApolloApp {
  public:
-  bool Init() override;
-  bool Proc() override;
+  Monitor();
+  std::string Name() const override { return "SystemMonitor"; }
+
+  apollo::common::Status Init() override;
+  apollo::common::Status Start() override;
+  void Stop() override;
 
  private:
-  std::vector<std::shared_ptr<RecurrentRunner>> runners_;
+  RecurrentRunnerThread monitor_thread_;
 };
-
-CYBER_REGISTER_COMPONENT(Monitor)
 
 }  // namespace monitor
 }  // namespace apollo
+
+#endif  // MODULES_MONITOR_MONITOR_H_

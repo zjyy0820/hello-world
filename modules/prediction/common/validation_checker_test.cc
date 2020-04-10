@@ -16,6 +16,8 @@
 
 #include "modules/prediction/common/validation_checker.h"
 
+#include <limits>
+
 #include "gtest/gtest.h"
 
 #include "modules/prediction/common/prediction_gflags.h"
@@ -45,7 +47,7 @@ TEST_F(ValidationCheckerTest, valid_centripedal_acc) {
   }
   EXPECT_EQ(trajectory_points.size(), 3);
   EXPECT_TRUE(
-      ValidationChecker::ValidCentripetalAcceleration(trajectory_points));
+      ValidationChecker::ValidCentripedalAcceleration(trajectory_points));
 }
 
 TEST_F(ValidationCheckerTest, invalid_centripedal_acc) {
@@ -63,7 +65,7 @@ TEST_F(ValidationCheckerTest, invalid_centripedal_acc) {
   }
   EXPECT_EQ(trajectory_points.size(), 3);
   EXPECT_TRUE(
-      !ValidationChecker::ValidCentripetalAcceleration(trajectory_points));
+      !ValidationChecker::ValidCentripedalAcceleration(trajectory_points));
 }
 
 TEST_F(ValidationCheckerTest, valid_trajectory_point) {
@@ -79,7 +81,7 @@ TEST_F(ValidationCheckerTest, valid_trajectory_point) {
 
 TEST_F(ValidationCheckerTest, invalid_trajectory_point) {
   TrajectoryPoint trajectory_point;
-  EXPECT_FALSE(ValidationChecker::ValidTrajectoryPoint(trajectory_point));
+  EXPECT_TRUE(!ValidationChecker::ValidTrajectoryPoint(trajectory_point));
 
   trajectory_point.mutable_path_point()->set_x(
       std::numeric_limits<double>::quiet_NaN());
@@ -88,7 +90,7 @@ TEST_F(ValidationCheckerTest, invalid_trajectory_point) {
   trajectory_point.set_v(0.0);
   trajectory_point.set_a(0.0);
   trajectory_point.set_relative_time(0.0);
-  EXPECT_FALSE(ValidationChecker::ValidTrajectoryPoint(trajectory_point));
+  EXPECT_TRUE(!ValidationChecker::ValidTrajectoryPoint(trajectory_point));
 }
 
 }  // namespace prediction

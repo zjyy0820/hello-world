@@ -18,19 +18,21 @@
  * @file
  **/
 
-#pragma once
+#ifndef MODULES_PLANNING_LATTICE_TRAJECTORY_GENERATION_BACKUP_TRAJECTORY_H_
+#define MODULES_PLANNING_LATTICE_TRAJECTORY_GENERATION_BACKUP_TRAJECTORY_H_
 
+#include <array>
 #include <functional>
 #include <memory>
 #include <queue>
 #include <utility>
 #include <vector>
 
+#include "modules/planning/lattice/trajectory_generation/trajectory1d_generator.h"
 #include "modules/planning/common/planning_gflags.h"
 #include "modules/planning/common/trajectory/discretized_trajectory.h"
-#include "modules/planning/common/trajectory1d/constant_deceleration_trajectory1d.h"
+#include "modules/planning/lattice/trajectory1d/constant_deceleration_trajectory1d.h"
 #include "modules/planning/constraint_checker/collision_checker.h"
-#include "modules/planning/lattice/trajectory_generation/trajectory1d_generator.h"
 #include "modules/planning/math/curve1d/curve1d.h"
 
 namespace apollo {
@@ -84,3 +86,5 @@ class BackupTrajectoryGenerator {
 
 }  // namespace planning
 }  // namespace apollo
+
+#endif  // MODULES_PLANNING_LATTICE_TRAJECTORY_GENERATION_BACKUP_TRAJECTORY_H_

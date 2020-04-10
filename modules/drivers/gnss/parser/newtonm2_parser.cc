@@ -19,15 +19,14 @@
 // properly.
 //
 
-#include "modules/drivers/gnss/parser/newtonm2_parser.h"
-
 #include <cmath>
 #include <iostream>
 #include <limits>
 #include <memory>
 #include <vector>
 
-#include "cyber/cyber.h"
+#include "modules/drivers/gnss/parser/newtonm2_parser.h"
+#include "modules/common/log.h"
 #include "modules/drivers/gnss/parser/novatel_messages.h"
 #include "modules/drivers/gnss/parser/parser.h"
 #include "modules/drivers/gnss/parser/rtcm_decode.h"
@@ -38,6 +37,7 @@
 #include "modules/drivers/gnss/proto/imu.pb.h"
 #include "modules/drivers/gnss/proto/ins.pb.h"
 #include "modules/drivers/gnss/util/time_conversion.h"
+#include "ros/include/ros/ros.h"
 
 namespace apollo {
 namespace drivers {
@@ -79,7 +79,7 @@ Parser::MessageType NewtonM2Parser::GetMessage(MessagePtr* message_ptr) {
   }
 
   while (data_ < data_end_) {
-    if (buffer_.empty()) {  // Looking for SYNC0
+    if (buffer_.size() == 0) {  // Looking for SYNC0
       if (*data_ == novatel::SYNC_0) {
         buffer_.push_back(*data_);
       }
@@ -376,6 +376,7 @@ bool NewtonM2Parser::HandleGnssBestpos(const novatel::BestPos* pos,
 
   double seconds = gps_week * newtonm2::SECONDS_PER_WEEK + gps_millisecs * 1e-3;
   bestpos_.set_measurement_time(seconds);
+  // AINFO << "Best gnss pose:\r\n" << bestpos_.DebugString();
   return true;
 }
 
@@ -501,20 +502,18 @@ bool NewtonM2Parser::HandleCorrImuData(const novatel::CorrImuData* imu) {
     return false;
   }
 
-  ins_.mutable_header()->set_timestamp_sec(cyber::Time::Now().ToSecond());
+  ins_.mutable_header()->set_timestamp_sec(ros::Time::now().toSec());
   return true;
 }
 
 bool NewtonM2Parser::HandleInsCov(const novatel::InsCov* cov) {
   for (int i = 0; i < 9; ++i) {
-    ins_.set_position_covariance(
-        i, static_cast<float>(cov->position_covariance[i]));
+    ins_.set_position_covariance(i, cov->position_covariance[i]);
     ins_.set_euler_angles_covariance(
         newtonm2::INDEX[i],
-        static_cast<float>((newtonm2::DEG_TO_RAD_M2 * newtonm2::DEG_TO_RAD_M2) *
-                           cov->attitude_covariance[i]));
-    ins_.set_linear_velocity_covariance(
-        i, static_cast<float>(cov->velocity_covariance[i]));
+        (newtonm2::DEG_TO_RAD_M2 * newtonm2::DEG_TO_RAD_M2) *
+            cov->attitude_covariance[i]);
+    ins_.set_linear_velocity_covariance(i, cov->velocity_covariance[i]);
   }
   return false;
 }
@@ -556,14 +555,14 @@ bool NewtonM2Parser::HandleInsPva(const novatel::InsPva* pva) {
     return false;
   }
 
-  ins_.mutable_header()->set_timestamp_sec(cyber::Time::Now().ToSecond());
+  ins_.mutable_header()->set_timestamp_sec(ros::Time::now().toSec());
   return true;
 }
 
 bool NewtonM2Parser::HandleInsPvax(const novatel::InsPvaX* pvax,
                                    uint16_t gps_week, uint32_t gps_millisecs) {
   double seconds = gps_week * newtonm2::SECONDS_PER_WEEK + gps_millisecs * 1e-3;
-  double unix_sec = apollo::drivers::util::gps2unix(seconds);
+  double unix_sec = common::time::TimeUtil::Gps2unix(seconds);
   ins_stat_.mutable_header()->set_timestamp_sec(unix_sec);
   ins_stat_.set_ins_status(pvax->ins_status);
   ins_stat_.set_pos_type(pvax->pos_type);
@@ -590,8 +589,8 @@ bool NewtonM2Parser::HandleRawImuX(const novatel::RawImuX* imu) {
     }
     gyro_scale_ = param.gyro_scale * param.sampling_rate_hz;
     accel_scale_ = param.accel_scale * param.sampling_rate_hz;
-    imu_measurement_hz_ = static_cast<float>(param.sampling_rate_hz);
-    imu_measurement_span_ = static_cast<float>(1.0 / param.sampling_rate_hz);
+    imu_measurement_hz_ = param.sampling_rate_hz;
+    imu_measurement_span_ = 1.0 / param.sampling_rate_hz;
     imu_.set_measurement_span(imu_measurement_span_);
   }
 
@@ -635,7 +634,7 @@ bool NewtonM2Parser::HandleRawImuX(const novatel::RawImuX* imu) {
 bool NewtonM2Parser::HandleRawImu(const novatel::RawImu* imu) {
   double gyro_scale = 0.0;
   double accel_scale = 0.0;
-  float imu_measurement_span = 1.0f / 200.0f;
+  float imu_measurement_span = 1.0 / 200.0;
 
   if (newtonm2::is_zero(gyro_scale_)) {
     novatel::ImuParameter param = novatel::GetImuParameter(imu_type_);
@@ -646,7 +645,7 @@ bool NewtonM2Parser::HandleRawImu(const novatel::RawImu* imu) {
     }
     gyro_scale = param.gyro_scale * param.sampling_rate_hz;
     accel_scale = param.accel_scale * param.sampling_rate_hz;
-    imu_measurement_span = static_cast<float>(1.0 / param.sampling_rate_hz);
+    imu_measurement_span = 1.0 / param.sampling_rate_hz;
     imu_.set_measurement_span(imu_measurement_span);
   } else {
     gyro_scale = gyro_scale_;
@@ -725,8 +724,7 @@ bool NewtonM2Parser::HandleGpsEph(const novatel::GPS_Ephemeris* gps_emph) {
   keppler_orbit->set_i0(gps_emph->I_0);
   keppler_orbit->set_omegadot(gps_emph->dot_omega);
   keppler_orbit->set_idot(gps_emph->dot_I);
-  keppler_orbit->set_accuracy(
-      static_cast<google::protobuf::uint32>(sqrt(gps_emph->ura)));
+  keppler_orbit->set_accuracy(sqrt(gps_emph->ura));
   keppler_orbit->set_health(gps_emph->health);
   keppler_orbit->set_tgd(gps_emph->tgd);
   keppler_orbit->set_iodc(gps_emph->iodc);
@@ -765,8 +763,7 @@ bool NewtonM2Parser::HandleBdsEph(const novatel::BDS_Ephemeris* bds_emph) {
   keppler_orbit->set_i0(bds_emph->inc_angle);
   keppler_orbit->set_omegadot(bds_emph->rra);
   keppler_orbit->set_idot(bds_emph->idot);
-  keppler_orbit->set_accuracy(
-      static_cast<google::protobuf::uint32>(bds_emph->ura));
+  keppler_orbit->set_accuracy(bds_emph->ura);
   keppler_orbit->set_health(bds_emph->health1);
   keppler_orbit->set_tgd(bds_emph->tdg1);
   keppler_orbit->set_iodc(bds_emph->aodc);

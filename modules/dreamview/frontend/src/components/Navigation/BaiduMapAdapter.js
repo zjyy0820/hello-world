@@ -8,7 +8,7 @@ export default class BaiduMapAdapter {
     }
 
     isInitialized() {
-        return this.map !== null && Object.keys(this.map).length > 0;
+        return this.map !== null;
     }
 
     loadMap(initPoint, divElementName) {

@@ -20,10 +20,12 @@
 
 #include "modules/planning/constraint_checker/collision_checker.h"
 
+#include <array>
+#include <cmath>
 #include <utility>
 
-#include "cyber/common/log.h"
 #include "modules/common/configs/vehicle_config_helper.h"
+#include "modules/common/log.h"
 #include "modules/common/math/path_matcher.h"
 #include "modules/common/math/vec2d.h"
 #include "modules/planning/common/planning_gflags.h"
@@ -32,14 +34,15 @@
 namespace apollo {
 namespace planning {
 
-using apollo::common::PathPoint;
-using apollo::common::TrajectoryPoint;
 using apollo::common::math::Box2d;
 using apollo::common::math::PathMatcher;
 using apollo::common::math::Vec2d;
+using apollo::common::PathPoint;
+using apollo::common::TrajectoryPoint;
 
 CollisionChecker::CollisionChecker(
-    const std::vector<const Obstacle*>& obstacles, const double ego_vehicle_s,
+    const std::vector<const Obstacle*>& obstacles,
+    const double ego_vehicle_s,
     const double ego_vehicle_d,
     const std::vector<PathPoint>& discretized_reference_line,
     const ReferenceLineInfo* ptr_reference_line_info,
@@ -51,49 +54,16 @@ CollisionChecker::CollisionChecker(
 }
 
 bool CollisionChecker::InCollision(
-    const std::vector<const Obstacle*>& obstacles,
-    const DiscretizedTrajectory& ego_trajectory, const double ego_length,
-    const double ego_width, const double ego_back_edge_to_center) {
-  for (size_t i = 0; i < ego_trajectory.NumOfPoints(); ++i) {
-    const auto& ego_point =
-        ego_trajectory.TrajectoryPointAt(static_cast<std::uint32_t>(i));
-    const auto relative_time = ego_point.relative_time();
-    const auto ego_theta = ego_point.path_point().theta();
-
-    Box2d ego_box({ego_point.path_point().x(), ego_point.path_point().y()},
-                  ego_theta, ego_length, ego_width);
-
-    // correct the inconsistency of reference point and center point
-    // TODO(all): move the logic before constructing the ego_box
-    double shift_distance = ego_length / 2.0 - ego_back_edge_to_center;
-    Vec2d shift_vec(shift_distance * std::cos(ego_theta),
-                    shift_distance * std::sin(ego_theta));
-    ego_box.Shift(shift_vec);
-
-    std::vector<Box2d> obstacle_boxes;
-    for (const auto obstacle : obstacles) {
-      auto obtacle_point = obstacle->GetPointAtTime(relative_time);
-      Box2d obstacle_box = obstacle->GetBoundingBox(obtacle_point);
-      if (ego_box.HasOverlap(obstacle_box)) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-bool CollisionChecker::InCollision(
     const DiscretizedTrajectory& discretized_trajectory) {
   CHECK_LE(discretized_trajectory.NumOfPoints(),
            predicted_bounding_rectangles_.size());
   const auto& vehicle_config =
-      common::VehicleConfigHelper::Instance()->GetConfig();
+      common::VehicleConfigHelper::instance()->GetConfig();
   double ego_length = vehicle_config.vehicle_param().length();
   double ego_width = vehicle_config.vehicle_param().width();
 
-  for (size_t i = 0; i < discretized_trajectory.NumOfPoints(); ++i) {
-    const auto& trajectory_point =
-        discretized_trajectory.TrajectoryPointAt(static_cast<std::uint32_t>(i));
+  for (std::size_t i = 0; i < discretized_trajectory.NumOfPoints(); ++i) {
+    const auto& trajectory_point = discretized_trajectory.TrajectoryPointAt(i);
     double ego_theta = trajectory_point.path_point().theta();
     Box2d ego_box(
         {trajectory_point.path_point().x(), trajectory_point.path_point().y()},
@@ -114,10 +84,11 @@ bool CollisionChecker::InCollision(
 }
 
 void CollisionChecker::BuildPredictedEnvironment(
-    const std::vector<const Obstacle*>& obstacles, const double ego_vehicle_s,
+    const std::vector<const Obstacle*>& obstacles,
+    const double ego_vehicle_s,
     const double ego_vehicle_d,
     const std::vector<PathPoint>& discretized_reference_line) {
-  ACHECK(predicted_bounding_rectangles_.empty());
+  CHECK(predicted_bounding_rectangles_.empty());
 
   // If the ego vehicle is in lane,
   // then, ignore all obstacles from the same lane.
@@ -154,8 +125,8 @@ void CollisionChecker::BuildPredictedEnvironment(
   }
 }
 
-bool CollisionChecker::IsEgoVehicleInLane(const double ego_vehicle_s,
-                                          const double ego_vehicle_d) {
+bool CollisionChecker::IsEgoVehicleInLane(
+    const double ego_vehicle_s, const double ego_vehicle_d) {
   double left_width = FLAGS_default_reference_line_width * 0.5;
   double right_width = FLAGS_default_reference_line_width * 0.5;
   ptr_reference_line_info_->reference_line().GetLaneWidth(

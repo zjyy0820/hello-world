@@ -48,7 +48,8 @@ message AdapterConfig {
     RELATIVE_MAP = 40;
     NAVIGATION = 41;
     ULTRASONIC_RADAR = 42;
-    AUDIO_CAPTURE = 43;
+    VOICE_DETECTION_REQUEST = 43;
+    VOICE_DETECTION_RESPONSE = 44;
     IMAGE_FRONT = 45;
     PANDORA_POINT_CLOUD = 46;
     PANDORA_CAMERA_FRONT_COLOR = 47;
@@ -63,48 +64,26 @@ message AdapterConfig {
     GNSS_HEADING = 56;
     RTCM_DATA = 57;
     RACOBIT_RADAR = 59;
-    // velodyne fusion configs
-    POINT_CLOUD_DENSE = 60;
-    POINT_CLOUD_DENSE_RAW = 61;
-    VELODYNE_SCAN_DENSE = 62;
-
-    POINT_CLOUD_SPARSE_1 = 63;
-    POINT_CLOUD_SPARSE_RAW_1 = 64;
-    VELODYNE_SCAN_SPARSE_1 = 65;
-
-    POINT_CLOUD_SPARSE_2 = 66;
-    POINT_CLOUD_SPARSE_RAW_2 = 67;
-    VELODYNE_SCAN_SPARSE_2 = 68;
-
-    POINT_CLOUD_SPARSE_3 = 69;
-    POINT_CLOUD_SPARSE_RAW_3 = 70;
-    VELODYNE_SCAN_SPARSE_3 = 71;
-
-    CAMERA_IMAGE_LONG = 72;
-    CAMERA_IMAGE_SHORT = 73;
-
-    PLANNING_PAD = 74;
-
-    STORYTELLING = 75;
+    POINT_CLOUD_RAW = 60;
+    VELODYNE_RAW = 61;
+    POINT_CLOUD_FUSION = 62;
   }
   enum Mode {
     RECEIVE_ONLY = 0;
     PUBLISH_ONLY = 1;
     DUPLEX = 2;
   }
-  optional MessageType type = 1;
-  optional Mode mode = 2;
+  required MessageType type = 1;
+  required Mode mode = 2;
   // The max number of received messages to keep in the adapter, this field
   // is not useful for PUBLISH_ONLY mode messages.
   optional int32 message_history_limit = 3 [default = 10];
-  optional bool latch = 4 [default = false];
-  optional string topic = 5;
+  optional bool latch = 4 [default=false];
 }
 
 // A config to specify which messages a certain module would consume and
 // produce.
 message AdapterManagerConfig {
   repeated AdapterConfig config = 1;
-  // TODO
-  optional bool is_ros = 2;  // Whether the message comes from ROS
+  required bool is_ros = 2;  // Whether the message comes from ROS
 }

@@ -23,7 +23,8 @@
 
 #include "gtest/gtest.h"
 
-#include "cyber/common/log.h"
+#include "modules/common/log.h"
+#include "modules/common/time/time.h"
 #include "modules/drivers/canbus/common/byte.h"
 
 namespace apollo {
@@ -31,6 +32,8 @@ namespace drivers {
 namespace canbus {
 namespace can {
 
+using Clock = common::time::Clock;
+using micros = common::time::micros;
 using apollo::common::ErrorCode;
 
 class FakeCanClientTest : public ::testing::Test {
@@ -75,7 +78,7 @@ TEST_F(FakeCanClientTest, SendMessage) {
     frames[i].id = 1 & 0x3FF;
     frames[i].len = 8;
     frames[i].data[7] = 1 % 256;
-    for (uint8_t j = 0; j < 7; ++j) {
+    for (int32_t j = 0; j < 7; ++j) {
       frames[i].data[j] = j;
     }
   }

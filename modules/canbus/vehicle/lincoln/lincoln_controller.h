@@ -19,28 +19,28 @@
  * @brief The class of LincolnController
  */
 
-#pragma once
+#ifndef MODULES_CANBUS_VEHICLE_LINCOLN_LINCOLN_CONTROLLER_H_
+#define MODULES_CANBUS_VEHICLE_LINCOLN_LINCOLN_CONTROLLER_H_
 
 #include <memory>
 #include <thread>
 
 #include "gtest/gtest_prod.h"
 
-#include "cyber/common/macros.h"
+#include "modules/canbus/vehicle/vehicle_controller.h"
 
 #include "modules/canbus/proto/canbus_conf.pb.h"
 #include "modules/canbus/proto/chassis.pb.h"
 #include "modules/canbus/proto/chassis_detail.pb.h"
 #include "modules/canbus/proto/vehicle_parameter.pb.h"
-#include "modules/common/proto/error_code.pb.h"
-#include "modules/control/proto/control_cmd.pb.h"
-
 #include "modules/canbus/vehicle/lincoln/protocol/brake_60.h"
 #include "modules/canbus/vehicle/lincoln/protocol/gear_66.h"
 #include "modules/canbus/vehicle/lincoln/protocol/steering_64.h"
 #include "modules/canbus/vehicle/lincoln/protocol/throttle_62.h"
 #include "modules/canbus/vehicle/lincoln/protocol/turnsignal_68.h"
-#include "modules/canbus/vehicle/vehicle_controller.h"
+#include "modules/common/macro.h"
+#include "modules/common/proto/error_code.pb.h"
+#include "modules/control/proto/control_cmd.pb.h"
 
 /**
  * @namespace apollo::canbus::lincoln
@@ -108,8 +108,6 @@ class LincolnController final : public VehicleController {
   // gas:0.00~99.99 unit:%
   void Throttle(double throttle) override;
 
-  // drive with acceleration/deceleration
-  // acc:-7.0~5.0 unit:m/s^2
   void Acceleration(double acc) override;
 
   // steering with old angle speed
@@ -158,10 +156,10 @@ class LincolnController final : public VehicleController {
   int32_t chassis_error_mask_ = 0;
 
   bool received_vin_ = false;
-
-  canbus::Chassis::GearPosition gear_tmp_;
 };
 
 }  // namespace lincoln
 }  // namespace canbus
 }  // namespace apollo
+
+#endif  // MODULES_CANBUS_VEHICLE_LINCOLN_LINCOLN_CONTROLLER_H_

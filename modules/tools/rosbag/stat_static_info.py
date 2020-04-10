@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 ###############################################################################
 # Copyright 2017 The Apollo Authors. All Rights Reserved.
@@ -18,77 +18,62 @@
 """
 Stat static info.
 Usage:
-    ./stat_static_info.py <record_file>
-    ./stat_static_info.py <task_dir>  # <task_dir> contains a list of records.
+    ./stat_static_info.py <bag_file>
+    ./stat_static_info.py <task_dir>  # <task_dir> contains a list of bags.
 """
 
 import os
 import sys
 
-from cyber_py3 import cyber
-from cyber_py3.record import RecordReader
-from modules.canbus.proto import chassis_pb2
-from modules.dreamview.proto import hmi_status_pb2
+from modules.data.proto.static_info_pb2 import StaticInfo
+from rosbag.bag import Bag
 
-
-kChassisInfoTopic = '/apollo/canbus/chassis'
-kHMIInfoTopic = '/apollo/hmi/status'
+kStaticInfoTopic = '/apollo/monitor/static_info'
+kTopics = [
+    kStaticInfoTopic,
+]
 
 
 class StaticInfoCalculator(object):
-    """
-    Stat static information
-    """
+    """Stat static info."""
 
     def __init__(self):
         self.vehicle_name = None
         self.vehicle_vin = None
 
-    def process_file(self, record_file):
+    def process_file(self, bag_file):
         """
-        Extract information from record file.
+        Extract information from bag file.
         Return True if we are done collecting all information.
         """
         try:
-            reader = RecordReader(record_file)
-            print("Begin to process record file {}".format(record_file))
-            for msg in reader.read_messages():
-                print(msg.topic)
-                if msg.topic == kChassisInfoTopic and self.vehicle_vin is None:
-                    chassis = chassis_pb2.Chassis()
-                    chassis.ParseFromString(msg.message)
-                    if chassis.license.vin:
-                        self.vehicle_vin = chassis.license.vin
-                elif msg.topic == kHMIInfoTopic and self.vehicle_name is None:
-                    hmistatus = hmi_status_pb2.HMIStatus()
-                    hmistatus.ParseFromString(msg.message)
-                    if hmistatus.current_map:
-                        self.vehicle_name = hmistatus.current_map
-                        print(self.vehicle_name)
-                if self.done():
-                    return True
+            with Bag(bag_file, 'r') as bag:
+                for _, msg, _ in bag.read_messages(topics=kTopics):
+                    if msg.vehicle.name:
+                        self.vehicle_name = msg.vehicle.name.lower()
+                    if msg.vehicle.license.vin:
+                        self.vehicle_vin = msg.vehicle.license.vin
+                    if self.done():
+                        return True
         except:
             return False
-        print("Finished processing record file {}".format(record_file))
         return self.done()
 
-    def process_dir(self, record_dir):
-        """
-        Process a directory
-        """
+    def process_dir(self, bag_dir):
+        """Process a directory."""
         files = []
         dirs = []
-        for f in os.listdir(record_dir):
-            f_path = os.path.join(record_dir, f)
+        for f in os.listdir(bag_dir):
+            f_path = os.path.join(bag_dir, f)
             if os.path.isfile(f_path):
                 files.append(f_path)
             elif os.path.isdir(f_path):
                 dirs.append(f_path)
             # Ignore links.
 
-        # Reverse sort the records or dirs, trying to get info from the latest.
-        for record in sorted(files, reverse=True):
-            if self.process_file(record):
+        # Reverse sort the bags or dirs, trying to get info from the latest.
+        for bag in sorted(files, reverse=True):
+            if self.process_file(bag):
                 return True
         for subdir in sorted(dirs, reverse=True):
             if self.process_dir(subdir):
@@ -96,22 +81,13 @@ class StaticInfoCalculator(object):
         return False
 
     def done(self):
-        """
-        Check if all info are collected
-        """
+        """Check if all info are collected."""
         # Currently we only care about vehicle name.
         return bool(self.vehicle_name)
 
 
-def main():
-    """
-    Process a path
-    """
-    if len(sys.argv) < 2:
-        print("Usage: %s <record_file|task_dir>" % sys.argv[0])
-        sys.exit(0)
-
-    path = sys.argv[1]
+def main(path):
+    """Process a path."""
     calc = StaticInfoCalculator()
     if os.path.isfile(path):
         calc.process_file(path)
@@ -119,9 +95,8 @@ def main():
         calc.process_dir(path)
 
     # Output result, which might be None
-    print('vehicle_name: %s' % calc.vehicle_name)
-    print('vehicle_vin: %s' % calc.vehicle_vin)
-
+    print 'vehicle_name:', calc.vehicle_name
+    print 'vehicle_vin:', calc.vehicle_vin
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv[1])

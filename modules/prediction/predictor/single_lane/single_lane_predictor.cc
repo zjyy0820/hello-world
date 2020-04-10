@@ -20,34 +20,30 @@
 #include <string>
 #include <utility>
 
+#include "modules/common/log.h"
 #include "modules/prediction/common/prediction_gflags.h"
+#include "modules/prediction/common/prediction_map.h"
+#include "modules/prediction/common/prediction_util.h"
 
 namespace apollo {
 namespace prediction {
 
 using apollo::common::PathPoint;
 using apollo::common::TrajectoryPoint;
+using apollo::common::math::KalmanFilter;
 using apollo::hdmap::LaneInfo;
 
-SingleLanePredictor::SingleLanePredictor() {
-  predictor_type_ = ObstacleConf::SINGLE_LANE_PREDICTOR;
-}
-
-bool SingleLanePredictor::Predict(
-    const ADCTrajectoryContainer* adc_trajectory_container, Obstacle* obstacle,
-    ObstaclesContainer* obstacles_container) {
+void SingleLanePredictor::Predict(Obstacle* obstacle) {
   Clear();
 
   CHECK_NOTNULL(obstacle);
   CHECK_GT(obstacle->history_size(), 0);
 
-  obstacle->SetPredictorType(predictor_type_);
-
   const Feature& feature = obstacle->latest_feature();
 
   if (!feature.has_lane() || !feature.lane().has_lane_graph()) {
     AERROR << "Obstacle [" << obstacle->id() << "] has no lane graph.";
-    return false;
+    return;
   }
 
   std::string lane_id = "";
@@ -58,7 +54,7 @@ bool SingleLanePredictor::Predict(
 
   for (int i = 0; i < num_lane_sequence; ++i) {
     const LaneSequence& sequence = feature.lane().lane_graph().lane_sequence(i);
-    if (sequence.lane_segment().empty()) {
+    if (sequence.lane_segment_size() <= 0) {
       AERROR << "Empty lane segments.";
       continue;
     }
@@ -68,9 +64,8 @@ bool SingleLanePredictor::Predict(
            << "] with probability [" << sequence.probability() << "].";
 
     std::vector<TrajectoryPoint> points;
-    GenerateTrajectoryPoints(
-        *obstacle, sequence, FLAGS_prediction_trajectory_time_length,
-        FLAGS_prediction_trajectory_time_resolution, &points);
+    GenerateTrajectoryPoints(*obstacle, sequence,
+        FLAGS_prediction_duration, FLAGS_prediction_period, &points);
 
     if (points.empty()) {
       continue;
@@ -78,15 +73,13 @@ bool SingleLanePredictor::Predict(
 
     Trajectory trajectory = GenerateTrajectory(points);
     trajectory.set_probability(sequence.probability());
-    obstacle->mutable_latest_feature()->add_predicted_trajectory()->CopyFrom(
-        trajectory);
+    trajectories_.push_back(std::move(trajectory));
   }
-  return true;
 }
 
 void SingleLanePredictor::GenerateTrajectoryPoints(
     const Obstacle& obstacle, const LaneSequence& lane_sequence,
-    const double time_length, const double time_resolution,
+    const double total_time, const double period,
     std::vector<TrajectoryPoint>* points) {
   const Feature& feature = obstacle.latest_feature();
   if (!feature.has_position() || !feature.has_velocity() ||
@@ -98,7 +91,7 @@ void SingleLanePredictor::GenerateTrajectoryPoints(
 
   double probability = lane_sequence.probability();
   double approach_rate = FLAGS_go_approach_rate;
-  if (probability < FLAGS_lane_sequence_threshold_cruise) {
+  if (probability < FLAGS_lane_sequence_threshold) {
     approach_rate = 1.0;
   }
 
@@ -115,9 +108,9 @@ void SingleLanePredictor::GenerateTrajectoryPoints(
     AERROR << "Failed in getting lane s and lane l";
     return;
   }
-  size_t num_of_points = static_cast<size_t>(time_length / time_resolution);
-  for (size_t i = 0; i < num_of_points; ++i) {
-    double relative_time = static_cast<double>(i) * time_resolution;
+  size_t total_num = static_cast<size_t>(total_time / period);
+  for (size_t i = 0; i < total_num; ++i) {
+    double relative_time = static_cast<double>(i) * period;
     Eigen::Vector2d point;
     double theta = M_PI;
     if (!PredictionMap::SmoothPointFromLane(lane_id, lane_s, lane_l, &point,
@@ -139,7 +132,7 @@ void SingleLanePredictor::GenerateTrajectoryPoints(
     trajectory_point.set_relative_time(relative_time);
     points->emplace_back(std::move(trajectory_point));
 
-    lane_s += speed * time_resolution;
+    lane_s += speed * period;
 
     while (lane_s > PredictionMap::LaneById(lane_id)->total_length() &&
            lane_segment_index + 1 < lane_sequence.lane_segment_size()) {

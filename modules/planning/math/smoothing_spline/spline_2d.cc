@@ -21,6 +21,7 @@
 #include "modules/planning/math/smoothing_spline/spline_2d.h"
 
 #include <algorithm>
+#include <utility>
 
 namespace apollo {
 namespace planning {
@@ -35,7 +36,7 @@ Spline2d::Spline2d(const std::vector<double>& t_knots, const uint32_t order)
 }
 
 std::pair<double, double> Spline2d::operator()(const double t) const {
-  if (splines_.empty()) {
+  if (splines_.size() == 0) {
     return std::make_pair(0.0, 0.0);
   }
   uint32_t index = find_index(t);
@@ -43,7 +44,7 @@ std::pair<double, double> Spline2d::operator()(const double t) const {
 }
 
 double Spline2d::x(const double t) const {
-  if (splines_.empty()) {
+  if (splines_.size() == 0) {
     return 0.0;
   }
   uint32_t index = find_index(t);
@@ -51,7 +52,7 @@ double Spline2d::x(const double t) const {
 }
 
 double Spline2d::y(const double t) const {
-  if (splines_.empty()) {
+  if (splines_.size() == 0) {
     return 0.0;
   }
   uint32_t index = find_index(t);
@@ -60,7 +61,7 @@ double Spline2d::y(const double t) const {
 
 double Spline2d::DerivativeX(const double t) const {
   // zero order spline
-  if (splines_.empty()) {
+  if (splines_.size() == 0) {
     return 0.0;
   }
   uint32_t index = find_index(t);
@@ -69,7 +70,7 @@ double Spline2d::DerivativeX(const double t) const {
 
 double Spline2d::DerivativeY(const double t) const {
   // zero order spline
-  if (splines_.empty()) {
+  if (splines_.size() == 0) {
     return 0.0;
   }
   uint32_t index = find_index(t);
@@ -77,7 +78,7 @@ double Spline2d::DerivativeY(const double t) const {
 }
 
 double Spline2d::SecondDerivativeX(const double t) const {
-  if (splines_.empty()) {
+  if (splines_.size() == 0) {
     return 0.0;
   }
   uint32_t index = find_index(t);
@@ -85,7 +86,7 @@ double Spline2d::SecondDerivativeX(const double t) const {
 }
 
 double Spline2d::SecondDerivativeY(const double t) const {
-  if (splines_.empty()) {
+  if (splines_.size() == 0) {
     return 0.0;
   }
   uint32_t index = find_index(t);
@@ -93,7 +94,7 @@ double Spline2d::SecondDerivativeY(const double t) const {
 }
 
 double Spline2d::ThirdDerivativeX(const double t) const {
-  if (splines_.empty()) {
+  if (splines_.size() == 0) {
     return 0.0;
   }
   uint32_t index = find_index(t);
@@ -101,7 +102,7 @@ double Spline2d::ThirdDerivativeX(const double t) const {
 }
 
 double Spline2d::ThirdDerivativeY(const double t) const {
-  if (splines_.empty()) {
+  if (splines_.size() == 0) {
     return 0.0;
   }
   uint32_t index = find_index(t);

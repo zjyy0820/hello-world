@@ -2,12 +2,10 @@ syntax = "proto2";
 package apollo.control;
 
 import "modules/canbus/proto/chassis.proto";
-import "modules/common/proto/drive_state.proto";
 import "modules/common/proto/header.proto";
-import "modules/common/proto/pnc_point.proto";
 import "modules/common/proto/vehicle_signal.proto";
-import "modules/control/proto/input_debug.proto";
 import "modules/control/proto/pad_msg.proto";
+import "modules/common/proto/drive_state.proto";
 
 enum TurnSignal {
   TURN_NONE = 0;
@@ -30,8 +28,7 @@ message ControlCommand {
   // target brake in percentage [0, 100]
   optional double brake = 4;
 
-  // target non-directional steering rate, in percentage of full scale per
-  // second [0, 100]
+  // target non-directional steering rate, in percentage of full scale per second [0, 100]
   optional double steering_rate = 6;
 
   // target steering angle, in percentage of full scale [-100, 100]
@@ -52,8 +49,7 @@ message ControlCommand {
   optional bool engine_on_off = 17;
   // completion percentage of trajectory planned in last cycle
   optional double trajectory_fraction = 18;
-  optional apollo.canbus.Chassis.DrivingMode driving_mode = 19
-      [deprecated = true];
+  optional apollo.canbus.Chassis.DrivingMode driving_mode = 19 [deprecated = true];
   optional apollo.canbus.Chassis.GearPosition gear_location = 20;
 
   optional Debug debug = 22;
@@ -94,19 +90,6 @@ message SimpleLongitudinalDebug {
   optional double slope_offset_compensation = 19;
   optional double current_station = 20;
   optional double path_remain = 21;
-  optional int32 pid_saturation_status = 22;
-  optional int32 leadlag_saturation_status = 23;
-  optional double speed_offset = 24;
-  optional double current_speed = 25;
-  optional double acceleration_reference = 26;
-  optional double current_acceleration = 27;
-  optional double acceleration_error = 28;
-  optional double jerk_reference = 29;
-  optional double current_jerk = 30;
-  optional double jerk_error = 31;
-  optional apollo.common.TrajectoryPoint current_matched_point = 32;
-  optional apollo.common.TrajectoryPoint current_reference_point = 33;
-  optional apollo.common.TrajectoryPoint preview_reference_point = 34;
 }
 
 message SimpleLateralDebug {
@@ -127,41 +110,6 @@ message SimpleLateralDebug {
   optional double steering_position = 15;
   optional double ref_speed = 16;
   optional double steer_angle_limited = 17;
-
-  // time derivative of lateral error rate, in m/s^2
-  optional double lateral_acceleration = 18;
-  // second time derivative of lateral error rate, in m/s^3
-  optional double lateral_jerk = 19;
-
-  optional double ref_heading_rate = 20;
-  optional double heading_rate = 21;
-
-  // heading_acceleration, as known as yaw acceleration, is the time derivative
-  // of heading rate,  in rad/s^2
-  optional double ref_heading_acceleration = 22;
-  optional double heading_acceleration = 23;
-  optional double heading_error_acceleration = 24;
-
-  // heading_jerk, as known as yaw jerk, is the second time derivative of
-  // heading rate, in rad/s^3
-  optional double ref_heading_jerk = 25;
-  optional double heading_jerk = 26;
-  optional double heading_error_jerk = 27;
-
-  // modified lateral_error and heading_error with look-ahead or look-back
-  // station, as the feedback term for control usage
-  optional double lateral_error_feedback = 28;
-  optional double heading_error_feedback = 29;
-
-  // current planning target point
-  optional apollo.common.TrajectoryPoint current_target_point = 30;
-
-  // Augmented feedback control term in addition to LQR control
-  optional double steer_angle_feedback_augment = 31;
-
-  // Mrac control status and feedback states for steer control
-  optional MracDebug steer_mrac_debug = 32;
-  optional bool steer_mrac_enable_status = 33;
 }
 
 message SimpleMPCDebug {
@@ -195,52 +143,15 @@ message SimpleMPCDebug {
   optional double acceleration_lookup = 28;
   optional double speed_lookup = 29;
   optional double calibration_value = 30;
-  optional double steer_unconstrained_control_diff = 31;
-  optional double steer_angle_feedforward_compensation = 32;
-  repeated double matrix_q_updated = 33;  // matrix_q_updated_ size = 6
-  repeated double matrix_r_updated = 34;  // matrix_r_updated_ size = 2
-
-  // time derivative of lateral error rate, in m/s^2
-  optional double lateral_acceleration = 35;
-  // second time derivative of lateral error rate, in m/s^3
-  optional double lateral_jerk = 36;
-
-  optional double ref_heading_rate = 37;
-  optional double heading_rate = 38;
-
-  // heading_acceleration, as known as yaw acceleration, is the time derivative
-  // of heading rate,  in rad/s^2
-  optional double ref_heading_acceleration = 39;
-  optional double heading_acceleration = 40;
-  optional double heading_error_acceleration = 41;
-
-  // heading_jerk, as known as yaw jerk, is the second time derivative of
-  // heading rate, in rad/s^3
-  optional double ref_heading_jerk = 42;
-  optional double heading_jerk = 43;
-  optional double heading_error_jerk = 44;
-
-  optional double acceleration_feedback = 45;
-  optional double acceleration_error = 46;
-  optional double jerk_reference = 47;
-  optional double jerk_feedback = 48;
-  optional double jerk_error = 49;
+  repeated double matrix_q_updated = 31;     // matrix_q_updated_ size = 6
+  repeated double matrix_r_updated = 32;    // matrix_r_updated_ size = 2
 }
 
-message MracDebug {
-  optional int32 mrac_model_order = 1;
-  repeated double mrac_reference_state = 2;
-  repeated double mrac_state_error = 3;
-  optional MracAdaptiveGain mrac_adaptive_gain = 4;
-  optional int32 mrac_reference_saturation_status = 5;
-  optional int32 mrac_control_saturation_status = 6;
-}
-
-message MracAdaptiveGain {
-  repeated double state_adaptive_gain = 1;
-  repeated double input_adaptive_gain = 2;
-  repeated double nonlinear_adaptive_gain = 3;
-}
+message InputDebug {
+  optional apollo.common.Header localization_header = 1;
+  optional apollo.common.Header canbus_header = 2;
+  optional apollo.common.Header trajectory_header = 3;
+  }
 
 message Debug {
   optional SimpleLongitudinalDebug simple_lon_debug = 1;

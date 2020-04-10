@@ -23,4 +23,28 @@ source "${DIR}/apollo_base.sh"
 
 # run function from apollo_base.sh
 # run command_name module_name
-run planning "$@" --flagfile=modules/planning/conf/planning_navi.conf --use_navigation_mode
+function start() {
+	echo "start"
+	python modules/tools/navigation/planning/navigation_planning.py &
+}
+
+function stop() {
+    echo "stop"
+    pkill -SIGKILL -f navigation_planning.py
+}
+
+case $1 in                                                                                          
+start)                                                                                              
+    start                                                                                           
+    ;;                                                                                              
+help)                                                                                               
+    echo "$0 start|stop|help"                                                             
+    ;;                                                                                              
+stop)                                                                                               
+    stop                                                                                       
+    ;;                                                                                              
+*)                                                                                                  
+    stop                                                                                           
+    start                                                                                           
+    ;;
+esac

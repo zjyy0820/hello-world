@@ -14,15 +14,20 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef MODULES_MAP_PNC_MAP_PATH_H_
+#define MODULES_MAP_PNC_MAP_PATH_H_
 
+#include <cmath>
+#include <functional>
+#include <memory>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "modules/map/proto/map_lane.pb.h"
 
-#include "cyber/common/log.h"
+#include "modules/common/log.h"
 #include "modules/common/math/box2d.h"
 #include "modules/common/math/line_segment2d.h"
 #include "modules/common/math/vec2d.h"
@@ -133,15 +138,6 @@ class MapPathPoint : public common::math::Vec2d {
 
   void clear_lane_waypoints() { lane_waypoints_.clear(); }
 
-  static void RemoveDuplicates(std::vector<MapPathPoint>* points);
-
-  static std::vector<MapPathPoint> GetPointsFromSegment(
-      const LaneSegment& segment);
-
-  static std::vector<MapPathPoint> GetPointsFromLane(LaneInfoConstPtr lane,
-                                                     const double start_s,
-                                                     const double end_s);
-
   std::string DebugString() const;
 
  protected:
@@ -188,7 +184,7 @@ class PathApproximation {
   std::vector<common::math::LineSegment2d> segments_;
   std::vector<double> max_error_per_segment_;
 
-  // TODO(All): use direction change checks to early stop.
+  // TODO(@lianglia_apollo): use direction change checks to early stop.
 
   // Projection of points onto the diluated segments.
   std::vector<double> projections_;
@@ -217,8 +213,6 @@ class Path {
   Path() = default;
   explicit Path(const std::vector<MapPathPoint>& path_points);
   explicit Path(std::vector<MapPathPoint>&& path_points);
-  explicit Path(std::vector<LaneSegment>&& path_points);
-  explicit Path(const std::vector<LaneSegment>& path_points);
 
   Path(const std::vector<MapPathPoint>& path_points,
        const std::vector<LaneSegment>& lane_segments);
@@ -300,20 +294,17 @@ class Path {
   const std::vector<PathOverlap>& crosswalk_overlaps() const {
     return crosswalk_overlaps_;
   }
+  const std::vector<PathOverlap>& parking_space_overlaps() const {
+    return parking_space_overlaps_;
+  }
   const std::vector<PathOverlap>& junction_overlaps() const {
     return junction_overlaps_;
-  }
-  const std::vector<PathOverlap>& pnc_junction_overlaps() const {
-    return pnc_junction_overlaps_;
   }
   const std::vector<PathOverlap>& clear_area_overlaps() const {
     return clear_area_overlaps_;
   }
   const std::vector<PathOverlap>& speed_bump_overlaps() const {
     return speed_bump_overlaps_;
-  }
-  const std::vector<PathOverlap>& parking_space_overlaps() const {
-    return parking_space_overlaps_;
   }
 
   double GetLaneLeftWidth(const double s) const;
@@ -375,10 +366,11 @@ class Path {
   std::vector<PathOverlap> crosswalk_overlaps_;
   std::vector<PathOverlap> parking_space_overlaps_;
   std::vector<PathOverlap> junction_overlaps_;
-  std::vector<PathOverlap> pnc_junction_overlaps_;
   std::vector<PathOverlap> clear_area_overlaps_;
   std::vector<PathOverlap> speed_bump_overlaps_;
 };
 
 }  // namespace hdmap
 }  // namespace apollo
+
+#endif  // MODULES_MAP_PNC_MAP_PATH_H_

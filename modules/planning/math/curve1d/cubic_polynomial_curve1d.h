@@ -18,7 +18,8 @@
  * @file
  **/
 
-#pragma once
+#ifndef MODULES_PLANNING_MATH_CURVE1D_CUBIC_POLYNOMIAL_CURVE1D_H_
+#define MODULES_PLANNING_MATH_CURVE1D_CUBIC_POLYNOMIAL_CURVE1D_H_
 
 #include <array>
 #include <string>
@@ -45,16 +46,10 @@ class CubicPolynomialCurve1d : public PolynomialCurve1d {
   CubicPolynomialCurve1d(const double x0, const double dx0, const double ddx0,
                          const double x1, const double param);
 
-  void DerivedFromQuarticCurve(const PolynomialCurve1d& other);
-
   double Evaluate(const std::uint32_t order, const double p) const override;
 
-  double ParamLength() const override { return param_; }
+  double ParamLength() const { return param_; }
   std::string ToString() const override;
-
-  double Coef(const size_t order) const override;
-
-  size_t Order() const override { return 3; }
 
  private:
   void ComputeCoefficients(const double x0, const double dx0, const double ddx0,
@@ -66,3 +61,5 @@ class CubicPolynomialCurve1d : public PolynomialCurve1d {
 
 }  // namespace planning
 }  // namespace apollo
+
+#endif  // MODULES_PLANNING_MATH_CURVE1D_CUBIC_POLYNOMIAL_CURVE1D_H_

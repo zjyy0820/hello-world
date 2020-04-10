@@ -18,18 +18,19 @@
  * @file
  **/
 
-#include "cyber/common/file.h"
-#include "cyber/common/log.h"
-#include "gflags/gflags.h"
+#include <iostream>
+#include <string>
+#include <vector>
 
+#include "gflags/gflags.h"
+#include "modules/common/log.h"
 #include "modules/common/math/vec2d.h"
-#include "modules/common/util/future.h"
 #include "modules/common/util/util.h"
 #include "modules/map/pnc_map/path.h"
 #include "modules/planning/common/planning_gflags.h"
-#include "modules/planning/reference_line/qp_spline_reference_line_smoother.h"
 #include "modules/planning/reference_line/reference_line.h"
 #include "modules/planning/reference_line/reference_line_smoother.h"
+#include "modules/planning/reference_line/spiral_reference_line_smoother.h"
 
 DEFINE_string(input_file, "", "input file with format x,y per line");
 DEFINE_string(output_file, "", "output file with format x,y per line");
@@ -38,10 +39,10 @@ DEFINE_double(smooth_length, 200, "Smooth this amount of length ");
 namespace apollo {
 namespace planning {
 
-using apollo::common::math::LineSegment2d;
-using apollo::common::math::Vec2d;
-using apollo::common::util::DistanceXY;
-using apollo::hdmap::MapPathPoint;
+using common::math::LineSegment2d;
+using common::math::Vec2d;
+using common::util::DistanceXY;
+using hdmap::MapPathPoint;
 
 class SmootherUtil {
  public:
@@ -49,7 +50,7 @@ class SmootherUtil {
     std::ifstream ifs(filename.c_str(), std::ifstream::in);
     std::string point_str;
     while (std::getline(ifs, point_str)) {
-      size_t idx = point_str.find(',');
+      std::size_t idx = point_str.find(',');
       if (idx == std::string::npos) {
         continue;
       }
@@ -57,8 +58,8 @@ class SmootherUtil {
       auto y_str = point_str.substr(idx + 1);
       raw_points_.emplace_back(std::stod(x_str), std::stod(y_str));
     }
-    ACHECK(cyber::common::GetProtoFromFile(FLAGS_smoother_config_filename,
-                                           &config_))
+    CHECK(common::util::GetProtoFromFile(FLAGS_smoother_config_filename,
+                                         &config_))
         << "Failed to read smoother config file: "
         << FLAGS_smoother_config_filename;
   }
@@ -68,7 +69,7 @@ class SmootherUtil {
       AERROR << "the original point size is " << raw_points_.size();
       return false;
     }
-    size_t i = 1;
+    std::size_t i = 1;
     {
       std::vector<ReferencePoint> ref_points;
       double s = 0.0;
@@ -82,7 +83,7 @@ class SmootherUtil {
       // Prefer "std::make_unique" to direct use of "new".
       // Reference "https://herbsutter.com/gotw/_102/" for details.
       auto smoother_ptr =
-          std::make_unique<QpSplineReferenceLineSmoother>(config_);
+          std::make_unique<SpiralReferenceLineSmoother>(config_);
       auto anchors =
           CreateAnchorPoints(init_ref.reference_points().front(), init_ref);
       smoother_ptr->SetAnchorPoints(anchors);
@@ -95,7 +96,7 @@ class SmootherUtil {
     }
     for (; i < raw_points_.size(); ++i) {
       double s = 0.0;
-      size_t j = ref_points_.size() - 1;
+      std::size_t j = ref_points_.size() - 1;
       while (j > 0 && s < FLAGS_smooth_length / 2.0) {
         s += DistanceXY(ref_points_[j - 1], ref_points_[j]);
         --j;
@@ -124,7 +125,7 @@ class SmootherUtil {
       // Prefer "std::make_unique" to direct use of "new".
       // Reference "https://herbsutter.com/gotw/_102/" for details.
       auto smoother_ptr =
-          std::make_unique<QpSplineReferenceLineSmoother>(config_);
+          std::make_unique<SpiralReferenceLineSmoother>(config_);
       smoother_ptr->SetAnchorPoints(anchors);
       ReferenceLine smoothed_local_ref;
       if (!smoother_ptr->Smooth(local_ref, &smoothed_local_ref)) {
@@ -147,12 +148,12 @@ class SmootherUtil {
     ofs.precision(6);
     double s = 0.0;
     // skip the first point and the last point
-    for (size_t i = 1; i + 1 < ref_points_.size(); ++i) {
+    for (std::size_t i = 1; i + 1 < ref_points_.size(); ++i) {
       const auto& point = ref_points_[i];
       ofs << std::fixed << "{\"kappa\": " << point.kappa() << ", \"s\": " << s
           << ", \"theta\": " << point.heading() << ", \"x\":" << point.x()
-          << ", \"y\":" << point.y() << ", \"dkappa\":" << point.dkappa()
-          << "}";
+          << ", \"y\":" << point.y() << ", \"dkappa\":" << point.dkappa() << "}"
+          << std::endl;
       s += DistanceXY(point, ref_points_[i + 1]);
     }
     ofs.close();
@@ -170,7 +171,7 @@ class SmootherUtil {
     common::util::uniform_slice(0.0, ref_line.Length(), num_of_anchors - 1,
                                 &anchor_s);
     common::SLPoint sl;
-    if (!ref_line.XYToSL(init_point, &sl)) {
+    if (!ref_line.XYToSL(Vec2d(init_point.x(), init_point.y()), &sl)) {
       AERROR << "Failed to project init point to reference line";
       return anchor_points;
     }
@@ -193,7 +194,7 @@ class SmootherUtil {
       anchor.path_point.set_s(s);
       anchor.path_point.set_theta(ref_point.heading());
       anchor.path_point.set_kappa(ref_point.kappa());
-      anchor.lateral_bound = config_.max_lateral_boundary_bound();
+      anchor.lateral_bound = config_.lateral_boundary_bound();
       anchor.longitudinal_bound = config_.longitudinal_boundary_bound();
       anchor_points.emplace_back(anchor);
     }

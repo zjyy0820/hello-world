@@ -14,26 +14,23 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef MODULES_DREAMVIEW_BACKEND_DREAMVIEW_H_
+#define MODULES_DREAMVIEW_BACKEND_DREAMVIEW_H_
 
 #include <memory>
 #include <string>
 
 #include "CivetServer.h"
-#include "cyber/cyber.h"
-#include "modules/common/status/status.h"
-#include "modules/dreamview/backend/data_collection_monitor/data_collection_monitor.h"
+
+#include "modules/common/apollo_app.h"
+
 #include "modules/dreamview/backend/handlers/image_handler.h"
 #include "modules/dreamview/backend/handlers/websocket_handler.h"
 #include "modules/dreamview/backend/hmi/hmi.h"
 #include "modules/dreamview/backend/map/map_service.h"
-#include "modules/dreamview/backend/perception_camera_updater/perception_camera_updater.h"
 #include "modules/dreamview/backend/point_cloud/point_cloud_updater.h"
 #include "modules/dreamview/backend/sim_control/sim_control.h"
 #include "modules/dreamview/backend/simulation_world/simulation_world_updater.h"
-#ifdef TELEOP
-#include "modules/dreamview/backend/teleop/teleop.h"
-#endif
 
 /**
  * @namespace apollo::dreamview
@@ -42,37 +39,33 @@
 namespace apollo {
 namespace dreamview {
 
-class Dreamview {
+class Dreamview : public apollo::common::ApolloApp {
  public:
-  ~Dreamview();
-
-  apollo::common::Status Init();
-  apollo::common::Status Start();
-  void Stop();
+  std::string Name() const override;
+  apollo::common::Status Init() override;
+  apollo::common::Status Start() override;
+  void Stop() override;
+  virtual ~Dreamview() = default;
 
  private:
-  void TerminateProfilingMode();
+  void TerminateProfilingMode(const ros::TimerEvent& event);
+  void CheckAdapters();
 
-  std::unique_ptr<cyber::Timer> exit_timer_;
+  ros::Timer exit_timer_;
 
   std::unique_ptr<SimulationWorldUpdater> sim_world_updater_;
   std::unique_ptr<PointCloudUpdater> point_cloud_updater_;
-  std::unique_ptr<SimControl> sim_control_;
   std::unique_ptr<CivetServer> server_;
+  std::unique_ptr<SimControl> sim_control_;
   std::unique_ptr<WebSocketHandler> websocket_;
   std::unique_ptr<WebSocketHandler> map_ws_;
   std::unique_ptr<WebSocketHandler> point_cloud_ws_;
-  std::unique_ptr<WebSocketHandler> camera_ws_;
   std::unique_ptr<ImageHandler> image_;
   std::unique_ptr<MapService> map_service_;
   std::unique_ptr<HMI> hmi_;
-  std::unique_ptr<DataCollectionMonitor> data_collection_monitor_;
-  std::unique_ptr<PerceptionCameraUpdater> perception_camera_updater_;
-#ifdef TELEOP
-  std::unique_ptr<TeleopService> teleop_;
-  std::unique_ptr<WebSocketHandler> teleop_ws_;
-#endif
 };
 
 }  // namespace dreamview
 }  // namespace apollo
+
+#endif  // MODULES_DREAMVIEW_BACKEND_DREAMVIEW_H_

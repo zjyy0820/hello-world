@@ -14,7 +14,8 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef MODULES_CANBUS_VEHICLE_GEM_PROTOCOL_STEERING_MOTOR_RPT_2_74_H_
+#define MODULES_CANBUS_VEHICLE_GEM_PROTOCOL_STEERING_MOTOR_RPT_2_74_H_
 
 #include "modules/canbus/proto/chassis_detail.pb.h"
 #include "modules/drivers/canbus/can_comm/protocol_data.h"
@@ -55,3 +56,5 @@ class Steeringmotorrpt274 : public ::apollo::drivers::canbus::ProtocolData<
 }  // namespace gem
 }  // namespace canbus
 }  // namespace apollo
+
+#endif  // MODULES_CANBUS_VEHICL_GEM_PROTOCOL_STEERING_MOTOR_RPT_2_74_H_

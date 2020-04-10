@@ -21,23 +21,8 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 cd $DIR/..
 
-source "${DIR}/apollo_base.sh"
-
-function start() {
-    LOG="${APOLLO_ROOT_DIR}/data/log/manual_traffic_light.out"
-    cyber_launch start /apollo/modules/tools/manual_traffic_light/manual_traffic_light.launch
-}
-
-# run command_name module_name
-function run() {
-    case $1 in
-        start)
-            start
-            ;;
-        *)
-            start
-            ;;
-    esac
-}
-
-run "$1"
+if [ "$RELEASE_DOCKER" == 1 ]; then
+  /apollo/modules/tools/manual_traffic_light/manual_traffic_light --flagfile=modules/common/data/global_flagfile.txt $@
+else
+  ./bazel-bin/modules/tools/manual_traffic_light/manual_traffic_light --flagfile=modules/common/data/global_flagfile.txt $@
+fi

@@ -14,7 +14,8 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef MODULES_DRIVERS_RADAR_CONTI_RADAR_PROTOCOL_CLUSTER_LIST_STATUS_600_H_
+#define MODULES_DRIVERS_RADAR_CONTI_RADAR_PROTOCOL_CLUSTER_LIST_STATUS_600_H_
 
 #include "modules/drivers/canbus/can_comm/protocol_data.h"
 #include "modules/drivers/proto/conti_radar.pb.h"
@@ -46,3 +47,5 @@ class ClusterListStatus600
 }  // namespace conti_radar
 }  // namespace drivers
 }  // namespace apollo
+
+#endif  // MODULES_CANBUS_VEHICL_ESR_PROTOCOL_CLUSTER_LIST_STATUS_600_H_

@@ -11,14 +11,20 @@ cc_library(
 
 cc_library(
     name = "routing_a_star_strategy",
-    srcs = ["a_star_strategy.cc"],
+    srcs = [
+        "a_star_strategy.cc",
+    ],
     hdrs = [
         "a_star_strategy.h",
         "strategy.h",
     ],
-    copts = ['-DMODULE_NAME=\\"routing\\"'],
     deps = [
+        "//modules/common",
+        "//modules/common/proto:common_proto",
+        "//modules/map/proto:map_proto",
+        "//modules/routing/common:routing_gflags",
         "//modules/routing/graph",
+        "//modules/routing/proto:routing_proto",
     ],
 )
 

@@ -19,10 +19,11 @@
  * @brief Define activation functions for neural network
  */
 
-#pragma once
+#ifndef MODULES_PREDICTION_NETWORK_NET_UTIL_H_
+#define MODULES_PREDICTION_NETWORK_NET_UTIL_H_
 
+#include <functional>
 #include <string>
-#include <vector>
 
 #include "Eigen/Dense"
 
@@ -71,13 +72,6 @@ float hard_sigmoid(const float x);
 float relu(const float x);
 
 /**
- * @brief flatten a matrix to a row vector
- * @param Input matrix
- * @return Flattened matrix
- */
-Eigen::MatrixXf FlattenMatrix(const Eigen::MatrixXf& matrix);
-
-/**
  * @brief translate a string into a network activation function
  * @param string
  * @return activation function map to the string
@@ -100,15 +94,8 @@ bool LoadTensor(const TensorParameter& tensor_pb, Eigen::MatrixXf* matrix);
  */
 bool LoadTensor(const TensorParameter& tensor_pb, Eigen::VectorXf* vector);
 
-/**
- * @brief load matrix value from a protobuf message
- * @param protobuf message in the form of TensorParameter
- * @param vector of Eigen::MatrixXf will be returned
- * @return True if load data successively, otherwise False
- */
-bool LoadTensor(const TensorParameter& tensor_pb,
-                std::vector<Eigen::MatrixXf>* const tensor3d);
-
 }  // namespace network
 }  // namespace prediction
 }  // namespace apollo
+
+#endif  // MODULES_PREDICTION_NETWORK_NET_UTIL_H_

@@ -14,12 +14,14 @@
  * limitations under the License.
  *****************************************************************************/
 
+#include <string>
+#include <vector>
+
 #include "gflags/gflags.h"
 
-#include "absl/strings/match.h"
-#include "cyber/common/file.h"
-#include "cyber/common/log.h"
 #include "modules/common/configs/config_gflags.h"
+#include "modules/common/log.h"
+#include "modules/common/util/file.h"
 #include "modules/common/util/points_downsampler.h"
 #include "modules/map/hdmap/adapter/opendrive_adapter.h"
 #include "modules/map/hdmap/hdmap_util.h"
@@ -41,7 +43,7 @@ DEFINE_int32(steep_turn_downsample_distance, 1,
 using apollo::common::PointENU;
 using apollo::common::util::DownsampleByAngle;
 using apollo::common::util::DownsampleByDistance;
-using apollo::cyber::common::GetProtoFromFile;
+using apollo::common::util::GetProtoFromFile;
 using apollo::hdmap::Curve;
 using apollo::hdmap::Map;
 using apollo::hdmap::adapter::OpendriveAdapter;
@@ -58,7 +60,7 @@ static void DownsampleCurve(Curve* curve) {
   // Downsample points by angle then by distance.
   auto sampled_indices = DownsampleByAngle(points, FLAGS_angle_threshold);
   std::vector<PointENU> downsampled_points;
-  for (const size_t index : sampled_indices) {
+  for (int index : sampled_indices) {
     downsampled_points.push_back(points[index]);
   }
 
@@ -66,10 +68,10 @@ static void DownsampleCurve(Curve* curve) {
       DownsampleByDistance(downsampled_points, FLAGS_downsample_distance,
                            FLAGS_steep_turn_downsample_distance);
 
-  for (const size_t index : sampled_indices) {
+  for (int index : sampled_indices) {
     *line_segment->add_point() = downsampled_points[index];
   }
-  size_t new_size = line_segment->point_size();
+  int new_size = line_segment->point_size();
   CHECK_GT(new_size, 1);
 
   AINFO << "Lane curve downsampled from " << points.size() << " points to "
@@ -112,10 +114,10 @@ int main(int32_t argc, char** argv) {
 
   Map map_pb;
   const auto map_file = apollo::hdmap::BaseMapFile();
-  if (absl::EndsWith(map_file, ".xml")) {
-    ACHECK(OpendriveAdapter::LoadData(map_file, &map_pb));
+  if (apollo::common::util::EndWith(map_file, ".xml")) {
+    CHECK(OpendriveAdapter::LoadData(map_file, &map_pb));
   } else {
-    ACHECK(GetProtoFromFile(map_file, &map_pb)) << "Fail to open: " << map_file;
+    CHECK(GetProtoFromFile(map_file, &map_pb)) << "Fail to open: " << map_file;
   }
 
   DownsampleMap(&map_pb);

@@ -17,13 +17,11 @@
 /**
  * @file
  **/
-
-#include <chrono>
+#include "modules/planning/math/smoothing_spline/spline_2d_solver.h"
 
 #include "gtest/gtest.h"
 
 #include "modules/planning/math/curve_math.h"
-#include "modules/planning/math/smoothing_spline/active_set_spline_2d_solver.h"
 
 namespace apollo {
 namespace planning {
@@ -33,8 +31,8 @@ using Eigen::MatrixXd;
 
 TEST(constraint_test, test_suit_one) {
   std::vector<double> t_knots{0, 1, 2, 3, 4, 5};
-  uint32_t order = 5;
-  ActiveSetSpline2dSolver spline_solver(t_knots, order);
+  std::size_t order = 5;
+  Spline2dSolver spline_solver(t_knots, order);
 
   Spline2dConstraint* constraint = spline_solver.mutable_constraint();
   Spline2dKernel* kernel = spline_solver.mutable_kernel();
@@ -56,7 +54,7 @@ TEST(constraint_test, test_suit_one) {
   std::vector<double> angle;
   std::vector<Vec2d> ref_point;
 
-  for (size_t i = 0; i < 11; ++i) {
+  for (std::size_t i = 0; i < 11; ++i) {
     angle.push_back(constraint_data[i][0]);
     Vec2d prev_point(constraint_data[i][1], constraint_data[i][2]);
 
@@ -72,11 +70,7 @@ TEST(constraint_test, test_suit_one) {
 
   kernel->AddRegularization(0.1);
   // constraint->add_point_angle_constraint(0, -1.21);
-  auto start = std::chrono::system_clock::now();
   EXPECT_TRUE(spline_solver.Solve());
-  auto end = std::chrono::system_clock::now();
-  std::chrono::duration<double> diff = end - start;
-  std::cout << "Time to solver is " << diff.count() << " s\n";
 
   MatrixXd gold_res(51, 6);
   // clang-format off

@@ -14,11 +14,15 @@
  * limitations under the License.
  *****************************************************************************/
 
-#include "cyber/common/file.h"
-#include "cyber/cyber.h"
-#include "cyber/time/rate.h"
+#include <chrono>
+#include <thread>
 
-#include "modules/common/adapters/adapter_gflags.h"
+#include "gflags/gflags.h"
+#include "ros/ros.h"
+
+#include "modules/common/adapters/adapter_manager.h"
+#include "modules/common/adapters/proto/adapter_config.pb.h"
+#include "modules/common/log.h"
 #include "modules/routing/proto/routing.pb.h"
 
 DEFINE_bool(enable_remove_lane_id, true,
@@ -28,18 +32,30 @@ DEFINE_string(routing_test_file,
               "modules/routing/testdata/routing_tester/routing_test.pb.txt",
               "Used for sending routing request to routing node.");
 
-using apollo::cyber::Rate;
+int main(int argc, char** argv) {
+  using std::this_thread::sleep_for;
 
-int main(int argc, char *argv[]) {
+  using apollo::common::adapter::AdapterManager;
+  using apollo::common::adapter::AdapterManagerConfig;
+  using apollo::common::adapter::AdapterConfig;
+
+  google::InitGoogleLogging(argv[0]);
   google::ParseCommandLineFlags(&argc, &argv, true);
+  ros::init(argc, argv, "routing_tester");
 
-  // init cyber framework
-  apollo::cyber::Init(argv[0]);
   FLAGS_alsologtostderr = true;
+  AdapterManagerConfig config;
+  config.set_is_ros(true);
+  auto* sub_config = config.add_config();
+  sub_config->set_mode(AdapterConfig::PUBLISH_ONLY);
+  sub_config->set_type(AdapterConfig::ROUTING_REQUEST);
+
+  AdapterManager::Init(config);
+  AINFO << "AdapterManager is initialized.";
 
   apollo::routing::RoutingRequest routing_request;
-  if (!apollo::cyber::common::GetProtoFromFile(FLAGS_routing_test_file,
-                                               &routing_request)) {
+  if (!apollo::common::util::GetProtoFromFile(FLAGS_routing_test_file,
+                                              &routing_request)) {
     AERROR << "failed to load file: " << FLAGS_routing_test_file;
     return -1;
   }
@@ -51,16 +67,15 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  std::shared_ptr<apollo::cyber::Node> node(
-      apollo::cyber::CreateNode("routing_tester"));
-  auto writer = node->CreateWriter<apollo::routing::RoutingRequest>(
-      FLAGS_routing_request_topic);
+  ros::Rate loop_rate(0.3);  // frequency
 
-  Rate rate(1.0);
-  while (apollo::cyber::OK()) {
-    writer->Write(routing_request);
-    AINFO << "send out routing request: " << routing_request.DebugString();
-    rate.Sleep();
+  while (ros::ok()) {
+    AdapterManager::FillRoutingRequestHeader("routing", &routing_request);
+    AdapterManager::PublishRoutingRequest(routing_request);
+    AINFO << "Sending routing request:" << routing_request.DebugString();
+    ros::spinOnce();  // yield
+    loop_rate.sleep();
   }
+
   return 0;
 }

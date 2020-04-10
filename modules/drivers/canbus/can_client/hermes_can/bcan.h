@@ -14,12 +14,13 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef ADU_PLAT_SW_LIB_BCAN_BCAN_H
+#define ADU_PLAT_SW_LIB_BCAN_BCAN_H
 
+#include <stdint.h>
+#include <stdlib.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
-#include <cstdint>
-#include <cstdlib>
 
 /* bcan_msg_t and bcan_err_code definitions. */
 // #include "linux/bcan_defs.h"
@@ -93,3 +94,5 @@ int bcan_id_remove_all(bcan_hdl_t hdl);
 #ifdef __cplusplus
 }
 #endif
+
+#endif /* ADU_PLAT_SW_LIB_BCAN_BCAN_LIB_H */

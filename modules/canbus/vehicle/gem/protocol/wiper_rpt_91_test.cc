@@ -41,3 +41,4 @@ TEST_F(Wiperrpt91Test, reset) {
 }  // namespace gem
 }  // namespace canbus
 }  // namespace apollo
+

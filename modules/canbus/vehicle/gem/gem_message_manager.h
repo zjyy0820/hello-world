@@ -13,7 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#pragma once
+#ifndef MODULES_CANBUS_VEHICLE_GEM_GEM_MESSAGE_MANAGER_H_
+#define MODULES_CANBUS_VEHICLE_GEM_GEM_MESSAGE_MANAGER_H_
 
 #include "modules/canbus/proto/chassis_detail.pb.h"
 #include "modules/drivers/canbus/can_comm/message_manager.h"
@@ -34,3 +35,5 @@ class GemMessageManager
 }  // namespace gem
 }  // namespace canbus
 }  // namespace apollo
+
+#endif  // MODULES_CANBUS_VEHICLE_GEM_GEM_MESSAGE_MANAGER_H_

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 ###############################################################################
 # Copyright 2018 The Apollo Authors. All Rights Reserved.
@@ -15,27 +15,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ###############################################################################
+
 """
-Sample PNC topics. For each /path/to/a.record, will generate
-/path/to/pnc_sample/a.record.
+Sample PNC topics. For each /path/to/a.bag, will generate
+/path/to/pnc_sample/a.bag.
 
 Usage:
-    ./sample_pnc_topics.py <record_path>
-        <record_path>    Support * and ?.
+    ./sample_pnc_topics.py <bag_path>
+        <bag_path>    Support * and ?.
 Example:
-    ./sample_pnc_topics.py '/mnt/nfs/public_test/2018-04-??/*/mkz8/*/*.record'
+    ./sample_pnc_topics.py '/mnt/nfs/public_test/2018-04-??/*/mkz8/*/*.bag'
 """
 
-import argparse
 import glob
 import os
 import sys
 
 import glog
-
-from cyber_py3 import cyber
-from cyber_py3.record import RecordReader
-from cyber_py3.record import RecordWriter
+import rosbag
 
 
 class SamplePNC(object):
@@ -73,32 +70,27 @@ class SamplePNC(object):
     ]
 
     @classmethod
-    def process_record(cls, input_record, output_record):
-        print("filtering: {} -> {}".format(input_record, output_record))
-        output_dir = os.path.dirname(output_record)
-        if output_dir != "" and not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        freader = RecordReader(input_record)
-        fwriter = RecordWriter()
-        if not fwriter.open(output_record):
-            print('writer open failed!')
-            return
-        print('----- Begin to process record -----')
-        for channelname, msg, datatype, timestamp in freader.read_messages():
-            if channelname in SamplePNC.TOPICS:
-                desc = freader.get_protodesc(channelname)
-                fwriter.write_channel(channelname, datatype, desc)
-                fwriter.write_message(channelname, msg, timestamp)
-        print('----- Finish processing record -----')
+    def process_bags(cls, bags):
+        for bag_file in bags:
+            output_dir = os.path.join(os.path.dirname(bag_file), 'pnc_sample')
+            output_bag = os.path.join(output_dir, os.path.basename(bag_file))
+            if os.path.exists(output_bag):
+                glog.info('Skip {} which has been processed'.format(bag_file))
+                continue
 
+            glog.info('Processing bag {}'.format(bag_file))
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+            with rosbag.Bag(bag_file, 'r') as bag_in:
+                with rosbag.Bag(output_bag, 'w') as bag_out:
+                    for topic, msg, t in bag_in.read_messages(
+                            topics=SamplePNC.TOPICS):
+                        bag_out.write(topic, msg, t)
 
 if __name__ == '__main__':
-    cyber.init()
-    parser = argparse.ArgumentParser(
-        description="Filter pnc record. \
-            Usage: 'python sample_pnc_topic.py input_record  output_record'")
-    parser.add_argument('input', type=str, help="the input record")
-    parser.add_argument('output', type=str, help="the output record")
-    args = parser.parse_args()
-    SamplePNC.process_record(args.input, args.output)
-    cyber.shutdown()
+    if len(sys.argv) < 2:
+        print("Usage: %s <bag_path> ..." % sys.argv[0])
+        sys.exit(1)
+
+    bags = sorted(sum([glob.glob(arg) for arg in sys.argv[1:]], []))
+    SamplePNC.process_bags(bags)

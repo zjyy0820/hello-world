@@ -18,13 +18,14 @@
  * @file offline_local_visualizer.h
  * @brief The offline tool for localization visualization.
  */
-#pragma once
+#ifndef MODULES_LOCALIZATION_MSF_LOCAL_TOOL_OFFLINE_LOCAL_VISUALIZER_H
+#define MODULES_LOCALIZATION_MSF_LOCAL_TOOL_OFFLINE_LOCAL_VISUALIZER_H
 
 #include <map>
 #include <string>
 #include <vector>
 
-#include "modules/localization/msf/local_pyramid_map/base_map/base_map_config.h"
+#include "modules/localization/msf/local_map/base_map/base_map_config.h"
 #include "modules/localization/msf/local_tool/local_visualization/engine/visualization_engine.h"
 
 namespace apollo {
@@ -93,7 +94,7 @@ class OfflineLocalVisualizer {
   std::map<unsigned int, Eigen::Affine3d> fusion_poses_;
   std::map<unsigned int, Eigen::Vector3d> fusion_stds_;
 
-  pyramid_map::BaseMapConfig map_config_;
+  BaseMapConfig map_config_;
   unsigned int resolution_id_;
   int zone_id_;
 
@@ -104,3 +105,5 @@ class OfflineLocalVisualizer {
 }  // namespace msf
 }  // namespace localization
 }  // namespace apollo
+
+#endif  // MODULES_LOCALIZATION_MSF_LOCAL_TOOL_OFFLINE_LOCAL_VISUALIZER_H

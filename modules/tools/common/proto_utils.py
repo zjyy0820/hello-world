@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 ###############################################################################
 # Copyright 2017 The Apollo Authors. All Rights Reserved.
@@ -21,8 +21,9 @@ import google.protobuf.text_format as text_format
 
 def write_pb_to_text_file(topic_pb, file_path):
     """write pb message to file"""
-    with open(file_path, 'w') as f:
-        f.write(str(topic_pb))
+    f = file(file_path, 'w')
+    f.write(str(topic_pb))
+    f.close()
 
 
 def get_pb_from_text_file(filename, pb_value):
@@ -46,7 +47,8 @@ def get_pb_from_file(filename, pb_value):
         try:
             return get_pb_from_text_file(filename, pb_value)
         except:
-            print('Error: Cannot parse %s as binary or text proto' % filename)
+            print 'Error: Cannot parse %s as binary or text proto' % filename
+
     return None
 
 
@@ -88,7 +90,7 @@ def flatten(pb_value, selectors):
         return val
 
     # Return the single result for single selector.
-    if isinstance(selectors, str):
+    if type(selectors) is str:
         return __select(pb_value, selectors)
     # Return tuple result for multiple selectors.
     return tuple((__select(pb_value, selector) for selector in selectors))

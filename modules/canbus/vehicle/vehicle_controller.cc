@@ -16,7 +16,7 @@
 
 #include "modules/canbus/vehicle/vehicle_controller.h"
 
-#include "cyber/common/log.h"
+#include "modules/common/log.h"
 
 namespace apollo {
 namespace canbus {
@@ -91,11 +91,14 @@ ErrorCode VehicleController::SetDrivingMode(
   return ErrorCode::OK;
 }
 
-ErrorCode VehicleController::Update(const ControlCommand &control_command) {
+ErrorCode VehicleController::Update(const ControlCommand &command) {
   if (!is_initialized_) {
     AERROR << "Controller is not initialized.";
     return ErrorCode::CANBUS_ERROR;
   }
+
+  ControlCommand control_command;
+  control_command.CopyFrom(command);
 
   // Execute action to transform driving mode
   if (control_command.has_pad_msg() && control_command.pad_msg().has_action()) {

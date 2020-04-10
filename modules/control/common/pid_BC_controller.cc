@@ -18,7 +18,7 @@
 
 #include <cmath>
 
-#include "cyber/common/log.h"
+#include "modules/common/log.h"
 
 #include "modules/common/math/math_utils.h"
 
@@ -39,13 +39,13 @@ double PIDBCController::Control(const double error, const double dt) {
     diff = (error - previous_error_) / dt;
   }
 
-  // backward calculation
+  // backward caculation
   if (!integrator_enabled_) {
     integral_ = 0;
   } else {
     double u = error * kp_ + integral_ + error * dt * ki_ + diff * kd_;
     double aw_term = common::math::Clamp(u, output_saturation_high_,
-                                         output_saturation_low_) -
+                                                   output_saturation_low_) -
                      u;
     if (aw_term > 1e-6) {
       output_saturation_status_ = -1;
@@ -58,9 +58,9 @@ double PIDBCController::Control(const double error, const double dt) {
   }
 
   previous_error_ = error;
-  output = common::math::Clamp(error * kp_ + integral_ + diff * kd_,
-                               output_saturation_high_,
-                               output_saturation_low_);  // Ki already applied
+  output = common::math::Clamp(
+      error * kp_ + integral_ + diff * kd_, output_saturation_high_,
+      output_saturation_low_);  // Ki already applied
   previous_output_ = output;
   return output;
 }

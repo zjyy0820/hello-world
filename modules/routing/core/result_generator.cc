@@ -16,25 +16,34 @@
 #include "modules/routing/core/result_generator.h"
 
 #include <algorithm>
-#include <cmath>
+#include <memory>
+#include <string>
 #include <unordered_set>
+#include <utility>
+#include <vector>
 
-#include "cyber/common/log.h"
+#include "modules/common/adapters/adapter_manager.h"
+#include "modules/common/log.h"
+#include "modules/common/time/time.h"
 #include "modules/common/util/map_util.h"
+#include "modules/routing/common/routing_gflags.h"
+#include "modules/routing/graph/node_with_range.h"
+#include "modules/routing/graph/range_utils.h"
 
 namespace apollo {
 namespace routing {
 
+using apollo::common::adapter::AdapterManager;
 using apollo::common::util::ContainsKey;
 
 bool IsCloseEnough(double value_1, double value_2) {
-  static constexpr double kEpsilon = 1e-6;
+  constexpr double kEpsilon = 1e-6;
   return std::fabs(value_1 - value_2) < kEpsilon;
 }
 
 const NodeWithRange& GetLargestRange(
     const std::vector<NodeWithRange>& node_vec) {
-  ACHECK(!node_vec.empty());
+  CHECK(!node_vec.empty());
   size_t result_idx = 0;
   double result_range_length = 0.0;
   for (size_t i = 0; i < node_vec.size(); ++i) {
@@ -49,7 +58,7 @@ const NodeWithRange& GetLargestRange(
 bool ResultGenerator::ExtractBasicPassages(
     const std::vector<NodeWithRange>& nodes,
     std::vector<PassageInfo>* const passages) {
-  ACHECK(!nodes.empty());
+  CHECK(!nodes.empty());
   passages->clear();
   std::vector<NodeWithRange> nodes_of_passage;
   nodes_of_passage.push_back(nodes.at(0));
@@ -142,9 +151,8 @@ void ResultGenerator::ExtendBackward(const TopoRangeManager& range_manager,
       NodeWithRange reachable_node(pred_node, 0, 1);
       if (IsReachableToWithChangeLane(pred_node, prev_passage,
                                       &reachable_node)) {
-        const auto* pred_range = range_manager.Find(pred_node);
-        if (pred_range != nullptr && !pred_range->empty()) {
-          double black_s_end = pred_range->back().EndS();
+        if (range_manager.Find(pred_node)) {
+          double black_s_end = range_manager.RangeEnd(pred_node);
           if (!IsCloseEnough(black_s_end, pred_node->Length())) {
             pred_set.emplace_back(pred_node, black_s_end, pred_node->Length());
           }
@@ -202,9 +210,8 @@ void ResultGenerator::ExtendForward(const TopoRangeManager& range_manager,
       NodeWithRange reachable_node(succ_node, 0, 1.0);
       if (IsReachableFromWithChangeLane(succ_node, next_passage,
                                         &reachable_node)) {
-        const auto* succ_range = range_manager.Find(succ_node);
-        if (succ_range != nullptr && !succ_range->empty()) {
-          double black_s_start = succ_range->front().StartS();
+        if (range_manager.Find(succ_node)) {
+          double black_s_start = range_manager.RangeStart(succ_node);
           if (!IsCloseEnough(black_s_start, 0.0)) {
             succ_set.emplace_back(succ_node, 0.0, black_s_start);
           }
@@ -234,7 +241,7 @@ void ResultGenerator::ExtendForward(const TopoRangeManager& range_manager,
 
 void ResultGenerator::ExtendPassages(const TopoRangeManager& range_manager,
                                      std::vector<PassageInfo>* const passages) {
-  int passage_num = static_cast<int>(passages->size());
+  int passage_num = passages->size();
   for (int i = 0; i < passage_num; ++i) {
     if (i < passage_num - 1) {
       ExtendForward(range_manager, passages->at(i + 1), &(passages->at(i)));
@@ -275,7 +282,7 @@ double CalculateDistance(const std::vector<NodeWithRange>& nodes) {
   for (size_t i = 1; i < nodes.size(); ++i) {
     auto edge =
         nodes.at(i - 1).GetTopoNode()->GetOutEdgeTo(nodes.at(i).GetTopoNode());
-    if (edge == nullptr || edge->Type() != TET_FORWARD) {
+    if (edge->Type() != TET_FORWARD) {
       continue;
     }
     distance += nodes.at(i).EndS() - nodes.at(i).StartS();
@@ -299,6 +306,8 @@ bool ResultGenerator::GeneratePassageRegion(
     const std::string& map_version, const RoutingRequest& request,
     const std::vector<NodeWithRange>& nodes,
     const TopoRangeManager& range_manager, RoutingResponse* const result) {
+  AdapterManager::FillRoutingResponseHeader(FLAGS_routing_node_name, result);
+
   if (!GeneratePassageRegion(nodes, range_manager, result)) {
     return false;
   }
@@ -349,7 +358,7 @@ void ResultGenerator::AddRoadSegment(
 
 void ResultGenerator::CreateRoadSegments(
     const std::vector<PassageInfo>& passages, RoutingResponse* result) {
-  ACHECK(!passages.empty()) << "passages empty";
+  CHECK(!passages.empty()) << "passages empty";
   NodeWithRange fake_node_range(passages.front().nodes.front());
   bool in_change_lane = false;
   std::pair<std::size_t, std::size_t> start_index(0, 0);

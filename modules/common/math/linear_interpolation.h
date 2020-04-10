@@ -19,11 +19,12 @@
  * @brief Linear interpolation functions.
  */
 
-#pragma once
+#ifndef MODULES_COMMON_MATH_LINEAR_INTERPOLATION_H_
+#define MODULES_COMMON_MATH_LINEAR_INTERPOLATION_H_
 
 #include <cmath>
 
-#include "cyber/common/log.h"
+#include "modules/common/log.h"
 #include "modules/common/proto/pnc_point.pb.h"
 
 /**
@@ -84,3 +85,5 @@ TrajectoryPoint InterpolateUsingLinearApproximation(const TrajectoryPoint &tp0,
 }  // namespace math
 }  // namespace common
 }  // namespace apollo
+
+#endif  // MODULES_COMMON_MATH_LINEAR_INTERPOLATION_H_

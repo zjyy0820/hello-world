@@ -20,16 +20,17 @@
  */
 
 #include "modules/drivers/radar/ultrasonic_radar/ultrasonic_radar_message_manager.h"
-#include "modules/common/util/message_util.h"
+
 
 namespace apollo {
 namespace drivers {
 namespace ultrasonic_radar {
 
-UltrasonicRadarMessageManager::UltrasonicRadarMessageManager(
-    const int entrance_num,
-    const std::shared_ptr<::apollo::cyber::Writer<Ultrasonic>> &writer)
-    : entrance_num_(entrance_num), ultrasonic_radar_writer_(writer) {
+using ::apollo::common::adapter::AdapterManager;
+
+UltrasonicRadarMessageManager::UltrasonicRadarMessageManager(int entrance_num)
+    : MessageManager<Ultrasonic>(),
+      entrance_num_(entrance_num) {
   sensor_data_.mutable_ranges()->Resize(entrance_num_, 0.0);
 }
 
@@ -39,7 +40,7 @@ void UltrasonicRadarMessageManager::set_can_client(
 }
 
 void UltrasonicRadarMessageManager::Parse(const uint32_t message_id,
-                                          const uint8_t *data, int32_t length) {
+                                     const uint8_t *data, int32_t length) {
   if (message_id == 0x301) {
     sensor_data_.set_ranges(0, data[1]);
     sensor_data_.set_ranges(1, data[2]);
@@ -56,20 +57,19 @@ void UltrasonicRadarMessageManager::Parse(const uint32_t message_id,
   } else if (message_id == 0x304) {
     sensor_data_.set_ranges(10, data[1]);
     sensor_data_.set_ranges(11, data[2]);
-    common::util::FillHeader("ultrasonic_radar", &sensor_data_);
-    ultrasonic_radar_writer_->Write(sensor_data_);
+    AdapterManager::FillUltrasonicHeader(FLAGS_sensor_node_name, &sensor_data_);
+    AdapterManager::PublishUltrasonic(sensor_data_);
   }
 
   received_ids_.insert(message_id);
   // check if need to check period
   const auto it = check_ids_.find(message_id);
   if (it != check_ids_.end()) {
-    const int64_t time = absl::ToUnixMicros(Clock::Now());
+    const int64_t time = common::time::AsInt64<micros>(Clock::Now());
     it->second.real_period = time - it->second.last_time;
     // if period 1.5 large than base period, inc error_count
     const double period_multiplier = 1.5;
-    if (it->second.real_period >
-        (static_cast<double>(it->second.period) * period_multiplier)) {
+    if (it->second.real_period > (it->second.period * period_multiplier)) {
       it->second.error_count += 1;
     } else {
       it->second.error_count = 0;

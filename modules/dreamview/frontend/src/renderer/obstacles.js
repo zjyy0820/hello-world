@@ -31,15 +31,14 @@ export default class PerceptionObstacles {
         this.extrusionDashedFaces = []; // for obstacles with polygon points
         this.laneMarkers = []; // for lane markers
         this.icons = [];
-        this.trafficCones = []; // for traffic cone meshes
     }
 
-    update(world, coordinates, scene, isBirdView) {
-        this.updateObjects(world, coordinates, scene, isBirdView);
+    update(world, coordinates, scene) {
+        this.updateObjects(world, coordinates, scene);
         this.updateLaneMarkers(world, coordinates, scene);
     }
 
-    updateObjects(world, coordinates, scene, isBirdView) {
+    updateObjects(world, coordinates, scene) {
         // Id meshes need to be recreated every time.
         // Each text mesh needs to be removed from the scene,
         // and its char meshes need to be hidden for reuse purpose.
@@ -60,7 +59,6 @@ export default class PerceptionObstacles {
             hideArrayObjects(this.extrusionSolidFaces);
             hideArrayObjects(this.extrusionDashedFaces);
             hideArrayObjects(this.icons);
-            hideArrayObjects(this.trafficCones);
             return;
         }
 
@@ -68,13 +66,10 @@ export default class PerceptionObstacles {
             x: world.autoDrivingCar.positionX,
             y: world.autoDrivingCar.positionY,
         });
-        adc.heading = world.autoDrivingCar.heading;
-
         let arrowIdx = 0;
         let cubeIdx = 0;
         let extrusionFaceIdx = 0;
         let iconIdx = 0;
-        let trafficConeIdx = 0;
         for (let i = 0; i < objects.length; i++) {
             const obstacle = objects[i];
             if (!STORE.options['showObstacles' + _.upperFirst(_.camelCase(obstacle.type))]
@@ -102,17 +97,14 @@ export default class PerceptionObstacles {
                 arrowMesh.visible = true;
             }
 
-            this.updateTexts(adc, obstacle, position, scene, isBirdView);
+            this.updateTexts(adc, obstacle, position, scene);
 
             // get the confidence and validate its range
             let confidence = obstacle.confidence;
             confidence = Math.max(0.0, confidence);
             confidence = Math.min(1.0, confidence);
             const polygon = obstacle.polygonPoint;
-            if (obstacle.subType === "ST_TRAFFICCONE") {
-                this.updateTrafficCone(position, trafficConeIdx, scene);
-                trafficConeIdx++;
-            } else if (polygon !== undefined && polygon.length > 0) {
+            if (polygon !== undefined && polygon.length > 0) {
                 this.updatePolygon(polygon, obstacle.height, color, coordinates, confidence,
                         extrusionFaceIdx, scene);
                 extrusionFaceIdx += polygon.length;
@@ -138,7 +130,6 @@ export default class PerceptionObstacles {
         hideArrayObjects(this.extrusionSolidFaces, extrusionFaceIdx);
         hideArrayObjects(this.extrusionDashedFaces, extrusionFaceIdx);
         hideArrayObjects(this.icons, iconIdx);
-        hideArrayObjects(this.trafficCones, trafficConeIdx);
     }
 
     updateArrow(position, heading, color, arrowIdx, scene) {
@@ -149,43 +140,24 @@ export default class PerceptionObstacles {
         return arrowMesh;
     }
 
-    updateTexts(adc, obstacle, obstaclePosition, scene, isBirdView) {
-        const initPosition = {
+    updateTexts(adc, obstacle, obstaclePosition, scene) {
+        const textPosition = {
             x: obstaclePosition.x,
             y: obstaclePosition.y,
             z: obstacle.height || 3
         };
-
-        const lineSpacing = 0.5;
-        const deltaX = isBirdView ? 0.0 : lineSpacing * Math.cos(adc.heading);
-        const deltaY = isBirdView ? 0.7 : lineSpacing * Math.sin(adc.heading);
-        const deltaZ = isBirdView ? 0.0 : lineSpacing;
         let lineCount = 0;
+
         if (STORE.options.showObstaclesInfo) {
             const distance = adc.distanceTo(obstaclePosition).toFixed(1);
             const speed = obstacle.speed.toFixed(1);
-            this.drawTexts(`(${distance}m, ${speed}m/s)`, initPosition, scene);
-            lineCount++;
+            this.drawTexts(`(${distance}m, ${speed}m/s)`, textPosition, scene);
+            lineCount ++;
         }
         if (STORE.options.showObstaclesId) {
-            const textPosition = {
-                x: initPosition.x + (lineCount * deltaX),
-                y: initPosition.y + (lineCount * deltaY),
-                z: initPosition.z + (lineCount * deltaZ),
-            };
+            textPosition.z += (lineCount * 0.7);
+            textPosition.y += (lineCount * 0.7);
             this.drawTexts(obstacle.id, textPosition, scene);
-            lineCount++;
-        }
-        if (STORE.options.showPredictionPriority) {
-            const priority = _.get(obstacle, 'obstaclePriority.priority');
-            if (priority && priority !== "NORMAL") {
-                const textPosition = {
-                    x: initPosition.x + (lineCount * deltaX),
-                    y: initPosition.y + (lineCount * deltaY),
-                    z: initPosition.z + (lineCount * deltaZ),
-                };
-                this.drawTexts(priority, textPosition, scene);
-            }
         }
     }
 
@@ -254,13 +226,6 @@ export default class PerceptionObstacles {
         icon.visible = true;
     }
 
-    updateTrafficCone(position, coneIdx, scene) {
-        const cone = this.getTrafficCone(coneIdx, scene);
-        cone.position.setX(position.x);
-        cone.position.setY(position.y);
-        cone.visible = true;
-    }
-
     getArrow(index, scene) {
         if (index < this.arrows.length) {
             return this.arrows[index];
@@ -322,12 +287,20 @@ export default class PerceptionObstacles {
     }
 
     drawTexts(content, position, scene) {
-        const text = this.textRender.drawText(content, scene);
-        if (text) {
-            text.position.set(position.x, position.y, position.z);
-            this.ids.push(text);
-            scene.add(text);
+        const text = this.textRender.composeText(content);
+        if (text === null) {
+            return;
         }
+
+        text.position.set(position.x, position.y, position.z );
+        const camera = scene.getObjectByName("camera");
+        if (camera !== undefined) {
+            text.quaternion.copy(camera.quaternion);
+        }
+        text.children.forEach(c => c.visible = true);
+        text.visible = true;
+        this.ids.push(text);
+        scene.add(text);
     }
 
     updateLaneMarkers(world, coordinates, scene) {
@@ -354,26 +327,5 @@ export default class PerceptionObstacles {
                 }
             }
         }
-    }
-
-    getTrafficCone(index, scene) {
-        if (index < this.trafficCones.length) {
-            return this.trafficCones[index];
-        }
-
-        const height = 0.914;
-        const geometry = new THREE.CylinderGeometry(0.1, 0.25, height, 32);
-        const material = new THREE.MeshBasicMaterial({
-            color: 0xE1601C,
-            transparent: true,
-            opacity: 0.65,
-        });
-        const cone = new THREE.Mesh(geometry, material);
-        cone.rotation.set(Math.PI / 2, 0, 0);
-        cone.position.set(0, 0, height/2);
-        this.trafficCones.push(cone);
-        scene.add(cone);
-
-        return cone;
     }
 }

@@ -21,64 +21,72 @@
 #include "modules/planning/common/path/discretized_path.h"
 
 #include <algorithm>
-#include "cyber/common/log.h"
+#include <utility>
+
+#include "modules/common/log.h"
 #include "modules/common/math/linear_interpolation.h"
+#include "modules/planning/common/planning_util.h"
 
 namespace apollo {
 namespace planning {
 
-using apollo::common::PathPoint;
-
-DiscretizedPath::DiscretizedPath(std::vector<PathPoint> path_points)
-    : std::vector<PathPoint>(std::move(path_points)) {}
-
-double DiscretizedPath::Length() const {
-  if (empty()) {
-    return 0.0;
-  }
-  return back().s() - front().s();
+DiscretizedPath::DiscretizedPath(
+    const std::vector<common::PathPoint> &path_points) {
+  path_points_ = path_points;
 }
 
-PathPoint DiscretizedPath::Evaluate(const double path_s) const {
-  ACHECK(!empty());
-  auto it_lower = QueryLowerBound(path_s);
-  if (it_lower == begin()) {
-    return front();
+void DiscretizedPath::set_path_points(
+    const std::vector<common::PathPoint> &path_points) {
+  path_points_ = path_points;
+}
+
+double DiscretizedPath::Length() const {
+  if (path_points_.empty()) {
+    return 0.0;
   }
-  if (it_lower == end()) {
-    return back();
+  return path_points_.back().s() - path_points_.front().s();
+}
+
+common::PathPoint DiscretizedPath::Evaluate(const double path_s) const {
+  CHECK(!path_points_.empty());
+  auto it_lower = QueryLowerBound(path_s);
+  if (it_lower == path_points_.begin()) {
+    return path_points_.front();
+  }
+  if (it_lower == path_points_.end()) {
+    return path_points_.back();
   }
   return common::math::InterpolateUsingLinearApproximation(*(it_lower - 1),
                                                            *it_lower, path_s);
 }
 
-std::vector<PathPoint>::const_iterator DiscretizedPath::QueryLowerBound(
-    const double path_s) const {
-  auto func = [](const PathPoint &tp, const double path_s) {
-    return tp.s() < path_s;
-  };
-  return std::lower_bound(begin(), end(), path_s, func);
+const std::vector<common::PathPoint> &DiscretizedPath::path_points() const {
+  return path_points_;
 }
 
-PathPoint DiscretizedPath::EvaluateReverse(const double path_s) const {
-  ACHECK(!empty());
-  auto it_upper = QueryUpperBound(path_s);
-  if (it_upper == begin()) {
-    return front();
-  }
-  if (it_upper == end()) {
-    return back();
-  }
-  return common::math::InterpolateUsingLinearApproximation(*(it_upper - 1),
-                                                           *it_upper, path_s);
+std::uint32_t DiscretizedPath::NumOfPoints() const {
+  return path_points_.size();
 }
 
-std::vector<PathPoint>::const_iterator DiscretizedPath::QueryUpperBound(
+const common::PathPoint &DiscretizedPath::StartPoint() const {
+  CHECK(!path_points_.empty());
+  return path_points_.front();
+}
+
+const common::PathPoint &DiscretizedPath::EndPoint() const {
+  CHECK(!path_points_.empty());
+  return path_points_.back();
+}
+
+void DiscretizedPath::Clear() { path_points_.clear(); }
+
+std::vector<common::PathPoint>::const_iterator DiscretizedPath::QueryLowerBound(
     const double path_s) const {
-  auto func = [](const double path_s, const PathPoint &tp) {
+  auto func = [](const common::PathPoint &tp, const double path_s) {
     return tp.s() < path_s;
   };
-  return std::upper_bound(begin(), end(), path_s, func);
+  return std::lower_bound(path_points_.begin(), path_points_.end(), path_s,
+                          func);
 }
 
 }  // namespace planning

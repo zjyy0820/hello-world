@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 ###############################################################################
 # Copyright 2017 The Apollo Authors. All Rights Reserved.
@@ -169,8 +169,8 @@ if __name__ == '__main__':
 
     try:
         argv = FLAGS(sys.argv)  # parse flags
-    except gflags.FlagsError as e:
-        print('%s\\nUsage: %s ARGS\\n%s' % (e, sys.argv[0], FLAGS))
+    except gflags.FlagsError, e:
+        print '%s\\nUsage: %s ARGS\\n%s' % (e, sys.argv[0], FLAGS)
         sys.exit(1)
     try:
         init()

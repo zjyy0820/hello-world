@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright 2018 The Apollo Authors. All Rights Reserved.
+ * Copyright 2017 The Apollo Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,7 +50,7 @@ LossyMapCell2D& LossyMapCell2D::operator=(const LossyMapCell2D& ref) {
 LossyMapMatrix2D::LossyMapMatrix2D() {
   rows_ = 0;
   cols_ = 0;
-  map_cells_ = nullptr;
+  map_cells_ = NULL;
 }
 
 LossyMapMatrix2D::~LossyMapMatrix2D() {
@@ -88,12 +88,13 @@ void LossyMapMatrix2D::Init(const BaseMapConfig* config) {
     return;
   }
   Init(rows, cols);
+  return;
 }
 
 void LossyMapMatrix2D::Init(unsigned int rows, unsigned int cols) {
   if (map_cells_) {
     delete[] map_cells_;
-    map_cells_ = nullptr;
+    map_cells_ = NULL;
   }
   map_cells_ = new LossyMapCell2D[rows * cols];
   rows_ = rows;
@@ -102,6 +103,7 @@ void LossyMapMatrix2D::Init(unsigned int rows, unsigned int cols) {
 
 void LossyMapMatrix2D::Reset(const BaseMapConfig* config) {
   Reset(config->map_node_size_y_, config->map_node_size_x_);
+  return;
 }
 
 void LossyMapMatrix2D::Reset(unsigned int rows, unsigned int cols) {
@@ -113,14 +115,14 @@ void LossyMapMatrix2D::Reset(unsigned int rows, unsigned int cols) {
 
 unsigned char LossyMapMatrix2D::EncodeIntensity(
     const LossyMapCell2D& cell) const {
-  int intensity = static_cast<int>(cell.intensity);
+  int intensity = cell.intensity;
   if (intensity > 255) {
     intensity = 255;
   }
   if (intensity < 0) {
     intensity = 0;
   }
-  return static_cast<unsigned char>(intensity);
+  return intensity;
 }
 
 void LossyMapMatrix2D::DecodeIntensity(unsigned char data,
@@ -131,22 +133,19 @@ void LossyMapMatrix2D::DecodeIntensity(unsigned char data,
 uint16_t LossyMapMatrix2D::EncodeVar(const LossyMapCell2D& cell) const {
   float var = cell.intensity_var;
   var = std::sqrt(var);
-  int intensity_var =
-      static_cast<int>(static_cast<const float>(var_range_) /
-                       (var * static_cast<const float>(var_ratio_) + 1.0));
+  int intensity_var = var_range_ / (var * var_ratio_ + 1.0);
   if (intensity_var > var_range_) {
     intensity_var = var_range_;
   }
   if (intensity_var < 1) {
     intensity_var = 1;
   }
-  return static_cast<uint16_t>(intensity_var);
+  return intensity_var;
 }
 
 void LossyMapMatrix2D::DecodeVar(uint16_t data, LossyMapCell2D* cell) const {
   float var = data;
-  var = static_cast<float>((static_cast<const float>(var_range_) / var - 1.0) /
-                           static_cast<const float>(var_ratio_));
+  var = (var_range_ / var - 1.0) / var_ratio_;
   cell->intensity_var = var * var;
 }
 
@@ -154,39 +153,41 @@ uint16_t LossyMapMatrix2D::EncodeAltitudeGround(
     const LossyMapCell2D& cell) const {
   float delta_alt = cell.altitude_ground - alt_ground_min_;
   delta_alt /= alt_ground_interval_;
-  int ratio = static_cast<int>(delta_alt + 0.5);
+  int ratio = delta_alt + 0.5;
   if (ratio >= ground_void_flag_) {
     ratio = ground_void_flag_ - 1;
   }
   if (ratio < 0) {
     ratio = 0;
   }
-  return static_cast<uint16_t>(ratio);
+  return ratio;
 }
 
 void LossyMapMatrix2D::DecodeAltitudeGround(uint16_t data,
                                             LossyMapCell2D* cell) const {
   float ratio = data;
   cell->altitude_ground = alt_ground_min_ + ratio * alt_ground_interval_;
+  return;
 }
 
 uint16_t LossyMapMatrix2D::EncodeAltitudeAvg(const LossyMapCell2D& cell) const {
   float delta_alt = cell.altitude - alt_avg_min_;
   delta_alt /= alt_avg_interval_;
-  int ratio = static_cast<int>(delta_alt + 0.5);
+  int ratio = delta_alt + 0.5;
   if (ratio > 0xffff) {
     ratio = 0xffff;
   }
   if (ratio < 0) {
     ratio = 0;
   }
-  return static_cast<uint16_t>(ratio);
+  return ratio;
 }
 
 void LossyMapMatrix2D::DecodeAltitudeAvg(uint16_t data,
                                          LossyMapCell2D* cell) const {
   float ratio = data;
   cell->altitude = alt_avg_min_ + ratio * alt_avg_interval_;
+  return;
 }
 
 unsigned char LossyMapMatrix2D::EncodeCount(const LossyMapCell2D& cell) const {
@@ -199,7 +200,7 @@ unsigned char LossyMapMatrix2D::EncodeCount(const LossyMapCell2D& cell) const {
   if (count_exp > count_range_) {
     count_exp = count_range_;
   }
-  return static_cast<unsigned char>(count_exp);
+  return count_exp;
 }
 
 void LossyMapMatrix2D::DecodeCount(unsigned char data,
@@ -258,7 +259,7 @@ unsigned int LossyMapMatrix2D::LoadBinary(unsigned char* buf) {
   for (unsigned int row = 0; row < rows_; ++row) {
     for (unsigned int col = 0; col < cols_; ++col) {
       uint16_t var = pp_high[row * cols_ + col];
-      var = static_cast<uint16_t>(var * 256 + pp_low[row * cols_ + col]);
+      var = var * 256 + pp_low[row * cols_ + col];
       DecodeVar(var, &map_cells_[row * cols_ + col]);
     }
   }
@@ -270,7 +271,7 @@ unsigned int LossyMapMatrix2D::LoadBinary(unsigned char* buf) {
   for (unsigned int row = 0; row < rows_; ++row) {
     for (unsigned int col = 0; col < cols_; ++col) {
       uint16_t alt = pp_high[row * cols_ + col];
-      alt = static_cast<uint16_t>(alt * 256 + pp_low[row * cols_ + col]);
+      alt = alt * 256 + pp_low[row * cols_ + col];
       LossyMapCell2D& cell = map_cells_[row * cols_ + col];
       if (cell.count > 0) {
         DecodeAltitudeAvg(alt, &cell);
@@ -280,13 +281,14 @@ unsigned int LossyMapMatrix2D::LoadBinary(unsigned char* buf) {
     }
   }
   pp += 2 * rows_ * cols_;
+
   // altitude_ground
   pp_low = pp + rows_ * cols_;
   pp_high = pp;
   for (unsigned int row = 0; row < rows_; ++row) {
     for (unsigned int col = 0; col < cols_; ++col) {
       uint16_t alt = pp_high[row * cols_ + col];
-      alt = static_cast<uint16_t>(alt * 256 + pp_low[row * cols_ + col]);
+      alt = alt * 256 + pp_low[row * cols_ + col];
       LossyMapCell2D& cell = map_cells_[row * cols_ + col];
       if (alt == ground_void_flag_) {
         cell.is_ground_useful = false;
@@ -312,7 +314,7 @@ unsigned int LossyMapMatrix2D::CreateBinary(unsigned char* buf,
     ++p;
     *p = cols_;
     ++p;
-    buf_size -= static_cast<unsigned int>(sizeof(unsigned int) * 2);
+    buf_size -= sizeof(unsigned int) * 2;
 
     float* pf = reinterpret_cast<float*>(reinterpret_cast<void*>(p));
     alt_avg_min_ = 1e8;
@@ -335,14 +337,14 @@ unsigned int LossyMapMatrix2D::CreateBinary(unsigned char* buf,
     ++pf;
     *pf = alt_avg_max_;
     ++pf;
-    buf_size -= static_cast<unsigned int>(sizeof(float) * 2);
+    buf_size -= sizeof(float) * 2;
 
     alt_ground_min_ = 1e8;
     alt_ground_max_ = -1e8;
     for (unsigned int y = 0; y < rows_; ++y) {
       for (unsigned int x = 0; x < cols_; ++x) {
         const LossyMapCell2D& cell = map_cells_[y * cols_ + x];
-        if (!cell.is_ground_useful) {
+        if (cell.is_ground_useful == false) {
           continue;
         }
         if (cell.altitude_ground > alt_ground_max_) {
@@ -357,7 +359,7 @@ unsigned int LossyMapMatrix2D::CreateBinary(unsigned char* buf,
     ++pf;
     *pf = alt_ground_max_;
     ++pf;
-    buf_size -= static_cast<unsigned int>(sizeof(float) * 2);
+    buf_size -= sizeof(float) * 2;
 
     unsigned char* pp = reinterpret_cast<unsigned char*>(pf);
     // count
@@ -382,8 +384,8 @@ unsigned int LossyMapMatrix2D::CreateBinary(unsigned char* buf,
     for (unsigned int row = 0; row < rows_; ++row) {
       for (unsigned int col = 0; col < cols_; ++col) {
         uint16_t var = EncodeVar(map_cells_[row * cols_ + col]);
-        pp_high[row * cols_ + col] = static_cast<unsigned char>(var / 256);
-        pp_low[row * cols_ + col] = static_cast<unsigned char>(var % 256);
+        pp_high[row * cols_ + col] = var / 256;
+        pp_low[row * cols_ + col] = var % 256;
       }
     }
     pp += 2 * rows_ * cols_;
@@ -397,8 +399,8 @@ unsigned int LossyMapMatrix2D::CreateBinary(unsigned char* buf,
         if (map_cells_[row * cols_ + col].count > 0) {
           altitude = EncodeAltitudeAvg(map_cells_[row * cols_ + col]);
         }
-        pp_high[row * cols_ + col] = static_cast<unsigned char>(altitude / 256);
-        pp_low[row * cols_ + col] = static_cast<unsigned char>(altitude % 256);
+        pp_high[row * cols_ + col] = altitude / 256;
+        pp_low[row * cols_ + col] = altitude % 256;
       }
     }
     pp += 2 * rows_ * cols_;
@@ -412,8 +414,8 @@ unsigned int LossyMapMatrix2D::CreateBinary(unsigned char* buf,
         if (map_cells_[row * cols_ + col].is_ground_useful) {
           altitude = EncodeAltitudeGround(map_cells_[row * cols_ + col]);
         }
-        pp_high[row * cols_ + col] = static_cast<unsigned char>(altitude / 256);
-        pp_low[row * cols_ + col] = static_cast<unsigned char>(altitude % 256);
+        pp_high[row * cols_ + col] = altitude / 256;
+        pp_low[row * cols_ + col] = altitude % 256;
       }
     }
     // TODO(Localization): remove this line
@@ -424,12 +426,11 @@ unsigned int LossyMapMatrix2D::CreateBinary(unsigned char* buf,
 
 unsigned int LossyMapMatrix2D::GetBinarySize() const {
   unsigned int target_size =
-      static_cast<unsigned int>(sizeof(unsigned int) * 2 + sizeof(float) * 4);
+      sizeof(unsigned int) * 2 + sizeof(float) * 4;  // rows and cols and alts
   // count, intensity, intensity_var, altitude_avg, altitude_ground
-  target_size += static_cast<unsigned int>(
-      rows_ * cols_ *
-      (sizeof(unsigned char) + sizeof(unsigned char) + sizeof(uint16_t) +
-       sizeof(uint16_t) + sizeof(uint16_t)));
+  target_size +=
+      rows_ * cols_ * (sizeof(unsigned char) + sizeof(unsigned char) +
+                       sizeof(uint16_t) + sizeof(uint16_t) + sizeof(uint16_t));
   return target_size;
 }
 

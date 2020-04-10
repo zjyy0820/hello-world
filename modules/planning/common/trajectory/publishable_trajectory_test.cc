@@ -20,10 +20,12 @@
 
 #include "modules/planning/common/trajectory/publishable_trajectory.h"
 
-#include "cyber/common/file.h"
+#include <string>
+
+#include "google/protobuf/util/message_differencer.h"
 #include "gtest/gtest.h"
 
-#include "modules/common/util/util.h"
+#include "modules/common/util/file.h"
 
 namespace apollo {
 namespace planning {
@@ -32,8 +34,8 @@ TEST(basic_test, DiscretizedTrajectory) {
   const std::string path_of_standard_trajectory =
       "modules/planning/testdata/trajectory_data/standard_trajectory.pb.txt";
   ADCTrajectory trajectory;
-  EXPECT_TRUE(cyber::common::GetProtoFromFile(path_of_standard_trajectory,
-                                              &trajectory));
+  EXPECT_TRUE(
+      common::util::GetProtoFromFile(path_of_standard_trajectory, &trajectory));
   DiscretizedTrajectory discretized_trajectory(trajectory);
 
   PublishableTrajectory publishable_trajectory(12349834.26,
@@ -43,9 +45,10 @@ TEST(basic_test, DiscretizedTrajectory) {
   ADCTrajectory output_trajectory;
   publishable_trajectory.PopulateTrajectoryProtobuf(&output_trajectory);
 
+  google::protobuf::util::MessageDifferencer differencer;
   for (int i = 0; i < output_trajectory.trajectory_point_size(); ++i) {
-    EXPECT_TRUE(apollo::common::util::IsProtoEqual(
-        output_trajectory.trajectory_point(i), trajectory.trajectory_point(i)));
+    EXPECT_TRUE(differencer.Compare(output_trajectory.trajectory_point(i),
+                                    trajectory.trajectory_point(i)));
   }
 }
 

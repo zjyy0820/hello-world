@@ -18,7 +18,8 @@
  * spiral_reference_line_smoother.h
  */
 
-#pragma once
+#ifndef MODULES_PLANNING_REFERENCE_LINE_SPIRAL_REFERENCE_LINE_SMOOTHER_H_
+#define MODULES_PLANNING_REFERENCE_LINE_SPIRAL_REFERENCE_LINE_SMOOTHER_H_
 
 #include <vector>
 
@@ -43,23 +44,7 @@ class SpiralReferenceLineSmoother : public ReferenceLineSmoother {
   bool Smooth(const ReferenceLine& raw_reference_line,
               ReferenceLine* const smoothed_reference_line) override;
 
-  // For offline navigation line smoothing
-  int SmoothStandAlone(std::vector<Eigen::Vector2d> point2d,
-                       std::vector<double>* ptr_theta,
-                       std::vector<double>* ptr_kappa,
-                       std::vector<double>* ptr_dkappa,
-                       std::vector<double>* ptr_s, std::vector<double>* ptr_x,
-                       std::vector<double>* ptr_y) const;
-
   void SetAnchorPoints(const std::vector<AnchorPoint>&) override;
-
-  std::vector<common::PathPoint> Interpolate(const std::vector<double>& theta,
-                                             const std::vector<double>& kappa,
-                                             const std::vector<double>& dkappa,
-                                             const std::vector<double>& s,
-                                             const std::vector<double>& x,
-                                             const std::vector<double>& y,
-                                             const double resolution) const;
 
  private:
   bool Smooth(std::vector<Eigen::Vector2d> point2d,
@@ -67,7 +52,14 @@ class SpiralReferenceLineSmoother : public ReferenceLineSmoother {
               std::vector<double>* ptr_dkappa, std::vector<double>* ptr_s,
               std::vector<double>* ptr_x, std::vector<double>* ptr_y) const;
 
- private:
+  std::vector<common::PathPoint> Interpolate(const std::vector<double>& theta,
+                                             const std::vector<double>& kappa,
+                                             const std::vector<double>& dkappa,
+                                             const std::vector<double>& s,
+                                             const std::vector<double>& x,
+                                             const std::vector<double>& y,
+                                             const double resulotion) const;
+
   std::vector<common::PathPoint> Interpolate(
       const double start_x, const double start_y, const double start_s,
       const double theta0, const double kappa0, const double dkappa0,
@@ -78,6 +70,8 @@ class SpiralReferenceLineSmoother : public ReferenceLineSmoother {
                                   const double s, const double theta,
                                   const double kappa,
                                   const double dkappa) const;
+
+  double default_max_point_deviation_ = 0.0;
 
   std::vector<AnchorPoint> anchor_points_;
 
@@ -104,3 +98,5 @@ class SpiralReferenceLineSmoother : public ReferenceLineSmoother {
 
 }  // namespace planning
 }  // namespace apollo
+
+#endif  // MODULES_PLANNING_REFERENCE_LINE_SPIRAL_REFERENCE_LINE_SMOOTHER_H_

@@ -83,12 +83,7 @@ function main() {
     if [ ! -d "$HOME/.cache" ];then
         mkdir "$HOME/.cache"
     fi
-
-    DOCKER_CMD="nvidia-docker"
-    if ! [ -x "$(command -v ${DOCKER_CMD})" ]; then
-        DOCKER_CMD="docker"
-    fi
-    ${DOCKER_CMD} run -it \
+    docker run -it \
         -d --privileged \
         --name apollo_release \
         --net host \
@@ -106,7 +101,7 @@ function main() {
         -e DOCKER_GRP=$GRP \
         -e DOCKER_GRP_ID=$GRP_ID \
         -e DOCKER_IMG=$IMG \
-        -e PYTHONPATH=/apollo/lib \
+        -e PYTHONPATH=/apollo/lib:/apollo/ros/lib/python2.7/dist-packages \
         ${devices} \
         --add-host in_release_docker:127.0.0.1 \
         --add-host ${LOCAL_HOST}:127.0.0.1 \
@@ -124,13 +119,16 @@ function main() {
                  "/apollo/modules/localization/msf/params/velodyne_params"
                  "/apollo/modules/perception/data/params"
                  "/apollo/modules/tools/ota"
-                 "/apollo/modules/drivers/gnss/conf")
+                 "/apollo/modules/drivers/gnss/conf"
+                 "/apollo/ros/share/velodyne/launch"
+                 "/apollo/ros/share/velodyne_driver/launch"
+                 "/apollo/ros/share/velodyne_pointcloud/launch"
+                 "/apollo/ros/share/velodyne_pointcloud/params")
       for DATA_DIR in "${DATA_DIRS[@]}"; do
         docker exec apollo_release bash -c \
             "mkdir -p '${DATA_DIR}'; chmod a+rw -R '${DATA_DIR}'"
       done
     fi
-    docker exec apollo_release bash -c '/apollo/docker/scripts/container_setup.sh'
     docker exec -u ${USER} -it apollo_release "/apollo/scripts/bootstrap.sh"
 }
 

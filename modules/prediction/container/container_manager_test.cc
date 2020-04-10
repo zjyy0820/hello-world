@@ -14,11 +14,12 @@
  * limitations under the License.
  *****************************************************************************/
 
-#include "modules/prediction/container/container_manager.h"
+#include <string>
 
-#include "cyber/common/file.h"
-#include "modules/prediction/container/obstacles/obstacles_container.h"
-#include "modules/prediction/container/pose/pose_container.h"
+#include "gtest/gtest.h"
+
+#include "modules/common/util/file.h"
+#include "modules/prediction/container/container_manager.h"
 
 namespace apollo {
 namespace prediction {
@@ -27,26 +28,25 @@ using apollo::common::adapter::AdapterConfig;
 
 class ContainerManagerTest : public ::testing::Test {
  public:
-  virtual void SetUp() { manager_ = ContainerManager::Instance(); }
+  virtual void SetUp() { manager_ = ContainerManager::instance(); }
 
  protected:
-  ContainerManager* manager_ = nullptr;
+  ContainerManager *manager_ = nullptr;
   common::adapter::AdapterManagerConfig conf_;
 };
 
 TEST_F(ContainerManagerTest, GetContainer) {
   std::string conf_file = "modules/prediction/testdata/adapter_conf.pb.txt";
-  bool ret_load_conf = cyber::common::GetProtoFromFile(conf_file, &conf_);
+  bool ret_load_conf = common::util::GetProtoFromFile(conf_file, &conf_);
   EXPECT_TRUE(ret_load_conf);
   EXPECT_TRUE(conf_.IsInitialized());
 
   manager_->Init(conf_);
-  EXPECT_TRUE(manager_->GetContainer<ObstaclesContainer>(
-                  AdapterConfig::PERCEPTION_OBSTACLES) != nullptr);
-  EXPECT_TRUE(manager_->GetContainer<PoseContainer>(
-                  AdapterConfig::LOCALIZATION) != nullptr);
-  EXPECT_TRUE(manager_->GetContainer<PoseContainer>(
-                  AdapterConfig::CONTROL_COMMAND) == nullptr);
+  EXPECT_TRUE(manager_->GetContainer(AdapterConfig::PERCEPTION_OBSTACLES) !=
+              nullptr);
+  EXPECT_TRUE(manager_->GetContainer(AdapterConfig::LOCALIZATION) != nullptr);
+  EXPECT_TRUE(manager_->GetContainer(AdapterConfig::CONTROL_COMMAND) ==
+              nullptr);
 }
 
 }  // namespace prediction

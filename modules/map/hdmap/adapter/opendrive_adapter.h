@@ -12,8 +12,11 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 =========================================================================*/
-#pragma once
+#ifndef MODULES_MAP_HDMAP_ADAPTER_OPENDRIVE_ADAPTER_H_
+#define MODULES_MAP_HDMAP_ADAPTER_OPENDRIVE_ADAPTER_H_
 
+#include <fstream>
+#include <iostream>
 #include <string>
 
 #include "modules/map/proto/map.pb.h"
@@ -39,3 +42,5 @@ class OpendriveAdapter {
 }  // namespace adapter
 }  // namespace hdmap
 }  // namespace apollo
+
+#endif  // MODULES_MAP_HDMAP_ADAPTER_OPENDRIVE_ADAPTER_H_

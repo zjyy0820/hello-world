@@ -19,22 +19,24 @@
  * @brief Obstacle
  */
 
-#pragma once
+#ifndef MODULES_PREDICTION_CONTAINER_OBSTACLES_OBSTACLE_H_
+#define MODULES_PREDICTION_CONTAINER_OBSTACLES_OBSTACLE_H_
 
 #include <deque>
-#include <list>
 #include <memory>
 #include <string>
-#include <unordered_set>
+#include <unordered_map>
 #include <vector>
 
+#include "Eigen/Dense"
+
 #include "modules/common/filters/digital_filter.h"
+#include "modules/common/proto/error_code.pb.h"
+#include "modules/perception/proto/perception_obstacle.pb.h"
+#include "modules/prediction/proto/feature.pb.h"
+
 #include "modules/common/math/kalman_filter.h"
 #include "modules/map/hdmap/hdmap_common.h"
-#include "modules/prediction/common/prediction_gflags.h"
-#include "modules/prediction/proto/feature.pb.h"
-#include "modules/prediction/proto/prediction_conf.pb.h"
-#include "modules/prediction/proto/prediction_obstacle.pb.h"
 
 /**
  * @namespace apollo::prediction
@@ -52,13 +54,7 @@ class Obstacle {
   /**
    * @brief Constructor
    */
-  static std::unique_ptr<Obstacle> Create(
-      const perception::PerceptionObstacle& perception_obstacle,
-      const double timestamp, const int prediction_id);
-
-  static std::unique_ptr<Obstacle> Create(const Feature& feature);
-
-  Obstacle() = default;
+  Obstacle();
 
   /**
    * @brief Destructor
@@ -70,18 +66,8 @@ class Obstacle {
    * @param perception_obstacle The obstacle from perception.
    * @param timestamp The timestamp when the perception obstacle was detected.
    */
-  bool Insert(const perception::PerceptionObstacle& perception_obstacle,
-              const double timestamp, const int prediction_id);
-
-  /**
-   * @brief Insert a feature proto message.
-   * @param feature proto message.
-   */
-  bool InsertFeature(const Feature& feature);
-
-  void ClearOldInformation();
-
-  void TrimHistory(const size_t remain_size);
+  void Insert(const perception::PerceptionObstacle& perception_obstacle,
+              const double timestamp);
 
   /**
    * @brief Get the type of perception obstacle's type.
@@ -101,21 +87,19 @@ class Obstacle {
    */
   double timestamp() const;
 
-  bool ReceivedOlderMessage(const double timestamp) const;
-
   /**
    * @brief Get the ith feature from latest to earliest.
    * @param i The index of the feature.
    * @return The ith feature.
    */
-  const Feature& feature(const size_t i) const;
+  const Feature& feature(size_t i) const;
 
   /**
    * @brief Get a pointer to the ith feature from latest to earliest.
    * @param i The index of the feature.
    * @return A pointer to the ith feature.
    */
-  Feature* mutable_feature(const size_t i);
+  Feature* mutable_feature(size_t i);
 
   /**
    * @brief Get the latest feature.
@@ -124,21 +108,10 @@ class Obstacle {
   const Feature& latest_feature() const;
 
   /**
-   * @brief Get the earliest feature.
-   * @return The earliest feature.
-   */
-  const Feature& earliest_feature() const;
-
-  /**
    * @brief Get a pointer to the latest feature.
    * @return A pointer to the latest feature.
    */
   Feature* mutable_latest_feature();
-
-  /**
-   * @brief Set nearby obstacles.
-   */
-  void SetNearbyObstacles();
 
   /**
    * @brief Get the number of historical features.
@@ -147,28 +120,29 @@ class Obstacle {
   size_t history_size() const;
 
   /**
+   * @brief Get the motion Kalman filter.
+   * @return The motion Kalman filter.
+   */
+  const common::math::KalmanFilter<double, 6, 2, 0>& kf_motion_tracker() const;
+
+  /**
+   * @brief Get the pedestrian Kalman filter.
+   * @return The pedestrian Kalman filter.
+   */
+  const common::math::KalmanFilter<double, 2, 2, 4>& kf_pedestrian_tracker()
+      const;
+
+  /**
    * @brief Check if the obstacle is still.
    * @return If the obstacle is still.
    */
   bool IsStill();
 
   /**
-   * @brief Check if the obstacle is slow.
-   * @return If the obstacle is slow.
-   */
-  bool IsSlow();
-
-  /**
    * @brief Check if the obstacle is on any lane.
    * @return If the obstacle is on any lane.
    */
-  bool IsOnLane() const;
-
-  /**
-   * @brief Check if the obstacle can be ignored.
-   * @return If the obstacle can be ignored.
-   */
-  bool ToIgnore();
+  bool IsOnLane();
 
   /**
    * @brief Check if the obstacle is near a junction.
@@ -177,83 +151,50 @@ class Obstacle {
   bool IsNearJunction();
 
   /**
-   * @brief Check if the obstacle is a junction.
-   * @param junction ID
-   * @return If the obstacle is in a junction.
+   * @brief Set RNN state
+   * @param RNN state matrix
    */
-  bool IsInJunction(const std::string& junction_id) const;
+  void SetRNNStates(const std::vector<Eigen::MatrixXf>& rnn_states);
 
   /**
-   * @brief Check if the obstacle is close to a junction exit.
-   * @return If the obstacle is closed to a junction exit.
+   * @brief Get RNN state
+   * @param A pointer to RNN state matrix
    */
-  bool IsCloseToJunctionExit() const;
+  void GetRNNStates(std::vector<Eigen::MatrixXf>* rnn_states);
 
   /**
-   * @brief Check if the obstacle has junction feature.
-   * @return If the obstacle has junction feature.
+   * @brief Initialize RNN state
    */
-  bool HasJunctionFeatureWithExits() const;
+  void InitRNNStates();
 
   /**
-   * @brief Build junction feature.
+   * @brief Check if RNN is enabled
+   * @return True if RNN is enabled
    */
-  void BuildJunctionFeature();
-
-  /**
-   * @brief Build obstacle's lane graph
-   */
-  void BuildLaneGraph();
-
-  /**
-   * @brief Build obstacle's lane graph with lanes being ordered.
-   *        This would be useful for lane-scanning algorithms.
-   */
-  void BuildLaneGraphFromLeftToRight();
-
-  /**
-   * @brief Set the obstacle as caution level
-   */
-  void SetCaution();
-
-  bool IsCaution() const;
-
-  void SetEvaluatorType(const ObstacleConf::EvaluatorType& evaluator_type);
-
-  void SetPredictorType(const ObstacleConf::PredictorType& predictor_type);
-
-  const ObstacleConf& obstacle_conf() { return obstacle_conf_; }
-
-  PredictionObstacle GeneratePredictionObstacle();
+  bool RNNEnabled() const;
 
  private:
   void SetStatus(const perception::PerceptionObstacle& perception_obstacle,
                  double timestamp, Feature* feature);
 
-  bool SetId(const perception::PerceptionObstacle& perception_obstacle,
-             Feature* feature, const int prediction_id = -1);
+  void UpdateStatus(Feature* feature);
 
-  void SetType(const perception::PerceptionObstacle& perception_obstacle,
-               Feature* feature);
+  common::ErrorCode SetId(
+      const perception::PerceptionObstacle& perception_obstacle,
+      Feature* feature);
 
-  void SetIsNearJunction(
+  common::ErrorCode SetType(
       const perception::PerceptionObstacle& perception_obstacle,
       Feature* feature);
 
   void SetTimestamp(const perception::PerceptionObstacle& perception_obstacle,
                     const double timestamp, Feature* feature);
 
-  void SetPolygonPoints(
-      const perception::PerceptionObstacle& perception_obstacle,
-      Feature* feature);
-
   void SetPosition(const perception::PerceptionObstacle& perception_obstacle,
                    Feature* feature);
 
   void SetVelocity(const perception::PerceptionObstacle& perception_obstacle,
                    Feature* feature);
-
-  void AdjustHeadingByLane(Feature* feature);
 
   void UpdateVelocity(const double theta, double* velocity_x,
                       double* velocity_y, double* velocity_heading,
@@ -268,25 +209,25 @@ class Obstacle {
       const perception::PerceptionObstacle& perception_obstacle,
       Feature* feature);
 
+  void InitKFMotionTracker(const Feature& feature);
+
+  void UpdateKFMotionTracker(const Feature& feature);
+
   void UpdateLaneBelief(Feature* feature);
 
   void SetCurrentLanes(Feature* feature);
 
   void SetNearbyLanes(Feature* feature);
 
-  void SetLaneSequenceStopSign(LaneSequence* lane_sequence_ptr);
+  void SetLaneGraphFeature(Feature* feature);
 
-  /** @brief This functions updates the lane-points into the lane-segments
-   *        based on the given lane_point_spacing.
-   */
   void SetLanePoints(Feature* feature);
-  void SetLanePoints(const Feature* feature, const double lane_point_spacing,
-                     const uint64_t max_num_lane_point,
-                     const bool is_bidirection, LaneGraph* const lane_graph);
 
-  /** @brief This functions is mainly for lane-sequence kappa calculation.
-   */
   void SetLaneSequencePath(LaneGraph* const lane_graph);
+
+  void InitKFPedestrianTracker(const Feature& feature);
+
+  void UpdateKFPedestrianTracker(const Feature& feature);
 
   void SetMotionStatus();
 
@@ -294,35 +235,22 @@ class Obstacle {
 
   void InsertFeatureToHistory(const Feature& feature);
 
-  void SetJunctionFeatureWithEnterLane(const std::string& enter_lane_id,
-                                       Feature* const feature_ptr);
-
-  void SetJunctionFeatureWithoutEnterLane(Feature* const feature_ptr);
-
-  void DiscardOutdatedHistory();
-
-  void GetNeighborLaneSegments(
-      std::shared_ptr<const apollo::hdmap::LaneInfo> center_lane_info,
-      bool is_left, int recursion_depth,
-      std::list<std::string>* const lane_ids_ordered,
-      std::unordered_set<std::string>* const existing_lane_ids);
-
-  bool HasJunctionExitLane(
-      const LaneSequence& lane_sequence,
-      const std::unordered_set<std::string>& exit_lane_id_set);
+  void Trim();
 
  private:
-  int id_ = FLAGS_ego_vehicle_id;
-
+  int id_ = -1;
   perception::PerceptionObstacle::Type type_ =
       perception::PerceptionObstacle::UNKNOWN_UNMOVABLE;
-
   std::deque<Feature> feature_history_;
-
+  common::math::KalmanFilter<double, 6, 2, 0> kf_motion_tracker_;
+  common::math::KalmanFilter<double, 2, 2, 4> kf_pedestrian_tracker_;
+  common::DigitalFilter heading_filter_;
   std::vector<std::shared_ptr<const hdmap::LaneInfo>> current_lanes_;
-
-  ObstacleConf obstacle_conf_;
+  std::vector<Eigen::MatrixXf> rnn_states_;
+  bool rnn_enabled_ = false;
 };
 
 }  // namespace prediction
 }  // namespace apollo
+
+#endif  // MODULES_PREDICTION_CONTAINER_OBSTACLES_OBSTACLE_H_

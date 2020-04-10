@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 ###############################################################################
 # Copyright 2017 The Apollo Authors. All Rights Reserved.
@@ -15,7 +15,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ###############################################################################
-
 
 class LocalPath:
     def __init__(self, points):

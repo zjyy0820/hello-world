@@ -5,50 +5,69 @@ package(default_visibility = ["//visibility:public"])
 cc_library(
     name = "data_extraction",
     srcs = [
-        "cyber_record_reader.cc",
         "location_exporter.cc",
         "pcd_exporter.cc",
+        "rosbag_reader.cc",
     ],
     hdrs = [
-        "cyber_record_reader.h",
+        "base_exporter.h",
         "location_exporter.h",
         "pcd_exporter.h",
+        "rosbag_reader.h",
+    ],
+    linkopts = [
+        "-lboost_filesystem",
+        "-lboost_system",
+        "-lboost_program_options",
     ],
     deps = [
-        "//cyber",
+        "//modules/common:log",
         "//modules/common/math",
-        "//modules/drivers/proto:sensor_proto",
-        "//modules/localization/msf/common/io:localization_msf_common_io",
         "//modules/localization/proto:gps_proto",
         "//modules/localization/proto:localization_proto",
         "//modules/localization/proto:measure_proto",
-        "//third_party:boost",
-        "@eigen",
-        "@pcl",
+        "@eigen//:eigen",
+        "@pcl//:pcl",
+        "@ros//:ros_common",
     ],
 )
 
 cc_binary(
-    name = "cyber_record_parser",
-    srcs = ["cyber_record_parser.cc"],
+    name = "monitor_data_exporter",
+    srcs = [
+        "monitor_data_exporter.cc",
+    ],
+    linkopts = [
+        "-lboost_filesystem",
+        "-lboost_system",
+        "-lboost_program_options",
+    ],
     linkstatic = 0,
     deps = [
         ":data_extraction",
-        "//cyber",
-        "//third_party:boost",
-        "@eigen",
-        "@pcl",
+        "//modules/common:log",
+        "@eigen//:eigen",
+        "@pcl//:pcl",
+        "@ros//:ros_common",
     ],
 )
 
 cc_binary(
     name = "compare_poses",
-    srcs = ["compare_poses.cc"],
+    srcs = [
+        "compare_poses.cc",
+    ],
+    linkopts = [
+        "-lboost_filesystem",
+        "-lboost_system",
+        "-lboost_program_options",
+    ],
+    linkstatic = 0,
     deps = [
         ":data_extraction",
-        "//cyber",
-        "//third_party:boost",
-        "@eigen",
+        "//modules/common:log",
+        "//modules/localization/msf/local_tool/local_visualization/offline_visual:offline_local_visualizer_lib",
+        "@eigen//:eigen",
     ],
 )
 

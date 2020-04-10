@@ -18,10 +18,10 @@
  * @file spline_2d_constraint.h
  **/
 
-#pragma once
+#ifndef MODULES_PLANNING_SMOOTHING_SPLINE_SPLINE_2D_CONSTRAINT_H_
+#define MODULES_PLANNING_SMOOTHING_SPLINE_SPLINE_2D_CONSTRAINT_H_
 
 #include <vector>
-
 #include "Eigen/Core"
 
 #include "modules/common/math/vec2d.h"
@@ -81,16 +81,16 @@ class Spline2dConstraint {
                                          const double dddy);
   bool AddPointAngleConstraint(const double t, const double angle);
 
-  // guarantee up to values are joint
+  // guarantee upto values are joint
   bool AddSmoothConstraint();
 
-  // guarantee up to derivative are joint
+  // guarantee upto derivative are joint
   bool AddDerivativeSmoothConstraint();
 
-  // guarantee up to second order derivative are joint
+  // guarantee upto second order derivative are joint
   bool AddSecondDerivativeSmoothConstraint();
 
-  // guarantee up to third order derivative are joint
+  // guarantee upto third order derivative are joint
   bool AddThirdDerivativeSmoothConstraint();
 
   /**
@@ -128,3 +128,5 @@ class Spline2dConstraint {
 
 }  // namespace planning
 }  // namespace apollo
+
+#endif  // MODULES_PLANNING_SMOOTHING_SPLINE_SPLINE_2D_CONSTRAINT_H_

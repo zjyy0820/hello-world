@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 ###############################################################################
 # Copyright 2017 The Apollo Authors. All Rights Reserved.
@@ -16,31 +16,30 @@
 # limitations under the License.
 ###############################################################################
 """
-Insert routing request
-Usage:
-    mock_routing_request.py
+Generate Planning Path
 """
+
 import argparse
+import atexit
 import os
 import sys
 import time
 
-from cyber_py3 import cyber
-from cyber_py3 import cyber_time
-from modules.routing.proto import routing_pb2
+import rospy
+import scipy.signal as signal
+from numpy import genfromtxt
 
+from modules.routing.proto import routing_pb2
 
 def main():
     """
     Main rosnode
     """
-    cyber.init()
-    node = cyber.Node("mock_routing_requester")
+    rospy.init_node('mock_routing_requester', anonymous=True)
     sequence_num = 0
 
     routing_request = routing_pb2.RoutingRequest()
-
-    routing_request.header.timestamp_sec = cyber_time.Time.now().to_sec()
+    routing_request.header.timestamp_sec = rospy.get_time()
     routing_request.header.module_name = 'routing_request'
     routing_request.header.sequence_num = sequence_num
     sequence_num = sequence_num + 1
@@ -57,12 +56,12 @@ def main():
     waypoint.id = '1-1'
     waypoint.s = 80
 
-    writer = node.create_writer('/apollo/routing_request',
-                                routing_pb2.RoutingRequest)
+    request_publisher = rospy.Publisher(
+            '/apollo/routing_request', routing_pb2.RoutingRequest, queue_size=1)
     time.sleep(2.0)
-    print("routing_request", routing_request)
-    writer.write(routing_request)
+    request_publisher.publish(routing_request)
 
 
 if __name__ == '__main__':
     main()
+

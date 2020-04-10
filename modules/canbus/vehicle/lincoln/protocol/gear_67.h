@@ -19,10 +19,11 @@
  * @brief the class of Gear67 (for lincoln vehicle)
  */
 
-#pragma once
+#ifndef MODULES_CANBUS_VEHICLE_LINCOLN_PROTOCOL_GEAR_67_H_
+#define MODULES_CANBUS_VEHICLE_LINCOLN_PROTOCOL_GEAR_67_H_
 
-#include "modules/canbus/proto/chassis_detail.pb.h"
 #include "modules/drivers/canbus/can_comm/protocol_data.h"
+#include "modules/canbus/proto/chassis_detail.pb.h"
 
 /**
  * @namespace apollo::canbus::lincoln
@@ -38,7 +39,7 @@ namespace lincoln {
  * @brief one of the protocol data of lincoln vehicle
  */
 class Gear67 : public ::apollo::drivers::canbus::ProtocolData<
-                   ::apollo::canbus::ChassisDetail> {
+                    ::apollo::canbus::ChassisDetail> {
  public:
   static const int32_t ID;
 
@@ -100,3 +101,5 @@ class Gear67 : public ::apollo::drivers::canbus::ProtocolData<
 }  // namespace lincoln
 }  // namespace canbus
 }  // namespace apollo
+
+#endif  // MODULES_CANBUS_VEHICLE_LINCOLN_PROTOCOL_GEAR_67_H_

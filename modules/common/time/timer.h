@@ -14,16 +14,20 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef MODULES_COMMON_TIME_TIMER_H_
+#define MODULES_COMMON_TIME_TIMER_H_
 
+#include <stdint.h>
+#include <chrono>
 #include <string>
 
-#include "absl/time/time.h"
-#include "cyber/common/macros.h"
+#include "modules/common/macro.h"
 
 namespace apollo {
 namespace common {
 namespace time {
+
+using TimePoint = std::chrono::system_clock::time_point;
 
 class Timer {
  public:
@@ -36,11 +40,12 @@ class Timer {
   // also output msg and time in glog.
   // automatically start a new timer.
   // no-thread safe.
-  int64_t End(const std::string &msg);
+  uint64_t End(const std::string &msg);
 
  private:
-  absl::Time start_time_;
-  absl::Time end_time_;
+  // in ms.
+  TimePoint start_time_;
+  TimePoint end_time_;
 
   DISALLOW_COPY_AND_ASSIGN(Timer);
 };
@@ -70,3 +75,5 @@ class TimerWrapper {
   _timer_.Start()
 
 #define PERF_BLOCK_END(msg) _timer_.End(msg)
+
+#endif  // MODULES_COMMON_TIME_TIMER_H_

@@ -18,14 +18,15 @@
  * @file
  **/
 
-#pragma once
+#ifndef MODULES_PLANNING_COMMON_REFERENCE_LINE_INFO_H_
+#define MODULES_PLANNING_COMMON_REFERENCE_LINE_INFO_H_
 
+#include <algorithm>
 #include <limits>
 #include <list>
 #include <memory>
 #include <string>
-#include <unordered_map>
-#include <utility>
+#include <unordered_set>
 #include <vector>
 
 #include "modules/common/proto/drive_state.pb.h"
@@ -34,14 +35,10 @@
 #include "modules/planning/proto/lattice_structure.pb.h"
 #include "modules/planning/proto/planning.pb.h"
 
-#include "modules/map/hdmap/hdmap_common.h"
 #include "modules/map/pnc_map/pnc_map.h"
 #include "modules/planning/common/path/path_data.h"
-#include "modules/planning/common/path_boundary.h"
 #include "modules/planning/common/path_decision.h"
-#include "modules/planning/common/planning_gflags.h"
 #include "modules/planning/common/speed/speed_data.h"
-#include "modules/planning/common/st_graph_data.h"
 #include "modules/planning/common/trajectory/discretized_trajectory.h"
 
 namespace apollo {
@@ -53,9 +50,6 @@ namespace planning {
  */
 class ReferenceLineInfo {
  public:
-  enum class LaneType { LeftForward, LeftReverse, RightForward, RightReverse };
-  ReferenceLineInfo() = default;
-
   explicit ReferenceLineInfo(const common::VehicleState& vehicle_state,
                              const common::TrajectoryPoint& adc_planning_point,
                              const ReferenceLine& reference_line,
@@ -63,22 +57,23 @@ class ReferenceLineInfo {
 
   bool Init(const std::vector<const Obstacle*>& obstacles);
 
-  bool AddObstacles(const std::vector<const Obstacle*>& obstacles);
-  Obstacle* AddObstacle(const Obstacle* obstacle);
+  bool IsInited() const;
 
-  const common::VehicleState& vehicle_state() const { return vehicle_state_; }
+  bool AddObstacles(const std::vector<const Obstacle*>& obstacles);
+  PathObstacle* AddObstacle(const Obstacle* obstacle);
+  void AddObstacleHelper(const Obstacle* obstacle, int* ret);
 
   PathDecision* path_decision();
   const PathDecision& path_decision() const;
-
   const ReferenceLine& reference_line() const;
-  ReferenceLine* mutable_reference_line();
+  const common::TrajectoryPoint& AdcPlanningPoint() const;
 
-  double SDistanceToDestination() const;
   bool ReachedDestination() const;
 
   void SetTrajectory(const DiscretizedTrajectory& trajectory);
+
   const DiscretizedTrajectory& trajectory() const;
+  double TrajectoryLength() const;
 
   double Cost() const { return cost_; }
   void AddCost(double cost) { cost_ += cost; }
@@ -86,18 +81,9 @@ class ReferenceLineInfo {
   double PriorityCost() const { return priority_cost_; }
   void SetPriorityCost(double cost) { priority_cost_ = cost; }
   // For lattice planner'speed planning target
-  void SetLatticeStopPoint(const StopPoint& stop_point);
-  void SetLatticeCruiseSpeed(double speed);
+  void SetStopPoint(const StopPoint& stop_point);
+  void SetCruiseSpeed(double speed);
   const PlanningTarget& planning_target() const { return planning_target_; }
-
-  void SetCruiseSpeed(double speed) { cruise_speed_ = speed; }
-  double GetCruiseSpeed() const;
-
-  hdmap::LaneInfoConstPtr LocateLaneInfo(const double s) const;
-
-  bool GetNeighborLaneInfo(const ReferenceLineInfo::LaneType lane_type,
-                           const double s, hdmap::Id* ptr_lane_id,
-                           double* ptr_lane_width) const;
 
   /**
    * @brief check if current reference line is started from another reference
@@ -114,14 +100,9 @@ class ReferenceLineInfo {
   const LatencyStats& latency_stats() const { return latency_stats_; }
 
   const PathData& path_data() const;
-  const PathData& fallback_path_data() const;
   const SpeedData& speed_data() const;
   PathData* mutable_path_data();
-  PathData* mutable_fallback_path_data();
   SpeedData* mutable_speed_data();
-
-  const RSSInfo& rss_info() const;
-  RSSInfo* mutable_rss_info();
   // aggregate final result together by some configuration
   bool CombinePathAndSpeedProfile(
       const double relative_time, const double start_s,
@@ -137,7 +118,7 @@ class ReferenceLineInfo {
   bool IsChangeLanePath() const;
 
   /**
-   * Check if the current reference line is the neighbor of the vehicle
+   * Check if the current reference line is the neighbor of the vehicle 
    * current position
    */
   bool IsNeighborLanePath() const;
@@ -151,20 +132,18 @@ class ReferenceLineInfo {
 
   void ExportEngageAdvice(common::EngageAdvice* engage_advice) const;
 
+  bool IsSafeToChangeLane() const { return is_safe_to_change_lane_; }
+
   const hdmap::RouteSegments& Lanes() const;
-  std::list<hdmap::Id> TargetLaneId() const;
+  const std::list<hdmap::Id> TargetLaneId() const;
 
   void ExportDecision(DecisionResult* decision_result) const;
 
-  void SetJunctionRightOfWay(const double junction_s,
-                             const bool is_protected) const;
+  void SetJunctionRightOfWay(double junction_s, bool is_protected);
 
   ADCTrajectory::RightOfWayStatus GetRightOfWayStatus() const;
 
-  hdmap::Lane::LaneTurn GetPathTurnType(const double s) const;
-
-  bool GetIntersectionRightofWayStatus(
-      const hdmap::PathOverlap& pnc_junction_overlap) const;
+  bool IsRightTurnPath() const;
 
   double OffsetToOtherReferenceLine() const {
     return offset_to_other_reference_line_;
@@ -173,101 +152,20 @@ class ReferenceLineInfo {
     offset_to_other_reference_line_ = offset;
   }
 
-  const std::vector<PathBoundary>& GetCandidatePathBoundaries() const;
-
-  void SetCandidatePathBoundaries(
-      std::vector<PathBoundary> candidate_path_boundaries);
-
-  const std::vector<PathData>& GetCandidatePathData() const;
-
-  void SetCandidatePathData(std::vector<PathData> candidate_path_data);
-
-  Obstacle* GetBlockingObstacle() const { return blocking_obstacle_; }
-  void SetBlockingObstacle(const std::string& blocking_obstacle_id);
-
-  bool is_path_lane_borrow() const { return is_path_lane_borrow_; }
-  void set_is_path_lane_borrow(const bool is_path_lane_borrow) {
-    is_path_lane_borrow_ = is_path_lane_borrow;
-  }
-
   void set_is_on_reference_line() { is_on_reference_line_ = true; }
 
-  uint32_t GetPriority() const { return reference_line_.GetPriority(); }
-
-  void SetPriority(uint32_t priority) { reference_line_.SetPriority(priority); }
-
-  void set_trajectory_type(
-      const ADCTrajectory::TrajectoryType trajectory_type) {
-    trajectory_type_ = trajectory_type;
-  }
-
-  ADCTrajectory::TrajectoryType trajectory_type() const {
-    return trajectory_type_;
-  }
-
-  StGraphData* mutable_st_graph_data() { return &st_graph_data_; }
-
-  const StGraphData& st_graph_data() { return st_graph_data_; }
-
-  // different types of overlaps that can be handled by different scenarios.
-  enum OverlapType {
-    CLEAR_AREA = 1,
-    CROSSWALK = 2,
-    OBSTACLE = 3,
-    PNC_JUNCTION = 4,
-    SIGNAL = 5,
-    STOP_SIGN = 6,
-    YIELD_SIGN = 7,
-  };
-
-  const std::vector<std::pair<OverlapType, hdmap::PathOverlap>>&
-  FirstEncounteredOverlaps() const {
-    return first_encounter_overlaps_;
-  }
-
-  int GetPnCJunction(const double s,
-                     hdmap::PathOverlap* pnc_junction_overlap) const;
-
-  std::vector<common::SLPoint> GetAllStopDecisionSLPoint() const;
-
-  void SetTurnSignal(const common::VehicleSignal::TurnSignal& turn_signal);
-  void SetEmergencyLight();
-
-  void set_path_reusable(const bool path_reusable) {
-    path_reusable_ = path_reusable;
-  }
-
-  bool path_reusable() const { return path_reusable_; }
-
  private:
-  void InitFirstOverlaps();
-
   bool CheckChangeLane() const;
 
-  void SetTurnSignalBasedOnLaneTurnType(
-      common::VehicleSignal* vehicle_signal) const;
+  void ExportTurnSignal(common::VehicleSignal* signal) const;
 
-  void ExportVehicleSignal(common::VehicleSignal* vehicle_signal) const;
-
-  bool IsIrrelevantObstacle(const Obstacle& obstacle);
+  bool IsUnrelaventObstacle(PathObstacle* path_obstacle);
 
   void MakeDecision(DecisionResult* decision_result) const;
-
   int MakeMainStopDecision(DecisionResult* decision_result) const;
-
   void MakeMainMissionCompleteDecision(DecisionResult* decision_result) const;
-
   void MakeEStopDecision(DecisionResult* decision_result) const;
-
   void SetObjectDecisions(ObjectDecisions* object_decisions) const;
-
-  bool AddObstacleHelper(const std::shared_ptr<Obstacle>& obstacle);
-
-  bool GetFirstOverlap(const std::vector<hdmap::PathOverlap>& path_overlaps,
-                       hdmap::PathOverlap* path_overlap);
-
- private:
-  static std::unordered_map<std::string, bool> junction_right_of_way_map_;
   const common::VehicleState vehicle_state_;
   const common::TrajectoryPoint adc_planning_point_;
   ReferenceLine reference_line_;
@@ -278,27 +176,17 @@ class ReferenceLineInfo {
    */
   double cost_ = 0.0;
 
+  bool is_inited_ = false;
+
   bool is_drivable_ = true;
 
   PathDecision path_decision_;
 
-  Obstacle* blocking_obstacle_;
-
-  std::vector<PathBoundary> candidate_path_boundaries_;
-  std::vector<PathData> candidate_path_data_;
-
   PathData path_data_;
-  PathData fallback_path_data_;
   SpeedData speed_data_;
 
   DiscretizedTrajectory discretized_trajectory_;
 
-  RSSInfo rss_info_;
-
-  /**
-   * @brief SL boundary of stitching point (starting point of plan trajectory)
-   * relative to the reference line
-   */
   SLBoundary adc_sl_boundary_;
 
   planning_internal::Debug debug_;
@@ -308,7 +196,7 @@ class ReferenceLineInfo {
 
   bool is_on_reference_line_ = false;
 
-  bool is_path_lane_borrow_ = false;
+  bool is_safe_to_change_lane_ = false;
 
   ADCTrajectory::RightOfWayStatus status_ = ADCTrajectory::UNPROTECTED;
 
@@ -318,29 +206,10 @@ class ReferenceLineInfo {
 
   PlanningTarget planning_target_;
 
-  ADCTrajectory::TrajectoryType trajectory_type_ = ADCTrajectory::UNKNOWN;
-
-  /**
-   * Overlaps encountered in the first time along the reference line in front of
-   * the vehicle
-   */
-  std::vector<std::pair<OverlapType, hdmap::PathOverlap>>
-      first_encounter_overlaps_;
-
-  /**
-   * @brief Data generated by speed_bounds_decider for constructing st_graph for
-   * different st optimizer
-   */
-  StGraphData st_graph_data_;
-
-  common::VehicleSignal vehicle_signal_;
-
-  double cruise_speed_ = 0.0;
-
-  bool path_reusable_ = false;
-
   DISALLOW_COPY_AND_ASSIGN(ReferenceLineInfo);
 };
 
 }  // namespace planning
 }  // namespace apollo
+
+#endif  // MODULES_PLANNING_COMMON_REFERENCE_LINE_INFO_H_

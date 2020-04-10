@@ -21,7 +21,6 @@
 
 #include "modules/drivers/radar/conti_radar/conti_radar_message_manager.h"
 
-#include "modules/common/util/message_util.h"
 #include "modules/drivers/radar/conti_radar/protocol/cluster_general_info_701.h"
 #include "modules/drivers/radar/conti_radar/protocol/cluster_list_status_600.h"
 #include "modules/drivers/radar/conti_radar/protocol/cluster_quality_info_702.h"
@@ -35,16 +34,9 @@ namespace apollo {
 namespace drivers {
 namespace conti_radar {
 
-using Clock = apollo::common::time::Clock;
-using micros = std::chrono::microseconds;
-using apollo::cyber::Writer;
-using apollo::drivers::canbus::CanClient;
-using apollo::drivers::canbus::ProtocolData;
-using apollo::drivers::canbus::SenderMessage;
+using ::apollo::common::adapter::AdapterManager;
 
-ContiRadarMessageManager::ContiRadarMessageManager(
-    const std::shared_ptr<Writer<ContiRadar>> &writer)
-    : conti_radar_writer_(writer) {
+ContiRadarMessageManager::ContiRadarMessageManager() {
   AddRecvProtocolData<RadarState201, true>();
   AddRecvProtocolData<ClusterListStatus600, true>();
   AddRecvProtocolData<ClusterGeneralInfo701, true>();
@@ -97,12 +89,12 @@ void ContiRadarMessageManager::Parse(const uint32_t message_id,
 
     if (sensor_data_.contiobs_size() <=
         sensor_data_.object_list_status().nof_objects()) {
-      // maybe lost an object_list_status msg
-      conti_radar_writer_->Write(sensor_data_);
+      // maybe lost a object_list_status msg
+      AdapterManager::PublishContiRadar(sensor_data_);
     }
     sensor_data_.Clear();
-    // fill header when receive the general info message
-    common::util::FillHeader("conti_radar", &sensor_data_);
+    // fill header when recieve the general info message
+    AdapterManager::FillContiRadarHeader(FLAGS_sensor_node_name, &sensor_data_);
   }
 
   sensor_protocol_data->Parse(data, length, &sensor_data_);
@@ -135,12 +127,11 @@ void ContiRadarMessageManager::Parse(const uint32_t message_id,
   // check if need to check period
   const auto it = check_ids_.find(message_id);
   if (it != check_ids_.end()) {
-    const int64_t time = absl::ToUnixMicros(Clock::Now());
+    const int64_t time = common::time::AsInt64<micros>(Clock::Now());
     it->second.real_period = time - it->second.last_time;
     // if period 1.5 large than base period, inc error_count
     const double period_multiplier = 1.5;
-    if (it->second.real_period >
-        (static_cast<double>(it->second.period) * period_multiplier)) {
+    if (it->second.real_period > (it->second.period * period_multiplier)) {
       it->second.error_count += 1;
     } else {
       it->second.error_count = 0;

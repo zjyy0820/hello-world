@@ -14,8 +14,11 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef MODULES_MAP_RELATIVE_MAP_RELATIVE_MAP_H_
+#define MODULES_MAP_RELATIVE_MAP_RELATIVE_MAP_H_
 
+#include <memory>
+#include <mutex>
 #include <string>
 
 #include "modules/map/relative_map/proto/navigation.pb.h"
@@ -25,35 +28,36 @@
 #include "modules/common/monitor_log/monitor_log_buffer.h"
 #include "modules/common/status/status.h"
 #include "modules/map/relative_map/navigation_lane.h"
+#include "modules/map/relative_map/relative_map_interface.h"
 
 namespace apollo {
 namespace relative_map {
 
-class RelativeMap {
+class RelativeMap : public RelativeMapInterface {
  public:
   RelativeMap();
 
   /**
    * @brief module name
    */
-  std::string Name() const { return "RelativeMap"; }
+  std::string Name() const override { return "RelativeMap"; };
 
   /**
    * @brief module initialization function
    * @return initialization status
    */
-  apollo::common::Status Init();
+  apollo::common::Status Init() override;
 
   /**
    * @brief module start function
    * @return start status
    */
-  apollo::common::Status Start();
+  apollo::common::Status Start() override;
 
   /**
    * @brief module stop function
    */
-  void Stop();
+  void Stop() override;
 
   /**
    * @brief destructor
@@ -64,26 +68,25 @@ class RelativeMap {
    * @brief main logic of the relative_map module, runs periodically triggered
    * by timer.
    */
-  bool Process(MapMsg* const map_msg);
+  void RunOnce() override;
 
-  void OnPerception(
-      const perception::PerceptionObstacles& perception_obstacles);
-  void OnChassis(const canbus::Chassis& chassis);
-  void OnLocalization(const localization::LocalizationEstimate& localization);
-  void OnNavigationInfo(const NavigationInfo& navigation_info);
+  void OnTimer(const ros::TimerEvent&);
 
  private:
   bool CreateMapFromNavigationLane(MapMsg* map_msg);
+
+  void OnReceiveNavigationInfo(const NavigationInfo& navigation_info);
+
+  common::adapter::AdapterManagerConfig adapter_conf_;
   RelativeMapConfig config_;
-  apollo::common::monitor::MonitorLogBuffer monitor_logger_buffer_;
+  apollo::common::monitor::MonitorLogger monitor_logger_;
 
   NavigationLane navigation_lane_;
-  perception::PerceptionObstacles perception_obstacles_;
-  canbus::Chassis chassis_;
-  localization::LocalizationEstimate localization_;
-
   std::mutex navigation_lane_mutex_;
+  ros::Timer timer_;
 };
 
 }  // namespace relative_map
 }  // namespace apollo
+
+#endif  // MODULES_MAP_RELATIVE_MAP_RELATIVE_MAP_H_

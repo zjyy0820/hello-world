@@ -18,7 +18,10 @@
  * @file publishable_trajectory.h
  **/
 
-#pragma once
+#ifndef MODULES_PLANNING_COMMON_TRAJECTORY_PUBLISHABLE_TRAJECTORY_H_
+#define MODULES_PLANNING_COMMON_TRAJECTORY_PUBLISHABLE_TRAJECTORY_H_
+
+#include <vector>
 
 #include "modules/planning/proto/planning.pb.h"
 
@@ -48,3 +51,5 @@ class PublishableTrajectory : public DiscretizedTrajectory {
 
 }  // namespace planning
 }  // namespace apollo
+
+#endif  // MODULES_PLANNING_COMMON_TRAJECTORY_PUBLISHABLE_TRAJECTORY_H_

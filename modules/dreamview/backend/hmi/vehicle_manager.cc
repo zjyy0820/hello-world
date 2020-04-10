@@ -16,11 +16,9 @@
 
 #include "modules/dreamview/backend/hmi/vehicle_manager.h"
 
-#include "absl/strings/str_cat.h"
-#include "cyber/common/file.h"
-#include "cyber/common/log.h"
 #include "gflags/gflags.h"
-#include "modules/common/configs/vehicle_config_helper.h"
+#include "modules/common/util/file.h"
+#include "modules/common/util/string_util.h"
 
 DEFINE_string(vehicle_data_config_filename,
               "/apollo/modules/dreamview/conf/vehicle_data.pb.txt",
@@ -29,40 +27,36 @@ DEFINE_string(vehicle_data_config_filename,
 namespace apollo {
 namespace dreamview {
 
-using cyber::common::GetProtoFromFile;
+using apollo::common::util::GetProtoFromFile;
+using apollo::common::util::StrCat;
 
 VehicleManager::VehicleManager() {
-  ACHECK(GetProtoFromFile(FLAGS_vehicle_data_config_filename, &vehicle_data_))
+  CHECK(GetProtoFromFile(FLAGS_vehicle_data_config_filename, &vehicle_data_))
       << "Unable to parse VehicleData config file "
       << FLAGS_vehicle_data_config_filename;
-}
-
-const std::string &VehicleManager::GetVehicleDataPath() const {
-  return vehicle_data_path_;
+  for (auto &data_file : *vehicle_data_.mutable_data_files()) {
+    data_file.set_dest_path(
+        apollo::common::util::TranslatePath(data_file.dest_path()));
+  }
 }
 
 bool VehicleManager::UseVehicle(const std::string &vehicle_data_path) {
-  if (!cyber::common::DirectoryExists(vehicle_data_path)) {
+  if (!apollo::common::util::DirectoryExists(vehicle_data_path)) {
     AERROR << "Cannot find vehicle data: " << vehicle_data_path;
     return false;
   }
-  vehicle_data_path_ = vehicle_data_path;
 
   for (const auto &data_file : vehicle_data_.data_files()) {
     const auto source_path =
-        absl::StrCat(vehicle_data_path, "/", data_file.source_path());
+        StrCat(vehicle_data_path, "/", data_file.source_path());
     const auto &dest_path = data_file.dest_path();
 
-    const bool ret = cyber::common::Copy(source_path, dest_path);
+    const bool ret = apollo::common::util::Copy(source_path, dest_path);
     AINFO_IF(ret) << "Copied " << source_path << " to " << dest_path;
   }
 
-  // Reload vehicle config for current process.
-  apollo::common::VehicleConfigHelper::Init();
-
-  // Broadcast new extrinsics.
   static const std::string kBroadcastExtrinsicsCmd =
-      "bash /apollo/scripts/broadcast_extrinsics.sh";
+      "bash scripts/broadcast_extrinsics.sh";
   const int ret = std::system(kBroadcastExtrinsicsCmd.c_str());
   AERROR_IF(ret != 0) << "Command returns " << ret << ": "
                       << kBroadcastExtrinsicsCmd;

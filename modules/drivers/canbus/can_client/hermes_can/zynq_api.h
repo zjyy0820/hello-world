@@ -14,7 +14,8 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef _ZYNQ_API_H_
+#define _ZYNQ_API_H_
 
 #include "bcan_defs.h"
 
@@ -29,7 +30,7 @@
 #define ZYNQ_DEV_NAME_CAN "zynq_can"
 
 /*
- * ioctl argument definition for CAN send/recv
+ * ioctl argument defintion for CAN send/recv
  */
 typedef struct ioc_bcan_msg {
   bcan_msg_t *ioc_msgs;
@@ -272,3 +273,5 @@ typedef struct ioc_zynq_i2c_acc {
 /* wait for GPS/PPS status change event notification */
 #define ZYNQ_IOC_REG_GPSPPS_EVENT_WAIT \
   _IOW(ZYNQ_IOC_MAGIC, IOC_REG_GPSPPS_EVENT_WAIT, unsigned long)
+
+#endif /* _ZYNQ_API_H_ */

@@ -20,8 +20,12 @@
 
 #include "modules/planning/common/trajectory/discretized_trajectory.h"
 
-#include "cyber/common/file.h"
+#include <iostream>
+#include <string>
+
 #include "gtest/gtest.h"
+
+#include "modules/common/util/file.h"
 
 namespace apollo {
 namespace planning {
@@ -30,8 +34,8 @@ TEST(basic_test, DiscretizedTrajectory) {
   const std::string path_of_standard_trajectory =
       "modules/planning/testdata/trajectory_data/standard_trajectory.pb.txt";
   ADCTrajectory trajectory;
-  EXPECT_TRUE(cyber::common::GetProtoFromFile(path_of_standard_trajectory,
-                                              &trajectory));
+  EXPECT_TRUE(
+      common::util::GetProtoFromFile(path_of_standard_trajectory, &trajectory));
   DiscretizedTrajectory discretized_trajectory(trajectory);
   EXPECT_DOUBLE_EQ(discretized_trajectory.GetTemporalLength(),
                    7.9999999999999885);
@@ -43,10 +47,10 @@ TEST(basic_test, DiscretizedTrajectory) {
   EXPECT_DOUBLE_EQ(p1.relative_time(), 4.0);
   EXPECT_DOUBLE_EQ(p1.v(), 5.4412586837131443);
 
-  auto k1 = discretized_trajectory.QueryLowerBoundPoint(2.12);
+  int k1 = discretized_trajectory.QueryLowerBoundPoint(2.12);
   EXPECT_EQ(k1, 62);
 
-  auto k2 = discretized_trajectory.QueryNearestPoint({587264.0, 4140966.2});
+  int k2 = discretized_trajectory.QueryNearestPoint({587264.0, 4140966.2});
   EXPECT_EQ(k2, 80);
 
   EXPECT_EQ(discretized_trajectory.NumOfPoints(), 121);

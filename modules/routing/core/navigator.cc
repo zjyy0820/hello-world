@@ -1,22 +1,28 @@
 /******************************************************************************
- * Copyright 2017 The Apollo Authors. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *****************************************************************************/
+  * Copyright 2017 The Apollo Authors. All Rights Reserved.
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+  * You may obtain a copy of the License at
+  *
+  * http://www.apache.org/licenses/LICENSE-2.0
+  *
+  * Unless required by applicable law or agreed to in writing, software
+  * distributed under the License is distributed on an "AS IS" BASIS,
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  *****************************************************************************/
 
 #include "modules/routing/core/navigator.h"
 
-#include "cyber/common/file.h"
+#include <algorithm>
+#include <fstream>
+
+#include "modules/common/proto/error_code.pb.h"
+
+#include "modules/common/log.h"
+#include "modules/common/util/file.h"
 #include "modules/routing/common/routing_gflags.h"
 #include "modules/routing/graph/sub_topo_graph.h"
 #include "modules/routing/strategy/a_star_strategy.h"
@@ -26,7 +32,7 @@ namespace routing {
 
 namespace {
 
-using apollo::common::ErrorCode;
+using common::ErrorCode;
 
 bool ShowRequestInfo(const RoutingRequest& request, const TopoGraph* graph) {
   for (const auto& wp : request.waypoint()) {
@@ -60,7 +66,7 @@ bool GetWayNodes(const RoutingRequest& request, const TopoGraph* graph,
   for (const auto& point : request.waypoint()) {
     const auto* cur_node = graph->GetNode(point.id());
     if (cur_node == nullptr) {
-      AERROR << "Cannot find way point in graph! Id: " << point.id();
+      AERROR << "Can't find way point in graph! Id: " << point.id();
       return false;
     }
     way_nodes->push_back(cur_node);
@@ -94,7 +100,7 @@ void PrintDebugData(const std::vector<NodeWithRange>& nodes) {
 
 Navigator::Navigator(const std::string& topo_file_path) {
   Graph graph;
-  if (!cyber::common::GetProtoFromFile(topo_file_path, &graph)) {
+  if (!common::util::GetProtoFromFile(topo_file_path, &graph)) {
     AERROR << "Failed to read topology graph from " << topo_file_path;
     return;
   }
@@ -139,10 +145,11 @@ bool Navigator::MergeRoute(
       result_node_vec->push_back(node);
     } else {
       if (result_node_vec->back().EndS() < node.StartS()) {
-        AERROR << "Result route is not continuous.";
+        AERROR << "Result route is not coninuous";
         return false;
+      } else {
+        result_node_vec->back().SetEndS(node.EndS());
       }
-      result_node_vec->back().SetEndS(node.EndS());
     }
   }
   return true;

@@ -2,70 +2,63 @@ import React from "react";
 import { inject, observer } from "mobx-react";
 
 import SETTING from "store/config/PlanningGraph.yml";
-import ScatterGraph, { generateScatterGraph } from "components/PNCMonitor/ScatterGraph";
-import PlanningScenarioTable from "components/PNCMonitor/PlanningScenarioTable";
-
+import ScatterGraph from "components/PNCMonitor/ScatterGraph";
 
 @inject("store") @observer
 export default class PlanningMonitor extends React.Component {
-    generateGraphsFromDatasets(settingName, datasets) {
-        const setting = SETTING[settingName];
-        if (!setting) {
-            console.error("No such setting name found in PlanningGraph.yml:", settingName);
+    generateStGraph(stGraph) {
+        const graphs = [];
+        const names = ['DpStSpeedOptimizer', 'QpSplineStSpeedOptimizer'];
+        for (const name of names) {
+            const graph = stGraph[name];
+            const boxes = graph ? graph.obstaclesBoundary : [];
+            graphs.push(
+                <ScatterGraph
+                     key={'stGraph_' + name}
+                     title={name}
+                     options={SETTING.stGraph.options}
+                     properties={SETTING.stGraph.properties}
+                     data={graph}
+                     boxes={boxes} />
+            );
+        }
+        return graphs;
+    }
+
+    generateScatterGraph(name, data) {
+        if (SETTING[name] === undefined) {
+            console.error("Graph setting not found: ", name);
             return null;
         }
 
-        return _.get(setting, 'datasets', []).map(({name, graphTitle}) => {
-            const graph = datasets[name];
-            const polygons = graph ? graph.obstaclesBoundary : [];
-            return (
-                <ScatterGraph
-                    key={`${settingName}_${name}`}
-                    title={graphTitle}
-                    options={setting.options}
-                    properties={setting.properties}
-                    data={{ lines: graph, polygons: polygons }}
-                />
-            );
-        });
+        return (
+            <ScatterGraph
+                title={SETTING[name].title}
+                options={SETTING[name].options}
+                properties={SETTING[name].properties}
+                data={data} />
+        );
     }
 
     render() {
-        const { planningTimeSec, data, chartData, scenarioHistory } = this.props.store.planningData;
+        const { planningTime, data, latencyGraph } = this.props.store.planningData;
 
-        if (!planningTimeSec) {
+        if (!planningTime) {
             return null;
         }
 
-        const chartCount = {};
-
         return (
             <div>
-                <PlanningScenarioTable scenarios={scenarioHistory} />
-                {chartData.map(chart => {
-                    // Adding count to chart key to prevent duplicate chart title
-                    if (!chartCount[chart.title]) {
-                        chartCount[chart.title] = 1;
-                    } else {
-                        chartCount[chart.title] += 1;
-                    }
-
-                    return <ScatterGraph key={`custom_${chart.title}_${chartCount[chart.title]}`}
-                                         title={chart.title}
-                                         options={chart.options}
-                                         properties={chart.properties}
-                                         data={chart.data} />;
-                })}
-                {generateScatterGraph(SETTING.speedGraph, data.speedGraph)}
-                {generateScatterGraph(SETTING.accelerationGraph, data.accelerationGraph)}
-                {generateScatterGraph(SETTING.planningThetaGraph, data.thetaGraph)}
-                {generateScatterGraph(SETTING.planningKappaGraph, data.kappaGraph)}
-                {this.generateGraphsFromDatasets('stGraph', data.stGraph)}
-                {this.generateGraphsFromDatasets('stSpeedGraph', data.stSpeedGraph)}
-                {generateScatterGraph(SETTING.planningDkappaGraph, data.dkappaGraph)}
-                {generateScatterGraph(SETTING.referenceLineThetaGraph, data.thetaGraph)}
-                {generateScatterGraph(SETTING.referenceLineKappaGraph, data.kappaGraph)}
-                {generateScatterGraph(SETTING.referenceLineDkappaGraph, data.dkappaGraph)}
+                {this.generateScatterGraph('speedGraph', data.speedGraph)}
+                {this.generateScatterGraph('accelerationGraph', data.accelerationGraph)}
+                {this.generateScatterGraph('thetaGraph', data.thetaGraph)}
+                {this.generateScatterGraph('kappaGraph', data.kappaGraph)}
+                {this.generateScatterGraph('dpPolyGraph', data.dpPolyGraph)}
+                {this.generateStGraph(data.stGraph)}
+                {this.generateScatterGraph('stSpeedGraph',
+                        data.stSpeedGraph.QpSplineStSpeedOptimizer)}
+                {this.generateScatterGraph('latencyGraph', latencyGraph)}
+                {this.generateScatterGraph('dkappaGraph', data.dkappaGraph)}
             </div>
         );
     }

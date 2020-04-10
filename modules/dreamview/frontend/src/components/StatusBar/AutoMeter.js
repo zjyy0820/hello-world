@@ -7,21 +7,16 @@ class Meter extends React.Component {
     render () {
         const { label, percentage, meterColor, background } = this.props;
 
-        const percentageString = percentage + '%';
-
         return (
             <div className="meter-container">
-                <div className="meter-label">
-                    {label}
-                    <span className="meter-value">{percentageString}</span>
-                </div>
+                <div className="meter-label">{label}</div>
                 <span className="meter-head"
                       style={{borderColor: meterColor}}/>
                 <div className="meter-background"
                      style={{backgroundColor: background}}>
                     <span style={{
                           backgroundColor: meterColor,
-                          width: percentageString,
+                          width: percentage + '%',
                     }}/>
               </div>
             </div>

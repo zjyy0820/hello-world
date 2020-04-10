@@ -18,9 +18,11 @@
  * @file
  **/
 
-#pragma once
+#ifndef MODULES_PLANNING_LATTICE_BEHAVIOR_FEASIBLE_REGION_H_
+#define MODULES_PLANNING_LATTICE_BEHAVIOR_FEASIBLE_REGION_H_
 
 #include <algorithm>
+#include <array>
 
 #include "modules/common/proto/pnc_point.pb.h"
 
@@ -51,3 +53,5 @@ class FeasibleRegion {
 
 }  // namespace planning
 }  // namespace apollo
+
+#endif  // MODULES_PLANNING_LATTICE_BEHAVIOR_FEASIBLE_REGION_H_

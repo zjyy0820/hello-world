@@ -1,9 +1,9 @@
-'use strict';
+'use strict'
 
 const path = require("path");
 const webpack = require("webpack");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
-const WebappWebpackPlugin = require("webapp-webpack-plugin");
+const FaviconsWebpackPlugin = require("favicons-webpack-plugin");
 const ProgressBarPlugin = require("progress-bar-webpack-plugin");
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 // const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
@@ -13,7 +13,6 @@ module.exports = {
 
     entry: {
         offline: "./offline.js",
-        parameters: path.join(__dirname, "src/store/config/parameters.yml")
     },
 
     output: {
@@ -54,8 +53,8 @@ module.exports = {
                     {
                         loader: "babel-loader",
                         options: {
-                            // Use env so that async/await are available.
-                            presets: ["env", "stage-0", "react"],
+                            // Use es2015 so that async/await are available.
+                            presets: ["es2015", "stage-0", "react"],
                             // Enable decorators for mobx.
                             plugins: ["transform-decorators-legacy",
                                       "transform-runtime"],
@@ -161,20 +160,8 @@ module.exports = {
                 {
                     loader: "babel-loader",
                     options: {
-                        presets: ["env"],
+                        presets: ["es2015"],
                     }
-                }]
-            }, {
-                test: /parameters.yml/,
-                use: [{
-                    loader: 'file-loader',
-                    options: {
-                        name: '[path][name].json',
-                        context: 'src/store/config',
-                        outputPath: ".", // the "dist" dir
-                    }
-                },{
-                    loader: 'yaml-loader'
                 }]
             },
         ]
@@ -190,11 +177,7 @@ module.exports = {
             // Include only the app. Do not include the service worker.
             chunks: ["offline"]
         }),
-        new WebappWebpackPlugin({
-            logo: "./favicon.png",
-            cache: true,
-            prefix: "icons/"
-        }),
+        new FaviconsWebpackPlugin("./favicon.png"),
         new CopyWebpackPlugin([
             {
                 from: '../node_modules/three/examples/fonts',

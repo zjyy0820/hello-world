@@ -1,18 +1,18 @@
 /******************************************************************************
- * Copyright 2017 The Apollo Authors. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *****************************************************************************/
+  * Copyright 2017 The Apollo Authors. All Rights Reserved.
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+  * You may obtain a copy of the License at
+  *
+  * http://www.apache.org/licenses/LICENSE-2.0
+  *
+  * Unless required by applicable law or agreed to in writing, software
+  * distributed under the License is distributed on an "AS IS" BASIS,
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  *****************************************************************************/
 
 #include "modules/routing/topo_creator/node_creator.h"
 
@@ -21,7 +21,6 @@
 
 namespace apollo {
 namespace routing {
-namespace node_creator {
 
 namespace {
 
@@ -53,8 +52,17 @@ double GetLaneLength(const Lane& lane) {
   return length;
 }
 
-void AddOutBoundary(const LaneBoundary& bound, double lane_length,
-                    RepeatedPtrField<CurveRange>* const out_range) {
+}  // namespace
+
+void NodeCreator::GetPbNode(const Lane& lane, const std::string& road_id,
+                            Node* pb_node, const RoutingConfig* routingconfig) {
+  InitNodeInfo(lane, road_id, pb_node, routingconfig);
+  InitNodeCost(lane, pb_node, routingconfig);
+}
+
+void NodeCreator::AddOutBoundary(
+    const LaneBoundary& bound, double lane_length,
+    RepeatedPtrField<CurveRange>* const out_range) {
   for (int i = 0; i < bound.boundary_type_size(); ++i) {
     if (!IsAllowedOut(bound.boundary_type(i))) {
       continue;
@@ -71,8 +79,9 @@ void AddOutBoundary(const LaneBoundary& bound, double lane_length,
   }
 }
 
-void InitNodeInfo(const Lane& lane, const std::string& road_id,
-                  Node* const node) {
+void NodeCreator::InitNodeInfo(const Lane& lane, const std::string& road_id,
+                               Node* const node,
+                               const RoutingConfig* routingconfig) {
   double lane_length = GetLaneLength(lane);
   node->set_lane_id(lane.id().id());
   node->set_road_id(road_id);
@@ -88,35 +97,26 @@ void InitNodeInfo(const Lane& lane, const std::string& road_id,
   }
 }
 
-void InitNodeCost(const Lane& lane, const RoutingConfig& routing_config,
-                  Node* const node) {
+void NodeCreator::InitNodeCost(const Lane& lane, Node* const node,
+                               const RoutingConfig* routingconfig) {
   double lane_length = GetLaneLength(lane);
-  double speed_limit =
-      lane.has_speed_limit() ? lane.speed_limit() : routing_config.base_speed();
-  double ratio = speed_limit >= routing_config.base_speed()
-                     ? std::sqrt(routing_config.base_speed() / speed_limit)
+  double speed_limit = (lane.has_speed_limit()) ? lane.speed_limit()
+                                                : routingconfig->base_speed();
+  double ratio = (speed_limit >= routingconfig->base_speed())
+                     ? (1 / sqrt(speed_limit / routingconfig->base_speed()))
                      : 1.0;
   double cost = lane_length * ratio;
   if (lane.has_turn()) {
     if (lane.turn() == Lane::LEFT_TURN) {
-      cost += routing_config.left_turn_penalty();
+      cost += routingconfig->left_turn_penalty();
     } else if (lane.turn() == Lane::RIGHT_TURN) {
-      cost += routing_config.right_turn_penalty();
+      cost += routingconfig->right_turn_penalty();
     } else if (lane.turn() == Lane::U_TURN) {
-      cost += routing_config.uturn_penalty();
+      cost += routingconfig->uturn_penalty();
     }
   }
   node->set_cost(cost);
 }
 
-}  // namespace
-
-void GetPbNode(const hdmap::Lane& lane, const std::string& road_id,
-               const RoutingConfig& routingconfig, Node* const node) {
-  InitNodeInfo(lane, road_id, node);
-  InitNodeCost(lane, routingconfig, node);
-}
-
-}  // namespace node_creator
 }  // namespace routing
 }  // namespace apollo

@@ -16,91 +16,78 @@
 
 #include "modules/monitor/common/monitor_manager.h"
 
-#include "cyber/common/file.h"
 #include "gflags/gflags.h"
 #include "modules/canbus/proto/chassis.pb.h"
-#include "modules/common/adapters/adapter_gflags.h"
+#include "modules/common/adapters/adapter_manager.h"
+#include "modules/common/util/file.h"
 #include "modules/common/util/map_util.h"
 #include "modules/dreamview/backend/common/dreamview_gflags.h"
-#include "modules/dreamview/backend/hmi/hmi_worker.h"
+
+DEFINE_string(monitor_conf_path, "modules/monitor/conf/monitor_conf.pb.txt",
+              "Path of the monitor config file.");
 
 namespace apollo {
 namespace monitor {
 
 using apollo::canbus::Chassis;
-using apollo::dreamview::HMIWorker;
+using apollo::common::adapter::AdapterManager;
+using apollo::common::util::LookupOrInsert;
 
-MonitorManager::MonitorManager()
-    : hmi_config_(HMIWorker::LoadConfig()),
-      log_buffer_(apollo::common::monitor::MonitorMessageItem::MONITOR) {}
-
-void MonitorManager::Init(const std::shared_ptr<apollo::cyber::Node>& node) {
-  node_ = node;
-  if (FLAGS_use_sim_time) {
-    status_.set_is_realtime_in_simulation(true);
-  }
+MonitorManager::MonitorManager() :
+  logger_(apollo::common::monitor::MonitorMessageItem::MONITOR),
+  log_buffer_(&logger_) {
+  CHECK(apollo::common::util::GetProtoFromASCIIFile(FLAGS_monitor_conf_path,
+                                                    &config_));
 }
 
-bool MonitorManager::StartFrame(const double current_time) {
-  // Get latest HMIStatus.
-  static auto hmi_status_reader =
-      CreateReader<apollo::dreamview::HMIStatus>(FLAGS_hmi_status_topic);
-  hmi_status_reader->Observe();
-  const auto hmi_status = hmi_status_reader->GetLatestObserved();
-  if (hmi_status == nullptr) {
-    AERROR << "No HMIStatus was received.";
-    return false;
-  }
-
-  if (current_mode_ != hmi_status->current_mode()) {
-    // Mode changed, update configs and monitored.
-    current_mode_ = hmi_status->current_mode();
-    mode_config_ = HMIWorker::LoadMode(hmi_config_.modes().at(current_mode_));
-    status_.clear_hmi_modules();
-    for (const auto& iter : mode_config_.modules()) {
-      status_.mutable_hmi_modules()->insert({iter.first, {}});
-    }
-    status_.clear_components();
-    for (const auto& iter : mode_config_.monitored_components()) {
-      status_.mutable_components()->insert({iter.first, {}});
-    }
-  } else {
-    // Mode not changed, clear component summary from the last frame.
-    for (auto& iter : *status_.mutable_components()) {
-      iter.second.clear_summary();
-    }
-  }
-
-  in_autonomous_driving_ = CheckAutonomousDriving(current_time);
-  return true;
+apollo::common::monitor::MonitorLogBuffer &MonitorManager::LogBuffer() {
+  return instance()->log_buffer_;
 }
 
-void MonitorManager::EndFrame() {
-  // Print and publish all monitor logs.
-  log_buffer_.Publish();
+const MonitorConf &MonitorManager::GetConfig() {
+  return instance()->config_;
 }
 
-bool MonitorManager::CheckAutonomousDriving(const double current_time) {
-  // It's in offline mode if use_sim_time is set.
-  if (FLAGS_use_sim_time) {
-    return false;
+void MonitorManager::InitFrame(const double current_time) {
+  // Clear old summaries.
+  for (auto &module : *GetStatus()->mutable_modules()) {
+    module.second.set_summary(Summary::UNKNOWN);
+    module.second.clear_msg();
+  }
+  for (auto &hardware : *GetStatus()->mutable_hardware()) {
+    hardware.second.set_summary(Summary::UNKNOWN);
+    hardware.second.clear_msg();
   }
 
   // Get current DrivingMode, which will affect how we monitor modules.
-  static auto chassis_reader = CreateReader<Chassis>(FLAGS_chassis_topic);
-  chassis_reader->Observe();
-  const auto chassis = chassis_reader->GetLatestObserved();
-  if (chassis == nullptr) {
-    return false;
+  instance()->in_autonomous_driving_ = false;
+  auto* adapter = CHECK_NOTNULL(AdapterManager::GetChassis());
+  adapter->Observe();
+  if (!adapter->Empty()) {
+    const auto& chassis = adapter->GetLatestObserved();
+    // Ignore old messages which is likely from replaying.
+    instance()->in_autonomous_driving_ =
+        chassis.driving_mode() == Chassis::COMPLETE_AUTO_DRIVE &&
+        chassis.header().timestamp_sec() + FLAGS_system_status_lifetime_seconds
+            >= current_time;
   }
+}
 
-  // Ignore old messages which are likely from playback.
-  const double msg_time = chassis->header().timestamp_sec();
-  if (msg_time + FLAGS_system_status_lifetime_seconds < current_time) {
-    return false;
-  }
+SystemStatus *MonitorManager::GetStatus() {
+  return &instance()->status_;
+}
 
-  return chassis->driving_mode() == Chassis::COMPLETE_AUTO_DRIVE;
+HardwareStatus *MonitorManager::GetHardwareStatus(
+    const std::string &hardware_name) {
+  return &LookupOrInsert(GetStatus()->mutable_hardware(), hardware_name, {});
+}
+
+ModuleStatus *MonitorManager::GetModuleStatus(const std::string &module_name) {
+  return &LookupOrInsert(GetStatus()->mutable_modules(), module_name, {});
+}
+
+bool MonitorManager::IsInAutonomousDriving() {
+  return instance()->in_autonomous_driving_;
 }
 
 }  // namespace monitor

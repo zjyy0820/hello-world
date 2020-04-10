@@ -14,7 +14,8 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef MODULES_PLANNING_PLANNER_RTK_RTK_REPLAY_PLANNER_H_
+#define MODULES_PLANNING_PLANNER_RTK_RTK_REPLAY_PLANNER_H_
 
 #include <string>
 #include <vector>
@@ -38,7 +39,7 @@ namespace planning {
  *        outputs proper segment of the trajectory according to vehicle
  * position.
  */
-class RTKReplayPlanner : public PlannerWithReferenceLine {
+class RTKReplayPlanner : public Planner {
  public:
   /**
    * @brief Constructor
@@ -50,11 +51,7 @@ class RTKReplayPlanner : public PlannerWithReferenceLine {
    */
   virtual ~RTKReplayPlanner() = default;
 
-  std::string Name() override { return "RTK"; }
-
   apollo::common::Status Init(const PlanningConfig& config) override;
-
-  void Stop() override {}
 
   /**
    * @brief Override function Plan in parent class Planner.
@@ -63,8 +60,8 @@ class RTKReplayPlanner : public PlannerWithReferenceLine {
    * @return OK if planning succeeds; error otherwise.
    */
   apollo::common::Status Plan(
-      const common::TrajectoryPoint& planning_init_point, Frame* frame,
-      ADCTrajectory* ptr_computed_trajectory) override;
+      const common::TrajectoryPoint& planning_init_point,
+      Frame* frame) override;
 
   /**
    * @brief Override function Plan in parent class Planner.
@@ -92,3 +89,5 @@ class RTKReplayPlanner : public PlannerWithReferenceLine {
 
 }  // namespace planning
 }  // namespace apollo
+
+#endif  // MODULES_PLANNING_PLANNER_RTK_RTK_REPLAY_PLANNER_H_

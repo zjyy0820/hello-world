@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright 2018 The Apollo Authors. All Rights Reserved.
+ * Copyright 2017 The Apollo Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,11 +14,13 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef MODULES_LOCALIZATION_MSF_LOCAL_TOOL_PCD_EXPORTER_H
+#define MODULES_LOCALIZATION_MSF_LOCAL_TOOL_PCD_EXPORTER_H
 
+#include <sensor_msgs/PointCloud2.h>
+#include <memory>
 #include <string>
-
-#include "modules/drivers/proto/pointcloud.pb.h"
+#include "modules/localization/msf/local_tool/data_extraction/base_exporter.h"
 
 namespace apollo {
 namespace localization {
@@ -28,16 +30,19 @@ namespace msf {
  * @class PCDExporter
  * @brief Export pcd from rosbag.
  */
-class PCDExporter {
+class PCDExporter : public BaseExporter {
  public:
+  typedef std::shared_ptr<PCDExporter> Ptr;
+  typedef std::shared_ptr<PCDExporter const> ConstPtr;
+
   explicit PCDExporter(const std::string &pcd_folder);
   ~PCDExporter();
 
-  void CompensatedPcdCallback(const std::string &msg);
+  void CompensatedPcdCallback(const rosbag::MessageInstance &msg);
 
  private:
   void WritePcdFile(const std::string &filename,
-                    const drivers::PointCloud &msg);
+                    sensor_msgs::PointCloud2::ConstPtr msg);
 
   std::string pcd_folder_;
   FILE *stamp_file_handle_;
@@ -46,3 +51,5 @@ class PCDExporter {
 }  // namespace msf
 }  // namespace localization
 }  // namespace apollo
+
+#endif  // MODULES_LOCALIZATION_MSF_LOCAL_TOOL_PCD_EXPORTER_H

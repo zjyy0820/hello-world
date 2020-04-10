@@ -19,11 +19,13 @@
  * @brief Define lane sequence predictor
  */
 
-#pragma once
+#ifndef MODULES_PREDICTION_PREDICTOR_FREE_MOVE_FREE_MOVE_PREDICTOR_H_
+#define MODULES_PREDICTION_PREDICTOR_FREE_MOVE_FREE_MOVE_PREDICTOR_H_
 
 #include <vector>
 
-#include "modules/prediction/container/obstacles/obstacles_container.h"
+#include "modules/common/proto/pnc_point.pb.h"
+
 #include "modules/prediction/predictor/predictor.h"
 
 namespace apollo {
@@ -34,7 +36,7 @@ class FreeMovePredictor : public Predictor {
   /**
    * @brief Constructor
    */
-  FreeMovePredictor();
+  FreeMovePredictor() = default;
 
   /**
    * @brief Destructor
@@ -43,14 +45,9 @@ class FreeMovePredictor : public Predictor {
 
   /**
    * @brief Make prediction
-   * @param ADC trajectory container
    * @param Obstacle pointer
-   * @param Obstacles container
-   * @return If predicted successfully
    */
-  bool Predict(const ADCTrajectoryContainer* adc_trajectory_container,
-               Obstacle* obstacle,
-               ObstaclesContainer* obstacles_container) override;
+  void Predict(Obstacle* obstacle) override;
 
  private:
   /**
@@ -59,16 +56,17 @@ class FreeMovePredictor : public Predictor {
    * @param Velocity
    * @param Acceleration
    * @param Kalman Filter
-   * @param start time
    * @param Total time
    * @param Generated trajectory points
    */
   void DrawFreeMoveTrajectoryPoints(
       const Eigen::Vector2d& position, const Eigen::Vector2d& velocity,
-      const Eigen::Vector2d& acc, const double theta, const double start_time,
+      const Eigen::Vector2d& acc, const double theta,
       const double total_time, const double period,
       std::vector<apollo::common::TrajectoryPoint>* points);
 };
 
 }  // namespace prediction
 }  // namespace apollo
+
+#endif  // MODULES_PREDICTION_PREDICTOR_VEHICLE_FREE_MOVE_PREDICTOR_H_

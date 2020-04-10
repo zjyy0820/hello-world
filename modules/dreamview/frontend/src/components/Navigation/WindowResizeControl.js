@@ -1,9 +1,7 @@
 import React from "react";
 
-import { MAP_SIZE } from "store/dimension";
-
 export default class WindowResizeControl extends React.PureComponent {
-    getMinimizingIcon() {
+    getMaximizingIcon() {
         return (
             <svg viewBox="0 0 20 20">
                 <defs>
@@ -11,14 +9,14 @@ export default class WindowResizeControl extends React.PureComponent {
                     <path d="M11.53 18.5l-.03-7h7" id="b" />
                     <path d="M12 12l7 7" id="c" />
                 </defs>
-                <use xlinkHref="#a" opacity=".8" fill="#84b7FF" />
+                <use xlinkHref="#a" opacity=".6" fill="#549BFF" />
                 <use xlinkHref="#b" fillOpacity="0" stroke="#006AFF" strokeWidth="2" />
                 <use xlinkHref="#c" fillOpacity="0" stroke="#006AFF" strokeWidth="2" />
             </svg>
         );
     }
 
-    getMaximizingIcon() {
+    getMinimizingIcon() {
         return (
             <svg viewBox="0 0 20 20">
                 <defs>
@@ -26,7 +24,7 @@ export default class WindowResizeControl extends React.PureComponent {
                     <path d="M18.47 11.5l.03 7h-7" id="b" />
                     <path d="M11 11l7 7" id="c" />
                 </defs>
-                <use xlinkHref="#a" opacity=".8" fill="#84b7FF" />
+                <use xlinkHref="#a" opacity=".6" fill="#549BFF" />
                 <use xlinkHref="#b" fillOpacity="0" stroke="#006AFF" strokeWidth="2" />
                 <use xlinkHref="#c" fillOpacity="0" stroke="#006AFF" strokeWidth="2" />
             </svg>
@@ -38,14 +36,11 @@ export default class WindowResizeControl extends React.PureComponent {
 
         let icon = null;
         switch (type) {
-            case MAP_SIZE.FULL:
+            case "minimizing":
                 icon = this.getMinimizingIcon();
                 break;
-            case MAP_SIZE.DEFAULT:
+            case "maximizing":
                 icon = this.getMaximizingIcon();
-                break;
-            default:
-                console.error('Unknown window size found:', type);
                 break;
         }
 

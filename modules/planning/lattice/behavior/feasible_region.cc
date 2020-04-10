@@ -20,7 +20,9 @@
 
 #include "modules/planning/lattice/behavior/feasible_region.h"
 
-#include "cyber/common/log.h"
+#include <cmath>
+
+#include "glog/logging.h"
 #include "modules/planning/common/planning_gflags.h"
 
 namespace apollo {
@@ -38,7 +40,7 @@ FeasibleRegion::FeasibleRegion(const std::array<double, 3>& init_s) {
 }
 
 double FeasibleRegion::SUpper(const double t) const {
-  ACHECK(t >= 0.0);
+  CHECK(t >= 0.0);
   return init_s_[0] + init_s_[1] * t +
          0.5 * FLAGS_longitudinal_acceleration_upper_bound * t * t;
 }
@@ -62,7 +64,7 @@ double FeasibleRegion::VLower(const double t) const {
 }
 
 double FeasibleRegion::TLower(const double s) const {
-  ACHECK(s >= init_s_[0]);
+  CHECK(s >= init_s_[0]);
 
   double delta_s = s - init_s_[0];
   double v = init_s_[1];

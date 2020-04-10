@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright 2018 The Apollo Authors. All Rights Reserved.
+ * Copyright 2017 The Apollo Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,8 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef MODULE_LOCALIZAION_MSF_LOCAL_MAP_LOSSLESS_MAP_LOSSLESS_MAP_POOL_H_
+#define MODULE_LOCALIZAION_MSF_LOCAL_MAP_LOSSLESS_MAP_LOSSLESS_MAP_POOL_H_
 
 #include "modules/localization/msf/local_map/base_map/base_map_config.h"
 #include "modules/localization/msf/local_map/base_map/base_map_node_index.h"
@@ -44,3 +45,5 @@ class LosslessMapNodePool : public BaseMapNodePool {
 }  // namespace msf
 }  // namespace localization
 }  // namespace apollo
+
+#endif  // MODULE_LOCALIZAION_MSF_LOCAL_MAP_LOSSLESS_MAP_LOSSLESS_MAP_POOL_H_

@@ -9,7 +9,7 @@ message TensorParameter {
 
 message InputParameter {
   repeated int32 input_shape = 1;
-  optional string dtype = 2;  // data type of the input
+  optional string dtype = 2;      //data type of the input
   optional bool sparse = 3;
 }
 
@@ -19,24 +19,6 @@ message DenseParameter {
   optional bool use_bias = 3;
   optional TensorParameter weights = 4;
   optional TensorParameter bias = 5;
-}
-
-message Conv1dParameter {
-  repeated int32 shape = 1;
-  optional bool use_bias = 2;
-  optional TensorParameter kernel = 3;
-  optional TensorParameter bias = 4;
-  optional int32 stride = 5;
-}
-
-message MaxPool1dParameter {
-  optional int32 kernel_size = 1;
-  optional int32 stride = 2;
-}
-
-message AvgPool1dParameter {
-  optional int32 kernel_size = 1;
-  optional int32 stride = 2;
 }
 
 message BatchNormalizationParameter {
@@ -101,8 +83,5 @@ message LayerParameter {
     LSTMParameter lstm = 8;
     FlattenParameter flatten = 9;
     ConcatenateParameter concatenate = 10;
-    Conv1dParameter conv1d = 11;
-    MaxPool1dParameter maxpool1d = 12;
-    AvgPool1dParameter avgpool1d = 13;
   }
 }

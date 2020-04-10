@@ -18,13 +18,18 @@
  * @file
  */
 
-#pragma once
+#ifndef MODEULES_THIRD_PARTY_PERCEPTION_CONVERSION_H_
+#define MODEULES_THIRD_PARTY_PERCEPTION_CONVERSION_H_
+
+#include <cstdint>
+#include <queue>
 
 #include "modules/canbus/proto/chassis.pb.h"
 #include "modules/drivers/proto/conti_radar.pb.h"
 #include "modules/drivers/proto/delphi_esr.pb.h"
 #include "modules/drivers/proto/mobileye.pb.h"
 #include "modules/localization/proto/localization.pb.h"
+#include "modules/perception/proto/perception_obstacle.pb.h"
 #include "modules/third_party_perception/proto/radar_obstacle.pb.h"
 
 /**
@@ -57,3 +62,5 @@ apollo::perception::PerceptionObstacles RadarObstaclesToPerceptionObstacles(
 }  // namespace conversion
 }  // namespace third_party_perception
 }  // namespace apollo
+
+#endif  // MODULES_THIRD_PARTY_PERCEPTION_FUSION_H_

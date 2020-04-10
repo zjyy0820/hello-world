@@ -8,9 +8,6 @@ Argus摄像头是由Truly Seminconductors Itd和百度联合投资开发的产�
 
 该摄像机可通过FAKRA连接器连接到Apollo传感器单元，以进行数据传输、触发和OTA固件更新。
 
-## 产品规格
-
-![specs_image](images/Argus_specs2.png)
-
 ## 免责声明
-该设备由`Apollo平台提供支持`
+
+该设备由`Apollo硬件开发平台提供支持`

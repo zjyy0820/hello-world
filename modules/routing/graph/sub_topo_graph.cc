@@ -1,18 +1,18 @@
 /******************************************************************************
- * Copyright 2017 The Apollo Authors. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *****************************************************************************/
+  * Copyright 2017 The Apollo Authors. All Rights Reserved.
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+  * You may obtain a copy of the License at
+  *
+  * http://www.apache.org/licenses/LICENSE-2.0
+  *
+  * Unless required by applicable law or agreed to in writing, software
+  * distributed under the License is distributed on an "AS IS" BASIS,
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  *****************************************************************************/
 
 #include "modules/routing/graph/sub_topo_graph.h"
 
@@ -20,7 +20,11 @@
 #include <cmath>
 #include <utility>
 
+#include "modules/routing/graph/node_with_range.h"
 #include "modules/routing/graph/range_utils.h"
+#include "modules/routing/graph/topo_node.h"
+
+#include "modules/common/log.h"
 
 namespace apollo {
 namespace routing {
@@ -43,7 +47,7 @@ void MergeBlockRange(const TopoNode* topo_node,
                              origin_range.end());
   sort(sorted_origin_range.begin(), sorted_origin_range.end());
   int cur_index = 0;
-  int total_size = static_cast<int>(sorted_origin_range.size());
+  int total_size = sorted_origin_range.size();
   while (cur_index < total_size) {
     NodeSRange range(sorted_origin_range[cur_index]);
     ++cur_index;

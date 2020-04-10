@@ -14,11 +14,17 @@
  * limitations under the License.
  *****************************************************************************/
 
-#pragma once
+#ifndef MODULES_THIRD_PARTY_PERCEPTION_INTEGRATION_TESTS_H_
+#define MODULES_THIRD_PARTY_PERCEPTION_INTEGRATION_TESTS_H_
+
+#include <string>
+#include <vector>
 
 #include "gtest/gtest.h"
-
+#include "modules/common/macro.h"
 #include "modules/third_party_perception/common/third_party_perception_gflags.h"
+#include "modules/third_party_perception/proto/radar_obstacle.pb.h"
+#include "modules/third_party_perception/third_party_perception.h"
 
 #define RUN_GOLDEN_TEST                                          \
   {                                                              \
@@ -44,6 +50,8 @@ namespace third_party_perception {
 
 class ThirdPartyPerceptionTestBase : public ::testing::Test {
  public:
+  static void SetUpTestCase();
+
   virtual void SetUp();
 
  private:
@@ -52,3 +60,5 @@ class ThirdPartyPerceptionTestBase : public ::testing::Test {
 
 }  // namespace third_party_perception
 }  // namespace apollo
+
+#endif  // MODULES_THIRD_PARTY_PERCEPTION_INTEGRATION_TESTS_H_

@@ -4,11 +4,13 @@ package(default_visibility = ["//visibility:public"])
 
 cc_library(
     name = "feasible_region",
-    srcs = ["feasible_region.cc"],
-    hdrs = ["feasible_region.h"],
-    copts = ["-DMODULE_NAME=\\\"planning\\\""],
+    srcs = [
+        "feasible_region.cc",
+    ],
+    hdrs = [
+        "feasible_region.h",
+    ],
     deps = [
-        "//cyber/common:log",
         "//modules/common/proto:pnc_point_proto",
         "//modules/planning/common:planning_gflags",
     ],
@@ -16,11 +18,14 @@ cc_library(
 
 cc_library(
     name = "path_time_graph",
-    srcs = ["path_time_graph.cc"],
-    hdrs = ["path_time_graph.h"],
-    copts = ["-DMODULE_NAME=\\\"planning\\\""],
+    srcs = [
+        "path_time_graph.cc",
+    ],
+    hdrs = [
+        "path_time_graph.h",
+    ],
     deps = [
-        "//cyber/common:log",
+        "//modules/common",
         "//modules/common/math:linear_interpolation",
         "//modules/common/math:path_matcher",
         "//modules/common/proto:pnc_point_proto",
@@ -29,14 +34,18 @@ cc_library(
         "//modules/planning/common:planning_gflags",
         "//modules/planning/proto:lattice_structure_proto",
         "//modules/planning/reference_line",
+        "@glog",
     ],
 )
 
 cc_library(
     name = "prediction_querier",
-    srcs = ["prediction_querier.cc"],
-    hdrs = ["prediction_querier.h"],
-    copts = ["-DMODULE_NAME=\\\"planning\\\""],
+    srcs = [
+        "prediction_querier.cc",
+    ],
+    hdrs = [
+        "prediction_querier.h",
+    ],
     deps = [
         "//modules/common/math",
         "//modules/common/math:path_matcher",

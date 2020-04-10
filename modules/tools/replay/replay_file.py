@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 ###############################################################################
 # Copyright 2017 The Apollo Authors. All Rights Reserved.
@@ -16,17 +16,15 @@
 # limitations under the License.
 ###############################################################################
 """
-This program can replay a message pb file
+This program can replay a planning output pb file via ros
 """
 import os.path
 import sys
 import argparse
+import rospy
 import glob
-import time
-
+from std_msgs.msg import String
 from google.protobuf import text_format
-
-from cyber_py3 import cyber
 
 import common.proto_utils as proto_utils
 from common.message_manager import PbMessageManager
@@ -36,12 +34,11 @@ g_message_manager = PbMessageManager()
 
 def topic_publisher(topic, filename, period):
     """publisher"""
-    cyber.init()
-    node = cyber.Node("replay_file")
+    rospy.init_node('replay_node', anonymous=True)
     meta_msg = None
     msg = None
     if not topic:
-        print("Topic not specified, start to guess")
+        print "Topic not specified, start to guess"
         meta_msg, msg = g_message_manager.parse_file(filename)
         topic = meta_msg.topic()
     else:
@@ -59,19 +56,19 @@ def topic_publisher(topic, filename, period):
         print("Unknown topic: %s" % topic)
         return False
 
-    writer = node.create_writer(topic, meta_msg.msg_type)
-
+    pub = rospy.Publisher(topic, meta_msg.msg_type(), queue_size=1)
     if period == 0:
-        while not cyber.is_shutdown():
-            input("Press any key to publish one message...")
-            writer.write(msg)
+        while not rospy.is_shutdown():
+            raw_input("Press any key to publish one message...")
+            pub.publish(msg)
             print("Topic[%s] message published" % topic)
     else:
+        rate = rospy.Rate(int(1.0 / period))
         print("started to publish topic[%s] message with rate period %s" %
               (topic, period))
-        while not cyber.is_shutdown():
-            writer.write(msg)
-            time.sleep(period)
+        while not rospy.is_shutdown():
+            pub.publish(msg)
+            rate.sleep()
 
 
 if __name__ == '__main__':
@@ -97,16 +94,19 @@ if __name__ == '__main__':
         files = glob.glob(args.filename + "/*")
         i = 0
         for f in files:
-            print("%d  %s" % (i, f))
+            print "%d  %s" % (i, f)
             i += 1
-        str_input = input("Select message by number: ")
+        str_input = raw_input("Select message by number: ")
         try:
             selected_file = int(str_input)
             if selected_file < 0 or selected_file > len(files):
-                print("%d is an invalid number" % selected_file)
+                print "%d is an invalid number" % selected_file
         except:
-            print("%s is not a number" % str_input)
-        print("Will publish file[%d]: %s" % (selected_file,
-                                             files[selected_file]))
+            print "%s is not a number" % str_input
+        print "Will publish file[%d]: %s" % (selected_file,
+                                             files[selected_file])
         to_replay = files[selected_file]
-    topic_publisher(args.topic, to_replay, period)
+    try:
+        topic_publisher(args.topic, to_replay, period)
+    except rospy.ROSInterruptException:
+        print "failed to replay message"

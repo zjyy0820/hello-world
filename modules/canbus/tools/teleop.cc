@@ -14,48 +14,35 @@
  * limitations under the License.
  *****************************************************************************/
 
+#include <stdio.h>
 #include <termios.h>
-#include <cstdio>
 #include <iostream>
 #include <memory>
 #include <thread>
 
-#include "cyber/common/macros.h"
-#include "cyber/cyber.h"
-#include "cyber/init.h"
-#include "cyber/time/time.h"
+#include "ros/include/ros/ros.h"
 
 #include "modules/canbus/proto/chassis.pb.h"
-#include "modules/control/proto/control_cmd.pb.h"
-
-#include "cyber/common/log.h"
-#include "modules/canbus/vehicle/vehicle_controller.h"
-#include "modules/common/adapters/adapter_gflags.h"
-#include "modules/common/configs/vehicle_config_helper.h"
+#include "modules/common/adapters/adapter_manager.h"
+#include "modules/common/log.h"
+#include "modules/common/macro.h"
 #include "modules/common/time/time.h"
-#include "modules/common/util/message_util.h"
+#include "modules/control/proto/control_cmd.pb.h"
 
 // gflags
 DEFINE_double(throttle_inc_delta, 2.0,
               "throttle pedal command delta percentage.");
 DEFINE_double(brake_inc_delta, 2.0, "brake pedal delta percentage");
 DEFINE_double(steer_inc_delta, 2.0, "steer delta percentage");
-// TODO(ALL) : switch the acceleration cmd or pedal cmd
-// default : use pedal cmd
-DEFINE_bool(
-    use_acceleration, false,
-    "switch to use acceleration instead of throttle pedal and brake pedal");
 
 namespace {
 
 using apollo::canbus::Chassis;
-using apollo::common::VehicleSignal;
+using apollo::common::adapter::AdapterManager;
 using apollo::common::time::Clock;
+using apollo::common::VehicleSignal;
 using apollo::control::ControlCommand;
 using apollo::control::PadMessage;
-using apollo::cyber::CreateNode;
-using apollo::cyber::Reader;
-using apollo::cyber::Writer;
 
 const uint32_t KEYCODE_O = 0x4F;  // '0'
 
@@ -94,10 +81,7 @@ const uint32_t KEYCODE_HELP2 = 0x48;  // 'H'
 
 class Teleop {
  public:
-  Teleop() {
-    ResetControlCommand();
-    node_ = CreateNode("teleop");
-  }
+  Teleop();
   static void PrintKeycode() {
     system("clear");
     printf("=====================    KEYBOARD MAP   ===================\n");
@@ -121,7 +105,7 @@ class Teleop {
            KEYCODE_DN1, KEYCODE_SETB1);
     printf("Steer LEFT:         [%c]     |  Steer RIGHT:        [%c]\n",
            KEYCODE_LF1, KEYCODE_RT1);
-    printf("Parking Brake:     [%c]     |  Emergency Stop      [%c]\n",
+    printf("Parkinig Brake:     [%c]     |  Emergency Stop      [%c]\n",
            KEYCODE_PKBK, KEYCODE_ESTOP);
     printf("\n-----------------------------------------------------------\n");
     printf("Exit: Ctrl + C, then press enter to normal terminal\n");
@@ -133,8 +117,6 @@ class Teleop {
     int32_t level = 0;
     double brake = 0;
     double throttle = 0;
-    double acc = 0;
-    double dec = 0;
     double steering = 0;
     struct termios cooked_;
     struct termios raw_;
@@ -143,10 +125,6 @@ class Teleop {
     Chassis::GearPosition gear = Chassis::GEAR_INVALID;
     PadMessage pad_msg;
     ControlCommand &control_command_ = control_command();
-    apollo::common::VehicleParam vehicle_params_ =
-        apollo::common::VehicleConfigHelper::Instance()
-            ->GetConfig()
-            .vehicle_param();
 
     // get the console in raw mode
     tcgetattr(kfd_, &cooked_);
@@ -170,63 +148,31 @@ class Teleop {
       switch (c) {
         case KEYCODE_UP1:  // accelerate
         case KEYCODE_UP2:
-          if (!FLAGS_use_acceleration) {
-            brake = control_command_.brake();
-            throttle = control_command_.throttle();
-          }
+          brake = control_command_.brake();
+          throttle = control_command_.throttle();
           if (brake > 1e-6) {
             brake = GetCommand(brake, -FLAGS_brake_inc_delta);
-            if (!FLAGS_use_acceleration) {
-              control_command_.set_brake(brake);
-            } else {
-              dec = brake / 100 * vehicle_params_.max_deceleration();
-              control_command_.set_acceleration(dec);
-            }
+            control_command_.set_brake(brake);
           } else {
             throttle = GetCommand(throttle, FLAGS_throttle_inc_delta);
-            if (!FLAGS_use_acceleration) {
-              control_command_.set_throttle(throttle);
-            } else {
-              acc = throttle / 100 * vehicle_params_.max_acceleration();
-              control_command_.set_acceleration(acc);
-            }
+            control_command_.set_throttle(throttle);
           }
-          if (!FLAGS_use_acceleration) {
-            AINFO << "Throttle = " << control_command_.throttle()
-                  << ", Brake = " << control_command_.brake();
-          } else {
-            AINFO << "Acceleration = " << control_command_.acceleration();
-          }
+          AINFO << "Throttle = " << control_command_.throttle()
+                << ", Brake = " << control_command_.brake();
           break;
         case KEYCODE_DN1:  // decelerate
         case KEYCODE_DN2:
-          if (!FLAGS_use_acceleration) {
-            brake = control_command_.brake();
-            throttle = control_command_.throttle();
-          }
+          brake = control_command_.brake();
+          throttle = control_command_.throttle();
           if (throttle > 1e-6) {
             throttle = GetCommand(throttle, -FLAGS_throttle_inc_delta);
-            if (!FLAGS_use_acceleration) {
-              control_command_.set_throttle(throttle);
-            } else {
-              acc = throttle / 100 * vehicle_params_.max_acceleration();
-              control_command_.set_acceleration(acc);
-            }
+            control_command_.set_throttle(throttle);
           } else {
             brake = GetCommand(brake, FLAGS_brake_inc_delta);
-            if (!FLAGS_use_acceleration) {
-              control_command_.set_brake(brake);
-            } else {
-              dec = brake / 100 * vehicle_params_.max_deceleration();
-              control_command_.set_acceleration(dec);
-            }
+            control_command_.set_brake(brake);
           }
-          if (!FLAGS_use_acceleration) {
-            AINFO << "Throttle = " << control_command_.throttle()
-                  << ", Brake = " << control_command_.brake();
-          } else {
-            AINFO << "Acceleration = " << control_command_.acceleration();
-          }
+          AINFO << "Throttle = " << control_command_.throttle()
+                << ", Brake = " << control_command_.brake();
           break;
         case KEYCODE_LF1:  // left
         case KEYCODE_LF2:
@@ -298,14 +244,14 @@ class Teleop {
           }
 
           if (cnt == 0) {
-            control_command_.mutable_signal()->set_turn_signal(
-                VehicleSignal::TURN_NONE);
+            control_command_.mutable_signal()->
+              set_turn_signal(VehicleSignal::TURN_NONE);
           } else if (cnt == 1) {
-            control_command_.mutable_signal()->set_turn_signal(
-                VehicleSignal::TURN_LEFT);
+            control_command_.mutable_signal()->
+              set_turn_signal(VehicleSignal::TURN_LEFT);
           } else if (cnt == 2) {
-            control_command_.mutable_signal()->set_turn_signal(
-                VehicleSignal::TURN_RIGHT);
+            control_command_.mutable_signal()->
+              set_turn_signal(VehicleSignal::TURN_RIGHT);
           }
 
           break;
@@ -336,7 +282,9 @@ class Teleop {
     return;
   }  // end of keyboard loop thread
 
-  ControlCommand &control_command() { return control_command_; }
+  ControlCommand &control_command() {
+    return control_command_;
+  }
 
   Chassis::GearPosition GetGear(int32_t gear) {
     switch (gear) {
@@ -390,8 +338,8 @@ class Teleop {
   }
 
   void Send() {
-    apollo::common::util::FillHeader("control", &control_command_);
-    control_command_writer_->Write(control_command_);
+    AdapterManager::FillControlCommandHeader("control", &control_command_);
+    AdapterManager::PublishControlCommand(control_command_);
     ADEBUG << "Control Command send OK:" << control_command_.ShortDebugString();
   }
 
@@ -408,11 +356,13 @@ class Teleop {
     control_command_.set_engine_on_off(false);
     control_command_.set_driving_mode(Chassis::COMPLETE_MANUAL);
     control_command_.set_gear_location(Chassis::GEAR_INVALID);
-    control_command_.mutable_signal()->set_turn_signal(
-        VehicleSignal::TURN_NONE);
+    control_command_.mutable_signal()->
+      set_turn_signal(VehicleSignal::TURN_NONE);
   }
 
-  void OnChassis(const Chassis &chassis) { Send(); }
+  void OnChassis(const Chassis &chassis) {
+    Send();
+  }
 
   int32_t Start() {
     if (is_running_) {
@@ -420,12 +370,7 @@ class Teleop {
       return -1;
     }
     is_running_ = true;
-    chassis_reader_ = node_->CreateReader<Chassis>(
-        FLAGS_chassis_topic, [this](const std::shared_ptr<Chassis> &chassis) {
-          OnChassis(*chassis);
-        });
-    control_command_writer_ =
-        node_->CreateWriter<ControlCommand>(FLAGS_control_command_topic);
+    AdapterManager::AddChassisCallback(&Teleop::OnChassis, this);
     keyboard_thread_.reset(
         new std::thread([this] { KeyboardLoopThreadFunc(); }));
     if (keyboard_thread_ == nullptr) {
@@ -446,25 +391,62 @@ class Teleop {
     }
   }
 
-  bool IsRunning() const { return is_running_; }
+  bool IsRunning() const {
+    return is_running_;
+  }
 
  private:
   std::unique_ptr<std::thread> keyboard_thread_;
-  std::shared_ptr<Reader<Chassis>> chassis_reader_;
-  std::shared_ptr<Writer<ControlCommand>> control_command_writer_;
   ControlCommand control_command_;
   bool is_running_ = false;
-  std::shared_ptr<apollo::cyber::Node> node_;
 };
+
+Teleop::Teleop() {
+  ResetControlCommand();
+}
+
+void signal_handler(int32_t signal_num) {
+  if (signal_num != SIGINT) {
+    // only response for ctrl + c
+    return;
+  }
+  AINFO << "Teleop get signal: " << signal_num;
+  bool static is_stopping = false;
+  if (is_stopping) {
+    return;
+  }
+  is_stopping = true;
+  ros::shutdown();
+}
 
 }  // namespace
 
 int main(int32_t argc, char **argv) {
-  apollo::cyber::Init(argv[0]);
+  google::InitGoogleLogging(argv[0]);
   FLAGS_alsologtostderr = true;
   FLAGS_v = 3;
 
   google::ParseCommandLineFlags(&argc, &argv, true);
+
+  ros::init(argc, argv, "teleop");
+  signal(SIGINT, signal_handler);
+
+  apollo::common::adapter::AdapterManagerConfig config;
+  config.set_is_ros(true);
+  {
+    auto *sub_config = config.add_config();
+    sub_config->set_mode(apollo::common::adapter::AdapterConfig::PUBLISH_ONLY);
+    sub_config->set_type(
+        apollo::common::adapter::AdapterConfig::CONTROL_COMMAND);
+  }
+
+  {
+    auto *sub_config = config.add_config();
+    sub_config->set_mode(apollo::common::adapter::AdapterConfig::RECEIVE_ONLY);
+    sub_config->set_type(apollo::common::adapter::AdapterConfig::CHASSIS);
+  }
+
+  apollo::common::adapter::AdapterManager::Init(config);
 
   Teleop teleop;
 
@@ -473,7 +455,8 @@ int main(int32_t argc, char **argv) {
     return -1;
   }
   Teleop::PrintKeycode();
-  apollo::cyber::WaitForShutdown();
+
+  ros::spin();
   teleop.Stop();
   AINFO << "Teleop exit done.";
   return 0;

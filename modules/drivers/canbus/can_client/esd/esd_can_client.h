@@ -19,11 +19,11 @@
  * @brief Defines the EsdCanClient class which inherits CanClient.
  */
 
-#pragma once
+#ifndef MODULES_DRIVERS_CANBUS_CAN_CLIENT_CLIENT_ESD_CAN_CLIENT_H_
+#define MODULES_DRIVERS_CANBUS_CAN_CLIENT_CLIENT_ESD_CAN_CLIENT_H_
 
 #include <string>
 #include <vector>
-
 #include "esd_can/include/ntcan.h"
 #include "gflags/gflags.h"
 #include "modules/common/proto/error_code.pb.h"
@@ -42,7 +42,7 @@ namespace can {
 
 /**
  * @class EsdCanClient
- * @brief The class which defines an ESD CAN client which inherits CanClient.
+ * @brief The class which defines a ESD CAN client which inherits CanClient.
  */
 class EsdCanClient : public CanClient {
  public:
@@ -107,3 +107,5 @@ class EsdCanClient : public CanClient {
 }  // namespace canbus
 }  // namespace drivers
 }  // namespace apollo
+
+#endif  // MODULES_DRIVERS_CANBUS_CAN_CLIENT_CLIENT_ESD_CAN_CLIENT_H_

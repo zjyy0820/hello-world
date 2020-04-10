@@ -14,26 +14,21 @@
  * limitations under the License.
  *****************************************************************************/
 
-#include "modules/prediction/evaluator/vehicle/cost_evaluator.h"
+#include "modules/prediction/common/prediction_gflags.h"
 #include "modules/prediction/common/prediction_util.h"
+#include "modules/prediction/evaluator/vehicle/cost_evaluator.h"
 
 namespace apollo {
 namespace prediction {
 
-CostEvaluator::CostEvaluator() {
-  evaluator_type_ = ObstacleConf::COST_EVALUATOR;
-}
+using apollo::prediction::math_util::Sigmoid;
 
-bool CostEvaluator::Evaluate(Obstacle* obstacle_ptr,
-                             ObstaclesContainer* obstacles_container) {
+void CostEvaluator::Evaluate(Obstacle* obstacle_ptr) {
   CHECK_NOTNULL(obstacle_ptr);
-
-  obstacle_ptr->SetEvaluatorType(evaluator_type_);
-
   int id = obstacle_ptr->id();
   if (!obstacle_ptr->latest_feature().IsInitialized()) {
     AERROR << "Obstacle [" << id << "] has no latest feature.";
-    return false;
+    return;
   }
 
   Feature* latest_feature_ptr = obstacle_ptr->mutable_latest_feature();
@@ -41,7 +36,7 @@ bool CostEvaluator::Evaluate(Obstacle* obstacle_ptr,
   if (!latest_feature_ptr->has_lane() ||
       !latest_feature_ptr->lane().has_lane_graph()) {
     ADEBUG << "Obstacle [" << id << "] has no lane graph.";
-    return false;
+    return;
   }
 
   double obstacle_length = 0.0;
@@ -56,9 +51,9 @@ bool CostEvaluator::Evaluate(Obstacle* obstacle_ptr,
   LaneGraph* lane_graph_ptr =
       latest_feature_ptr->mutable_lane()->mutable_lane_graph();
   CHECK_NOTNULL(lane_graph_ptr);
-  if (lane_graph_ptr->lane_sequence().empty()) {
+  if (lane_graph_ptr->lane_sequence_size() == 0) {
     AERROR << "Obstacle [" << id << "] has no lane sequences.";
-    return false;
+    return;
   }
 
   for (int i = 0; i < lane_graph_ptr->lane_sequence_size(); ++i) {
@@ -68,7 +63,6 @@ bool CostEvaluator::Evaluate(Obstacle* obstacle_ptr,
         ComputeProbability(obstacle_length, obstacle_width, *lane_sequence_ptr);
     lane_sequence_ptr->set_probability(probability);
   }
-  return true;
 }
 
 double CostEvaluator::ComputeProbability(const double obstacle_length,
@@ -76,21 +70,21 @@ double CostEvaluator::ComputeProbability(const double obstacle_length,
                                          const LaneSequence& lane_sequence) {
   double front_lateral_distance_cost =
       FrontLateralDistanceCost(obstacle_length, obstacle_width, lane_sequence);
-  return apollo::common::math::Sigmoid(front_lateral_distance_cost);
+  return Sigmoid(front_lateral_distance_cost);
 }
 
 double CostEvaluator::FrontLateralDistanceCost(
     const double obstacle_length, const double obstacle_width,
     const LaneSequence& lane_sequence) {
-  if (lane_sequence.lane_segment().empty() ||
-      lane_sequence.lane_segment(0).lane_point().empty()) {
+  if (lane_sequence.lane_segment_size() == 0 ||
+      lane_sequence.lane_segment(0).lane_point_size() == 0) {
     AWARN << "Empty lane sequence.";
     return 0.0;
   }
   const LanePoint& lane_point = lane_sequence.lane_segment(0).lane_point(0);
   double lane_l = -lane_point.relative_l();
-  double distance = std::abs(lane_l - obstacle_length / 2.0 *
-                                          std::sin(lane_point.angle_diff()));
+  double distance = std::abs(
+      lane_l - obstacle_length / 2.0 * std::sin(lane_point.angle_diff()));
   double half_lane_width = lane_point.width() / 2.0;
   return half_lane_width - distance;
 }

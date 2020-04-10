@@ -19,9 +19,8 @@
  * @brief Defines the MPCController class.
  */
 
-#pragma once
-
-#include "modules/common/math/mpc_osqp.h"
+#ifndef MODULES_CONTROL_CONTROLLER_MPC_CONTROLLER_H_
+#define MODULES_CONTROL_CONTROLLER_MPC_CONTROLLER_H_
 
 #include <fstream>
 #include <memory>
@@ -49,7 +48,7 @@ namespace control {
 /**
  * @class MPCController
  *
- * @brief MPCController, combined lateral and longitudinal controllers
+ * @brief MPCController, combined lateral and logitudinal controllers
  */
 class MPCController : public Controller {
  public:
@@ -110,7 +109,6 @@ class MPCController : public Controller {
 
   void ComputeLateralErrors(const double x, const double y, const double theta,
                             const double linear_v, const double angular_v,
-                            const double linear_a,
                             const TrajectoryAnalyzer &trajectory_analyzer,
                             SimpleMPCDebug *debug);
 
@@ -126,8 +124,6 @@ class MPCController : public Controller {
   void ProcessLogs(const SimpleMPCDebug *debug, const canbus::Chassis *chassis);
 
   void CloseLogFile();
-
-  double Wheel2SteerPct(const double wheel_angle);
 
   // vehicle parameter
   common::VehicleParam vehicle_param_;
@@ -160,11 +156,9 @@ class MPCController : public Controller {
   // rotational inertia
   double iz_ = 0.0;
   // the ratio between the turn of the steering wheel and the turn of the wheels
-  double steer_ratio_ = 0.0;
+  double steer_transmission_ratio_ = 0.0;
   // the maximum turn of steer
   double steer_single_direction_max_degree_ = 0.0;
-  // the maximum turn of vehicle wheel
-  double wheel_single_direction_max_degree_ = 0.0;
 
   // limit steering to maximum theoretical lateral acceleration
   double max_lat_acc_ = 0.0;
@@ -212,21 +206,6 @@ class MPCController : public Controller {
   // lateral distance to reference trajectory of last control cycle
   double previous_lateral_error_ = 0.0;
 
-  // lateral dynamic variables for computing the differential valute to
-  // estimate acceleration and jerk
-  double previous_lateral_acceleration_ = 0.0;
-
-  double previous_heading_rate_ = 0.0;
-  double previous_ref_heading_rate_ = 0.0;
-
-  double previous_heading_acceleration_ = 0.0;
-  double previous_ref_heading_acceleration_ = 0.0;
-
-  // longitudinal dynamic variables for computing the differential valute to
-  // estimate acceleration and jerk
-  double previous_acceleration_ = 0.0;
-  double previous_acceleration_reference_ = 0.0;
-
   // parameters for mpc solver; number of iterations
   int mpc_max_iteration_ = 0;
   // parameters for mpc solver; threshold for computation
@@ -247,15 +226,11 @@ class MPCController : public Controller {
 
   const std::string name_;
 
-  double max_acceleration_when_stopped_ = 0.0;
-
-  double max_abs_speed_when_stopped_ = 0.0;
-
   double standstill_acceleration_ = 0.0;
 
-  double throttle_lowerbound_ = 0.0;
+  double throttle_deadzone_ = 0.0;
 
-  double brake_lowerbound_ = 0.0;
+  double brake_deadzone_ = 0.0;
 
   double steer_angle_feedforwardterm_ = 0.0;
 
@@ -272,15 +247,9 @@ class MPCController : public Controller {
   common::MeanFilter heading_error_filter_;
 
   double minimum_speed_protection_ = 0.1;
-
-  // Enable the feedback-gain-related compensation components in the feedfoward
-  // term for steering control
-  bool enable_mpc_feedforward_compensation_ = false;
-
-  // Limitation for judging if the unconstrained analytical control is close
-  // enough to the solver's output with constraint
-  double unconstrained_control_diff_limit_ = 5.0;
 };
 
 }  // namespace control
 }  // namespace apollo
+
+#endif  // MODULES_CONTROL_CONTROLLER_MPC_CONTROLLER_H_

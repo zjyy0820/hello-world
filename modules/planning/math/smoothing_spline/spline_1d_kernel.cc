@@ -24,7 +24,7 @@
 
 #include <algorithm>
 
-#include "cyber/common/log.h"
+#include "modules/common/log.h"
 #include "modules/planning/math/smoothing_spline/spline_seg_kernel.h"
 
 namespace apollo {
@@ -37,9 +37,7 @@ Spline1dKernel::Spline1dKernel(const std::vector<double>& x_knots,
                                const uint32_t spline_order)
     : x_knots_(x_knots), spline_order_(spline_order) {
   total_params_ =
-      (static_cast<uint32_t>(x_knots.size()) > 1
-           ? (static_cast<uint32_t>(x_knots.size()) - 1) * (1 + spline_order_)
-           : 0);
+      (x_knots.size() > 1 ? (x_knots.size() - 1) * (1 + spline_order_) : 0);
   kernel_matrix_ = Eigen::MatrixXd::Zero(total_params_, total_params_);
   offset_ = Eigen::MatrixXd::Zero(total_params_, 1);
 }
@@ -88,7 +86,7 @@ void Spline1dKernel::AddNthDerivativekernelMatrix(const uint32_t n,
   for (uint32_t i = 0; i + 1 < x_knots_.size(); ++i) {
     Eigen::MatrixXd cur_kernel =
         2 *
-        SplineSegKernel::Instance()->NthDerivativeKernel(
+        SplineSegKernel::instance()->NthDerivativeKernel(
             n, num_params, x_knots_[i + 1] - x_knots_[i]) *
         weight;
     kernel_matrix_.block(i * num_params, i * num_params, num_params,
@@ -119,7 +117,7 @@ void Spline1dKernel::AddNthDerivativekernelMatrixForSplineK(
   const uint32_t num_params = spline_order_ + 1;
   Eigen::MatrixXd cur_kernel =
       2 *
-      SplineSegKernel::Instance()->NthDerivativeKernel(
+      SplineSegKernel::instance()->NthDerivativeKernel(
           n, num_params, x_knots_[k + 1] - x_knots_[k]) *
       weight;
   kernel_matrix_.block(k * num_params, k * num_params, num_params,
@@ -149,12 +147,12 @@ bool Spline1dKernel::AddReferenceLineKernelMatrix(
   }
 
   const uint32_t num_params = spline_order_ + 1;
-  for (size_t i = 0; i < x_coord.size(); ++i) {
-    auto cur_index = FindIndex(x_coord[i]);
+  for (uint32_t i = 0; i < x_coord.size(); ++i) {
+    double cur_index = FindIndex(x_coord[i]);
     double cur_rel_x = x_coord[i] - x_knots_[cur_index];
     // update offset
     double offset_coef = -2.0 * ref_x[i] * weight;
-    for (size_t j = 0; j < num_params; ++j) {
+    for (uint32_t j = 0; j < num_params; ++j) {
       offset_(j + cur_index * num_params, 0) += offset_coef;
       offset_coef *= cur_rel_x;
     }

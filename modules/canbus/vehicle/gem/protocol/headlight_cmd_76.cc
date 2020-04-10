@@ -57,10 +57,10 @@ Headlightcmd76* Headlightcmd76::set_headlight_cmd(
 // 'order': 'motorola', 'physical_unit': ''}
 void Headlightcmd76::set_p_headlight_cmd(
     uint8_t* data, Headlight_cmd_76::Headlight_cmdType headlight_cmd) {
-  uint8_t x = headlight_cmd;
+  int x = headlight_cmd;
 
   Byte to_set(data + 0);
-  to_set.set_value(static_cast<uint8_t>(x), 0, 8);
+  to_set.set_value(x, 0, 8);
 }
 
 }  // namespace gem

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 ###############################################################################
 # Copyright 2017 The Apollo Authors. All Rights Reserved.
@@ -24,20 +24,19 @@ import threading
 import gflags
 import matplotlib.pyplot as plt
 import numpy as np
+import rospy
 
-from cyber_py3 import cyber
+import common.proto_utils as proto_utils
 from item import Item
-from modules.canbus.proto.chassis_pb2 import Chassis
 from modules.localization.proto.localization_pb2 import LocalizationEstimate
+from modules.canbus.proto.chassis_pb2 import Chassis
 from modules.planning.proto.planning_pb2 import ADCTrajectory
 from stitem import Stitem
 from xyitem import Xyitem
-import common.proto_utils as proto_utils
-
 
 VehicleLength = 2.85
-HistLine2display = 2  # The number of lines to display
-MaxSteerAngle = 470  # Maximum Steering Angle
+HistLine2display = 2  #The number of lines to display
+MaxSteerAngle = 470  #Maximum Steering Angle
 SteerRatio = 16
 WindowSize = 80
 
@@ -83,7 +82,7 @@ class Plotter(object):
 
         else:
             if len(data.trajectory_point) == 0:
-                print(data)
+                print data
                 return
 
             x, y, speed, theta, kappa, acc, relative_time = np.array(
@@ -133,8 +132,7 @@ class Plotter(object):
             self.ax[0].new_carstatus(cartime, carx, cary, carheading,
                                      self.steer_angle, self.autodrive)
             self.ax[1].new_carstatus(cartime, self.carspeed, self.autodrive)
-            self.ax[2].new_carstatus(
-                cartime, self.carcurvature, self.autodrive)
+            self.ax[2].new_carstatus(cartime, self.carcurvature, self.autodrive)
 
             if self.ax[3].title == "Heading":
                 self.ax[3].new_carstatus(cartime, carheading, self.autodrive)
@@ -167,7 +165,7 @@ def main(argv):
     """Main function"""
     argv = FLAGS(argv)
 
-    print("""
+    print """
     Keyboard Shortcut:
         [q]: Quit Tool
         [s]: Save Figure
@@ -183,9 +181,8 @@ def main(argv):
         Blue Line: Past Car Status History
         Green Line: Past Planning Target History at every Car Status Frame
         Cyan Dashed Line: Past Planning Trajectory Frames
-    """)
-    cyber.init()
-    planning_sub = cyber.Node("stat_planning")
+    """
+    rospy.init_node('realtime_plot', anonymous=True)
 
     fig = plt.figure()
 
@@ -227,17 +224,26 @@ def main(argv):
 
     plotter = Plotter(item1, item2, item3, item4, FLAGS.show_st_graph)
     fig.canvas.mpl_connect('key_press_event', plotter.press)
-    planning_sub.create_reader('/apollo/planning',
-                               ADCTrajectory, plotter.callback_planning)
-    if not FLAGS.show_st_graph:
-        localization_sub = cyber.Node("localization_sub")
-        localization_sub.create_reader('/apollo/localization/pose',
-                                       LocalizationEstimate, plotter.callback_localization)
-        chassis_sub = cyber.Node("chassis_sub")
-        chassis_sub.create_reader('/apollo/canbus/chassis',
-                                  Chassis, plotter.callback_chassis)
+    planning_sub = rospy.Subscriber(
+        '/apollo/planning',
+        ADCTrajectory,
+        plotter.callback_planning,
+        queue_size=3)
 
-    while not cyber.is_shutdown():
+    if not FLAGS.show_st_graph:
+        localization_sub = rospy.Subscriber(
+            '/apollo/localization/pose',
+            LocalizationEstimate,
+            plotter.callback_localization,
+            queue_size=3)
+        chassis_sub = rospy.Subscriber(
+            '/apollo/canbus/chassis',
+            Chassis,
+            plotter.callback_chassis,
+            queue_size=3)
+
+    rate = rospy.Rate(10)
+    while not rospy.is_shutdown():
         ax1.draw_artist(ax1.patch)
         ax2.draw_artist(ax2.patch)
         ax3.draw_artist(ax3.patch)
@@ -254,6 +260,7 @@ def main(argv):
         fig.canvas.blit(ax3.bbox)
         fig.canvas.blit(ax4.bbox)
         fig.canvas.flush_events()
+        rate.sleep()
 
 
 if __name__ == '__main__':
