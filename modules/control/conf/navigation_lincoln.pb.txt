@@ -23,7 +23,7 @@ lat_controller_conf {
   mass_rl: 50
   mass_rr: 50
   eps: 0.01
-  matrix_q: 0.01
+  matrix_q: 0.005
   matrix_q: 0.0
   matrix_q: 0.25
   matrix_q: 0.02
