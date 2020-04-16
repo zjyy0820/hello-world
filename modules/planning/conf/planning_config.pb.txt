@@ -136,7 +136,7 @@ default_task_config: {
     boundary_buffer: 0.25
     max_centric_acceleration_limit: 2.0
     point_extension: 0.0
-    lowest_speed: 1
+    lowest_speed: 2.5
     static_obs_nudge_speed_ratio: 0.6
     dynamic_obs_nudge_speed_ratio: 0.8
   }
@@ -148,7 +148,7 @@ default_task_config: {
     boundary_buffer: 0.1
     max_centric_acceleration_limit: 2.0
     point_extension: 0.0
-    lowest_speed: 1
+    lowest_speed: 2.5
     static_obs_nudge_speed_ratio: 0.6
     dynamic_obs_nudge_speed_ratio: 0.8
   }
