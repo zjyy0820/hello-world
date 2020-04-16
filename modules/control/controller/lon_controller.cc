@@ -239,6 +239,7 @@ Status LonController::ComputeControlCommand(
   speed_controller_input_limited =
       common::math::Clamp(speed_controller_input, -speed_controller_input_limit,
                           speed_controller_input_limit);
+  AINFO << "speed_controller_input_limited: " << speed_controller_input_limited;
 
   double acceleration_cmd_closeloop = 0.0;
 
