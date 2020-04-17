@@ -18,8 +18,7 @@
  * @file
  */
 
-#ifndef MODULES_DRIVERS_CANBUS_COMMON_CANBUS_CONSTS_H_
-#define MODULES_DRIVERS_CANBUS_COMMON_CANBUS_CONSTS_H_
+#pragma once
 
 #include <cstdint>
 
@@ -41,5 +40,3 @@ const int32_t MAX_CAN_PORT = 3;
 }  // namespace canbus
 }  // namespace drivers
 }  // namespace apollo
-
-#endif  // MODULES_DRIVERS_CANBUS_COMMON_CANBUS_CONSTS_H_

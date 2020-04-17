@@ -13,17 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
+#pragma once
 
-#ifndef MODULES_LOCALIZATION_MSF_COMMON_FRAME_TRANSFORM_H_
-#define MODULES_LOCALIZATION_MSF_COMMON_FRAME_TRANSFORM_H_
+#include <proj_api.h>
 
-#include <Eigen/Core>
-#include <Eigen/Geometry>
-#include <cstdio>
+#include "Eigen/Geometry"
 
 namespace apollo {
 namespace localization {
 namespace msf {
+
+typedef Eigen::Vector3d Vector3d;
 
 /**@brief the UTM coordinate struct including x and y. */
 struct UTMCoor {
@@ -36,21 +36,22 @@ struct UTMCoor {
 /* including log(longitude) and lat(latitude). */
 struct WGS84Corr {
   WGS84Corr() : log(0.0), lat(0.0) {}
-  double log;      // longitude
-  double lat;      // latitude
+  double log;  // longitude
+  double lat;  // latitude
 };
 
-void LatlonToUtmXY(const double lon, const double lat, UTMCoor *xy);
+class FrameTransform {
+ public:
+  static bool LatlonToUtmXY(double lon, double lat, UTMCoor *utm_xy);
+  static bool UtmXYToLatlon(double x, double y, int zone, bool southhemi,
+                            WGS84Corr *latlon);
+  static bool XYZToBlh(const Vector3d &xyz, Vector3d *blh);
+  static bool BlhToXYZ(const Vector3d &blh, Vector3d *xyz);
 
-void UtmXYToLatlon(const double x, const double y, const int zone,
-                     const bool southhemi, WGS84Corr *latlon);
+  //  static bool XyzToBlh(const Vector3d& xyz, Position *blh);
+  //  static bool BlhToXyz(const Position& blh, Vector3d *xyz);
+};
 
-void XYZToBlh(const Eigen::Vector3d &xyz, Eigen::Vector3d *blh);
-
-void BlhToXYZ(const Eigen::Vector3d &blh, Eigen::Vector3d *xyz);
-
-}   // namespace msf
-}   // namespace localization
-}   // namespace apollo
-
-#endif  // MODULES_LOCALIZATION_MSF_COMMON_FRAME_TRANSFORM_H_
+}  // namespace msf
+}  // namespace localization
+}  // namespace apollo

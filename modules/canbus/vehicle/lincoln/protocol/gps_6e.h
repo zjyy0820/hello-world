@@ -19,11 +19,10 @@
  * @brief the class of Gps6e (for lincoln vehicle)
  */
 
-#ifndef MODULES_CANBUS_VEHICLE_LINCOLN_PROTOCOL_GPS_6E_H_
-#define MODULES_CANBUS_VEHICLE_LINCOLN_PROTOCOL_GPS_6E_H_
+#pragma once
 
-#include "modules/drivers/canbus/can_comm/protocol_data.h"
 #include "modules/canbus/proto/chassis_detail.pb.h"
+#include "modules/drivers/canbus/can_comm/protocol_data.h"
 
 /**
  * @namespace apollo::canbus::lincoln
@@ -39,7 +38,7 @@ namespace lincoln {
  * @brief one of the protocol data of lincoln vehicle
  */
 class Gps6e : public ::apollo::drivers::canbus::ProtocolData<
-                    ::apollo::canbus::ChassisDetail> {
+                  ::apollo::canbus::ChassisDetail> {
  public:
   static const int32_t ID;
 
@@ -168,5 +167,3 @@ class Gps6e : public ::apollo::drivers::canbus::ProtocolData<
 }  // namespace lincoln
 }  // namespace canbus
 }  // namespace apollo
-
-#endif  // MODULES_CANBUS_VEHICLE_LINCOLN_PROTOCOL_GPS_6E_H_

@@ -19,13 +19,12 @@
  * @brief The utilities of velodyne.
  */
 
-#ifndef MODULES_LOCALIZATION_MSF_COMMON_VELODYNE_UTILITY_H_
-#define MODULES_LOCALIZATION_MSF_COMMON_VELODYNE_UTILITY_H_
+#pragma once
 
-#include <Eigen/Core>
-#include <Eigen/Geometry>
 #include <string>
 #include <vector>
+
+#include "Eigen/Geometry"
 
 namespace apollo {
 namespace localization {
@@ -84,5 +83,3 @@ bool LoadExtrinsic(const std::string& file_path, Eigen::Affine3d* extrinsic);
 }  // namespace msf
 }  // namespace localization
 }  // namespace apollo
-
-#endif  // MODULES_LOCALIZATION_MSF_COMMON_VELODYNE_UTILITY_H_

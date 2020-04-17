@@ -19,14 +19,10 @@
  * @brief Defines the ControllerAgent class.
  */
 
-#ifndef MODULES_CONTROL_CONTROLLER_CONTROLLER_AGENT_H_
-#define MODULES_CONTROL_CONTROLLER_CONTROLLER_AGENT_H_
+#pragma once
 
-#include <cstdio>
 #include <memory>
 #include <vector>
-
-#include "ros/include/ros/ros.h"
 
 #include "modules/control/proto/control_cmd.pb.h"
 #include "modules/control/proto/control_conf.pb.h"
@@ -94,5 +90,3 @@ class ControllerAgent {
 
 }  // namespace control
 }  // namespace apollo
-
-#endif  // MODULES_CONTROL_CONTROLLER_CONTROLLER_AGENT_H_

@@ -16,7 +16,7 @@
 
 #include "modules/localization/msf/local_map/base_map/base_map_pool.h"
 
-#include "modules/common/log.h"
+#include "cyber/common/log.h"
 #include "modules/localization/msf/local_map/base_map/base_map_config.h"
 #include "modules/localization/msf/local_map/base_map/base_map_node.h"
 #include "modules/localization/msf/local_map/base_map/base_map_node_index.h"
@@ -27,7 +27,7 @@ namespace msf {
 
 BaseMapNodePool::BaseMapNodePool(unsigned int pool_size,
                                  unsigned int thread_size)
-    : pool_size_(pool_size), node_reset_workers_(thread_size) {}
+    : pool_size_(pool_size) {}
 
 BaseMapNodePool::~BaseMapNodePool() { Release(); }
 
@@ -43,19 +43,17 @@ void BaseMapNodePool::Initial(const BaseMapConfig* map_config,
 }
 
 void BaseMapNodePool::Release() {
-  node_reset_workers_.wait();
-  typename std::list<BaseMapNode*>::iterator i = free_list_.begin();
-  while (i != free_list_.end()) {
-    FinalizeMapNode(*i);
-    DellocMapNode(*i);
-    i++;
+  if (node_reset_workers_.valid()) {
+    node_reset_workers_.get();
+  }
+  for (BaseMapNode* node : free_list_) {
+    FinalizeMapNode(node);
+    DellocMapNode(node);
   }
   free_list_.clear();
-  typename std::set<BaseMapNode*>::iterator j = busy_nodes_.begin();
-  while (j != busy_nodes_.end()) {
-    FinalizeMapNode(*j);
-    DellocMapNode(*j);
-    j++;
+  for (BaseMapNode* node : busy_nodes_) {
+    FinalizeMapNode(node);
+    DellocMapNode(node);
   }
   busy_nodes_.clear();
   pool_size_ = 0;
@@ -63,12 +61,14 @@ void BaseMapNodePool::Release() {
 
 BaseMapNode* BaseMapNodePool::AllocMapNode() {
   if (free_list_.empty()) {
-    node_reset_workers_.wait();
+    if (node_reset_workers_.valid()) {
+      node_reset_workers_.wait();
+    }
   }
   boost::unique_lock<boost::mutex> lock(mutex_);
   if (free_list_.empty()) {
     if (is_fixed_size_) {
-      return NULL;
+      return nullptr;
     }
     BaseMapNode* node = AllocNewMapNode();
     InitNewMapNode(node);
@@ -84,8 +84,8 @@ BaseMapNode* BaseMapNodePool::AllocMapNode() {
 }
 
 void BaseMapNodePool::FreeMapNode(BaseMapNode* map_node) {
-  node_reset_workers_.schedule(
-      boost::bind(&BaseMapNodePool::FreeMapNodeTask, this, map_node));
+  node_reset_workers_ =
+      cyber::Async(&BaseMapNodePool::FreeMapNodeTask, this, map_node);
 }
 
 void BaseMapNodePool::FreeMapNodeTask(BaseMapNode* map_node) {
@@ -102,7 +102,6 @@ void BaseMapNodePool::FreeMapNodeTask(BaseMapNode* map_node) {
 
 void BaseMapNodePool::InitNewMapNode(BaseMapNode* node) {
   node->InitMapMatrix(map_config_);
-  return;
 }
 
 void BaseMapNodePool::FinalizeMapNode(BaseMapNode* node) { node->Finalize(); }

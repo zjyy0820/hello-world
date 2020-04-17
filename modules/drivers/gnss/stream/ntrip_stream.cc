@@ -18,12 +18,12 @@
 #include <iostream>
 #include <mutex>
 
-#include "ros/include/ros/ros.h"
-#include "ros/include/std_msgs/String.h"
+#include "cyber/cyber.h"
 
+#include "modules/common/util/string_util.h"
+#include "modules/common/util/util.h"
 #include "modules/drivers/gnss/stream/stream.h"
 #include "modules/drivers/gnss/stream/tcp_stream.h"
-#include "modules/drivers/gnss/util/utils.h"
 
 namespace {
 
@@ -31,7 +31,7 @@ template <typename T>
 constexpr bool is_zero(T value) {
   return value == static_cast<T>(0);
 }
-}
+}  // namespace
 
 namespace apollo {
 namespace drivers {
@@ -75,7 +75,7 @@ NtripStream::NtripStream(const std::string& address, uint16_t port,
                   "User-Agent: NTRIP gnss_driver/0.0\r\n"
                   "accept: */* \r\n"
                   "Authorization: Basic " +
-                  encode_base64(user + ":" + passwd) + "\r\n\r\n"),
+                  common::util::EncodeBase64(user + ":" + passwd) + "\r\n\r\n"),
       timeout_s_(timeout_s),
       tcp_stream_(new TcpStream(address.c_str(), port, 0, false)) {}
 
@@ -172,7 +172,7 @@ void NtripStream::Reconnect() {
     return;
   }
 
-  data_active_s_ = ros::Time::now().toSec();
+  data_active_s_ = cyber::Time::Now().ToSecond();
   AINFO << "Reconnect ntrip caster success.";
 }
 
@@ -191,16 +191,16 @@ size_t NtripStream::read(uint8_t* buffer, size_t max_length) {
   }
 
   if (is_zero(data_active_s_)) {
-    data_active_s_ = ros::Time::now().toSec();
+    data_active_s_ = cyber::Time::Now().ToSecond();
   }
 
   ret = tcp_stream_->read(buffer, max_length);
   if (ret) {
-    data_active_s_ = ros::Time::now().toSec();
+    data_active_s_ = cyber::Time::Now().ToSecond();
   }
 
   // timeout detect
-  if ((ros::Time::now().toSec() - data_active_s_) > timeout_s_) {
+  if ((cyber::Time::Now().ToSecond() - data_active_s_) > timeout_s_) {
     AINFO << "Ntrip timeout.";
     Reconnect();
   }

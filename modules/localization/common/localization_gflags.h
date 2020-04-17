@@ -19,8 +19,7 @@
  * @brief The gflags used by localization module
  */
 
-#ifndef MODULES_LOCALIZATION_COMMON_LOCALIZATION_GFLAGS_H_
-#define MODULES_LOCALIZATION_COMMON_LOCALIZATION_GFLAGS_H_
+#pragma once
 
 #include "gflags/gflags.h"
 
@@ -29,15 +28,10 @@ DECLARE_string(localization_module_name);
 DECLARE_double(localization_publish_freq);
 
 DECLARE_string(localization_config_file);
-DECLARE_string(rtk_adapter_config_file);
-DECLARE_string(msf_adapter_config_file);
-DECLARE_string(msf_visual_adapter_config_file);
 
 DECLARE_bool(enable_gps_imu_interprolate);
 DECLARE_bool(enable_map_reference_unify);
 DECLARE_bool(enable_watchdog);
-DECLARE_bool(enable_gps_heading);
-DECLARE_bool(enable_heading_filter);
 
 DECLARE_double(gps_time_delay_tolerance);
 DECLARE_double(gps_imu_timestamp_sec_diff_tolerance);
@@ -64,6 +58,7 @@ DECLARE_double(lidar_imu_max_delay_time);
 DECLARE_double(lidar_map_coverage_theshold);
 DECLARE_bool(lidar_debug_log_flag);
 DECLARE_int32(point_cloud_step);
+DECLARE_bool(if_use_avx);
 
 // integ module
 DECLARE_bool(integ_ins_can_self_align);
@@ -73,7 +68,6 @@ DECLARE_double(integ_sins_state_span_time);
 DECLARE_double(integ_sins_state_pos_std);
 
 DECLARE_double(vel_threshold_get_yaw);
-DECLARE_bool(integ_debug_log_flag);
 
 // gnss module
 DECLARE_bool(enable_ins_aid_rtk);
@@ -97,6 +91,10 @@ DECLARE_bool(imu_coord_rfu);
 DECLARE_bool(gnss_only_init);
 DECLARE_bool(enable_lidar_localization);
 
+DECLARE_string(lidar_topic);
+DECLARE_string(broadcast_tf_frame_id);
+DECLARE_string(broadcast_tf_child_frame_id);
+
 // imu vehicle extrinsic
 DECLARE_string(vehicle_imu_file);
 DECLARE_bool(if_vehicle_imu_from_file);
@@ -108,4 +106,34 @@ DECLARE_double(imu_vehicle_qw);
 // visualization
 DECLARE_string(map_visual_dir);
 
-#endif  // MODULES_LOCALIZATION_COMMON_LOCALIZATION_GFLAGS_H_
+// Status
+DECLARE_double(imu_delay_time_threshold_1);
+DECLARE_double(imu_delay_time_threshold_2);
+DECLARE_double(imu_delay_time_threshold_3);
+
+DECLARE_double(imu_missing_time_threshold_1);
+DECLARE_double(imu_missing_time_threshold_2);
+DECLARE_double(imu_missing_time_threshold_3);
+
+DECLARE_double(bestgnsspose_loss_time_threshold);
+DECLARE_double(lidar_loss_time_threshold);
+
+DECLARE_double(localization_std_x_threshold_1);
+DECLARE_double(localization_std_y_threshold_1);
+
+DECLARE_double(localization_std_x_threshold_2);
+DECLARE_double(localization_std_y_threshold_2);
+
+// ndt_localization
+DECLARE_string(ndt_map_dir);
+DECLARE_bool(ndt_debug_log_flag);
+DECLARE_double(online_resolution);
+DECLARE_int32(ndt_max_iterations);
+DECLARE_double(ndt_target_resolution);
+DECLARE_double(ndt_line_search_step_size);
+DECLARE_double(ndt_transformation_epsilon);
+DECLARE_int32(ndt_filter_size_x);
+DECLARE_int32(ndt_filter_size_y);
+DECLARE_int32(ndt_bad_score_count_threshold);
+DECLARE_double(ndt_warnning_ndt_score);
+DECLARE_double(ndt_error_ndt_score);

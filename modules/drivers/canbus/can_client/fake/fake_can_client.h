@@ -19,8 +19,7 @@
  * @brief Defines the FakeCanClient class which inherites CanClient.
  */
 
-#ifndef MODULES_DRIVERS_CANBUS_CAN_CLIENT_FAKE_FAKE_CAN_CLIENT_H_
-#define MODULES_DRIVERS_CANBUS_CAN_CLIENT_FAKE_FAKE_CAN_CLIENT_H_
+#pragma once
 
 #include <sstream>
 #include <string>
@@ -45,9 +44,6 @@ namespace can {
  */
 class FakeCanClient : public CanClient {
  public:
-  /// Interval of sleeping
-  static const int32_t USLEEP_INTERVAL = 10000;
-
   /**
    * @brief Initialize the fake CAN client by specified CAN card parameters.
    * @param parameter CAN card parameters to initialize the CAN client.
@@ -108,5 +104,3 @@ class FakeCanClient : public CanClient {
 }  // namespace canbus
 }  // namespace drivers
 }  // namespace apollo
-
-#endif  // MODULES_DRIVERS_CANBUS_CAN_CLIENT_FAKE_FAKE_CAN_CLIENT_H_

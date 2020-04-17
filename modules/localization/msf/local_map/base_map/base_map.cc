@@ -16,7 +16,10 @@
 
 #include "modules/localization/msf/local_map/base_map/base_map.h"
 
-#include "modules/common/log.h"
+#include <vector>
+
+#include "cyber/common/log.h"
+#include "cyber/task/task.h"
 #include "modules/localization/msf/common/util/system_utility.h"
 
 namespace apollo {
@@ -27,19 +30,9 @@ BaseMap::BaseMap(BaseMapConfig* map_config)
     : map_config_(map_config),
       map_node_cache_lvl1_(nullptr),
       map_node_cache_lvl2_(nullptr),
-      map_node_pool_(nullptr),
-      p_map_load_threads_(nullptr),
-      p_map_preload_threads_(nullptr) {}
+      map_node_pool_(nullptr) {}
 
 BaseMap::~BaseMap() {
-  if (p_map_load_threads_) {
-    delete p_map_load_threads_;
-    p_map_load_threads_ = nullptr;
-  }
-  if (p_map_preload_threads_) {
-    delete p_map_preload_threads_;
-    p_map_preload_threads_ = nullptr;
-  }
   if (map_node_cache_lvl1_) {
     delete map_node_cache_lvl1_;
     map_node_cache_lvl1_ = nullptr;
@@ -50,23 +43,9 @@ BaseMap::~BaseMap() {
   }
 }
 
-void BaseMap::InitThreadPool(int load_thread_num, int preload_thread_num) {
-  if (p_map_load_threads_) {
-    delete p_map_load_threads_;
-    p_map_load_threads_ = nullptr;
-  }
-  if (p_map_preload_threads_) {
-    delete p_map_preload_threads_;
-    p_map_preload_threads_ = nullptr;
-  }
-  p_map_load_threads_ = new ThreadPool(load_thread_num);
-  p_map_preload_threads_ = new ThreadPool(preload_thread_num);
-  return;
-}
-
 void BaseMap::InitMapNodeCaches(int cacheL1_size, int cahceL2_size) {
-  CHECK(map_node_cache_lvl1_ == nullptr);
-  CHECK(map_node_cache_lvl2_ == nullptr);
+  ACHECK(map_node_cache_lvl1_ == nullptr);
+  ACHECK(map_node_cache_lvl2_ == nullptr);
   map_node_cache_lvl1_ =
       new MapNodeCacheL1<MapNodeIndex, BaseMapNode>(cacheL1_size);
   map_node_cache_lvl2_ =
@@ -134,7 +113,6 @@ void BaseMap::AddDataset(const std::string dataset_path) {
 
 void BaseMap::LoadMapNodes(std::set<MapNodeIndex>* map_ids) {
   CHECK_LE(static_cast<int>(map_ids->size()), map_node_cache_lvl1_->Capacity());
-  // std::cout << "LoadMapNodes size: " << map_ids->size() << std::endl;
   // check in cacheL1
   typename std::set<MapNodeIndex>::iterator itr = map_ids->begin();
   while (itr != map_ids->end()) {
@@ -166,24 +144,26 @@ void BaseMap::LoadMapNodes(std::set<MapNodeIndex>* map_ids) {
   lock.unlock();
 
   // load from disk sync
+  std::vector<std::future<void>> load_futures;
   itr = map_ids->begin();
   while (itr != map_ids->end()) {
-    p_map_load_threads_->schedule(
-        boost::bind(&BaseMap::LoadMapNodeThreadSafety, this, *itr, true));
+    AERROR << "Preload map node failed!";
+    load_futures.emplace_back(
+        cyber::Async(&BaseMap::LoadMapNodeThreadSafety, this, *itr, true));
     ++itr;
   }
 
-  // std::cout << "before wait" << std::endl;
-  p_map_load_threads_->wait();
-  // std::cout << "after wait" << std::endl;
-
+  for (auto& future : load_futures) {
+    if (future.valid()) {
+      future.get();
+    }
+  }
   // check in cacheL2 again
   itr = map_ids->begin();
   node = nullptr;
   boost::unique_lock<boost::recursive_mutex> lock2(map_load_mutex_);
   while (itr != map_ids->end()) {
     if (map_node_cache_lvl2_->Get(*itr, &node)) {
-      // std::cout << "LoadMapNodes load from disk" << std::endl;
       AINFO << "LoadMapNodes: preload missed, load this node in main thread.\n"
             << *itr;
       node->SetIsReserved(true);
@@ -195,8 +175,7 @@ void BaseMap::LoadMapNodes(std::set<MapNodeIndex>* map_ids) {
   }
   lock2.unlock();
 
-  CHECK(map_ids->empty());
-  return;
+  ACHECK(map_ids->empty());
 }
 
 void BaseMap::PreloadMapNodes(std::set<MapNodeIndex>* map_ids) {
@@ -231,18 +210,18 @@ void BaseMap::PreloadMapNodes(std::set<MapNodeIndex>* map_ids) {
   }
 
   // load form disk sync
+  std::vector<std::future<void>> preload_futures;
   itr = map_ids->begin();
+  AINFO << "Preload map node size: " << map_ids->size();
   while (itr != map_ids->end()) {
-    AINFO << "Preload map node: " << *itr;
-    boost::unique_lock<boost::recursive_mutex> lock(map_load_mutex_);
+    AINFO << "Preload map node: " << *itr << std::endl;
+    boost::unique_lock<boost::recursive_mutex> lock3(map_load_mutex_);
     map_preloading_task_index_.insert(*itr);
-    lock.unlock();
-    p_map_preload_threads_->schedule(
-        boost::bind(&BaseMap::LoadMapNodeThreadSafety, this, *itr, false));
+    lock3.unlock();
+    preload_futures.emplace_back(
+        cyber::Async(&BaseMap::LoadMapNodeThreadSafety, this, *itr, false));
     ++itr;
   }
-
-  return;
 }
 
 void BaseMap::AttachMapNodePool(BaseMapNodePool* map_node_pool) {
@@ -279,13 +258,11 @@ void BaseMap::LoadMapNodeThreadSafety(MapNodeIndex index, bool is_reserved) {
   if (node_remove) {
     map_node_pool_->FreeMapNode(node_remove);
   }
-  return;
 }
 
 void BaseMap::PreloadMapArea(const Eigen::Vector3d& location,
                              const Eigen::Vector3d& trans_diff,
                              unsigned int resolution_id, unsigned int zone_id) {
-  CHECK_NOTNULL(p_map_preload_threads_);
   CHECK_NOTNULL(map_node_pool_);
 
   int x_direction = trans_diff[0] > 0 ? 1 : -1;
@@ -296,10 +273,12 @@ void BaseMap::PreloadMapArea(const Eigen::Vector3d& location,
       this->map_config_->map_resolutions_[resolution_id];
   /// top left
   Eigen::Vector3d pt_top_left;
-  pt_top_left[0] = location[0] - (this->map_config_->map_node_size_x_ *
-                                  map_pixel_resolution / 2.0);
-  pt_top_left[1] = location[1] - (this->map_config_->map_node_size_y_ *
-                                  map_pixel_resolution / 2.0);
+  pt_top_left[0] =
+      location[0] - (static_cast<float>(this->map_config_->map_node_size_x_) *
+                     map_pixel_resolution / 2.0f);
+  pt_top_left[1] =
+      location[1] - (static_cast<float>(this->map_config_->map_node_size_y_) *
+                     map_pixel_resolution / 2.0f);
   pt_top_left[2] = 0;
   MapNodeIndex map_id = MapNodeIndex::GetMapNodeIndex(
       *(this->map_config_), pt_top_left, resolution_id, zone_id);
@@ -316,8 +295,9 @@ void BaseMap::PreloadMapArea(const Eigen::Vector3d& location,
 
   /// top right
   Eigen::Vector3d pt_top_right;
-  pt_top_right[0] = location[0] + (this->map_config_->map_node_size_x_ *
-                                   map_pixel_resolution / 2.0);
+  pt_top_right[0] =
+      location[0] + (static_cast<float>(this->map_config_->map_node_size_x_) *
+                     map_pixel_resolution / 2.0);
   pt_top_right[1] = pt_top_left[1];
   pt_top_right[2] = 0;
   map_id = MapNodeIndex::GetMapNodeIndex(*(this->map_config_), pt_top_right,
@@ -350,8 +330,9 @@ void BaseMap::PreloadMapArea(const Eigen::Vector3d& location,
   /// bottom left
   Eigen::Vector3d pt_bottom_left;
   pt_bottom_left[0] = pt_top_left[0];
-  pt_bottom_left[1] = location[1] + (this->map_config_->map_node_size_y_ *
-                                     map_pixel_resolution / 2.0);
+  pt_bottom_left[1] =
+      location[1] + (static_cast<float>(this->map_config_->map_node_size_y_) *
+                     map_pixel_resolution / 2.0);
   pt_bottom_left[2] = 0;
   map_id = MapNodeIndex::GetMapNodeIndex(*(this->map_config_), pt_bottom_left,
                                          resolution_id, zone_id);
@@ -377,12 +358,12 @@ void BaseMap::PreloadMapArea(const Eigen::Vector3d& location,
 
   for (int i = -1; i < 2; ++i) {
     Eigen::Vector3d pt;
-    pt[0] = location[0] +
-            x_direction * 1.5 * this->map_config_->map_node_size_x_ *
-                map_pixel_resolution;
-    pt[1] = location[1] +
-            static_cast<double>(i) * this->map_config_->map_node_size_y_ *
-                map_pixel_resolution;
+    pt[0] = location[0] + x_direction * 1.5 *
+                              this->map_config_->map_node_size_x_ *
+                              map_pixel_resolution;
+    pt[1] = location[1] + static_cast<double>(i) *
+                              this->map_config_->map_node_size_y_ *
+                              map_pixel_resolution;
     pt[2] = 0;
     map_id = MapNodeIndex::GetMapNodeIndex(*(this->map_config_), pt,
                                            resolution_id, zone_id);
@@ -390,12 +371,12 @@ void BaseMap::PreloadMapArea(const Eigen::Vector3d& location,
   }
   for (int i = -1; i < 2; ++i) {
     Eigen::Vector3d pt;
-    pt[0] = location[0] +
-            static_cast<double>(i) * this->map_config_->map_node_size_x_ *
-                map_pixel_resolution;
-    pt[1] = location[1] +
-            y_direction * 1.5 * this->map_config_->map_node_size_y_ *
-                map_pixel_resolution;
+    pt[0] = location[0] + static_cast<double>(i) *
+                              this->map_config_->map_node_size_x_ *
+                              map_pixel_resolution;
+    pt[1] = location[1] + y_direction * 1.5 *
+                              this->map_config_->map_node_size_y_ *
+                              map_pixel_resolution;
     pt[2] = 0;
     map_id = MapNodeIndex::GetMapNodeIndex(*(this->map_config_), pt,
                                            resolution_id, zone_id);
@@ -403,12 +384,12 @@ void BaseMap::PreloadMapArea(const Eigen::Vector3d& location,
   }
   {
     Eigen::Vector3d pt;
-    pt[0] = location[0] +
-            x_direction * 1.5 * this->map_config_->map_node_size_x_ *
-                map_pixel_resolution;
-    pt[1] = location[1] +
-            y_direction * 1.5 * this->map_config_->map_node_size_y_ *
-                map_pixel_resolution;
+    pt[0] = location[0] + x_direction * 1.5 *
+                              this->map_config_->map_node_size_x_ *
+                              map_pixel_resolution;
+    pt[1] = location[1] + y_direction * 1.5 *
+                              this->map_config_->map_node_size_y_ *
+                              map_pixel_resolution;
     pt[2] = 0;
     map_id = MapNodeIndex::GetMapNodeIndex(*(this->map_config_), pt,
                                            resolution_id, zone_id);
@@ -416,25 +397,25 @@ void BaseMap::PreloadMapArea(const Eigen::Vector3d& location,
   }
 
   this->PreloadMapNodes(&map_ids);
-  return;
 }
 
 bool BaseMap::LoadMapArea(const Eigen::Vector3d& seed_pt3d,
                           unsigned int resolution_id, unsigned int zone_id,
                           int filter_size_x, int filter_size_y) {
-  CHECK_NOTNULL(p_map_load_threads_);
   CHECK_NOTNULL(map_node_pool_);
   std::set<MapNodeIndex> map_ids;
   float map_pixel_resolution =
       this->map_config_->map_resolutions_[resolution_id];
   /// top left
   Eigen::Vector3d pt_top_left;
-  pt_top_left[0] = seed_pt3d[0] - (this->map_config_->map_node_size_x_ *
-                                   map_pixel_resolution / 2.0) -
-                   static_cast<int>(filter_size_x / 2) * map_pixel_resolution;
-  pt_top_left[1] = seed_pt3d[1] - (this->map_config_->map_node_size_y_ *
-                                   map_pixel_resolution / 2.0) -
-                   static_cast<int>(filter_size_y / 2) * map_pixel_resolution;
+  pt_top_left[0] = seed_pt3d[0] -
+                   (static_cast<float>(this->map_config_->map_node_size_x_) *
+                    map_pixel_resolution / 2.0f) -
+                   static_cast<float>(filter_size_x / 2) * map_pixel_resolution;
+  pt_top_left[1] = seed_pt3d[1] -
+                   (static_cast<float>(this->map_config_->map_node_size_y_) *
+                    map_pixel_resolution / 2.0f) -
+                   static_cast<float>(filter_size_y / 2) * map_pixel_resolution;
   pt_top_left[2] = 0;
   MapNodeIndex map_id = MapNodeIndex::GetMapNodeIndex(
       *(this->map_config_), pt_top_left, resolution_id, zone_id);
@@ -451,9 +432,11 @@ bool BaseMap::LoadMapArea(const Eigen::Vector3d& seed_pt3d,
 
   /// top right
   Eigen::Vector3d pt_top_right;
-  pt_top_right[0] = seed_pt3d[0] + (this->map_config_->map_node_size_x_ *
-                                    map_pixel_resolution / 2.0) +
-                    static_cast<int>(filter_size_x / 2) * map_pixel_resolution;
+  pt_top_right[0] =
+      seed_pt3d[0] +
+      (static_cast<float>(this->map_config_->map_node_size_x_) *
+       map_pixel_resolution / 2.0f) +
+      static_cast<float>(filter_size_x / 2) * map_pixel_resolution;
   pt_top_right[1] = pt_top_left[1];
   pt_top_left[2] = 0;
   map_id = MapNodeIndex::GetMapNodeIndex(*(this->map_config_), pt_top_right,
@@ -488,8 +471,9 @@ bool BaseMap::LoadMapArea(const Eigen::Vector3d& seed_pt3d,
   pt_bottom_left[0] = pt_top_left[0];
   pt_bottom_left[1] =
       seed_pt3d[1] +
-      (this->map_config_->map_node_size_y_ * map_pixel_resolution / 2.0) +
-      static_cast<int>(filter_size_y / 2) * map_pixel_resolution;
+      (static_cast<float>(this->map_config_->map_node_size_y_) *
+       map_pixel_resolution / 2.0f) +
+      static_cast<float>(filter_size_y / 2) * map_pixel_resolution;
   pt_bottom_left[2] = 0;
   map_id = MapNodeIndex::GetMapNodeIndex(*(this->map_config_), pt_bottom_left,
                                          resolution_id, zone_id);

@@ -14,8 +14,7 @@
  * limitations under the License.
  *****************************************************************************/
 
-#ifndef MODULES_CANBUS_VEHICLE_GEM_PROTOCOL_GLOBAL_RPT_6A_H_
-#define MODULES_CANBUS_VEHICLE_GEM_PROTOCOL_GLOBAL_RPT_6A_H_
+#pragma once
 
 #include "modules/canbus/proto/chassis_detail.pb.h"
 #include "modules/drivers/canbus/can_comm/protocol_data.h"
@@ -83,5 +82,3 @@ class Globalrpt6a : public ::apollo::drivers::canbus::ProtocolData<
 }  // namespace gem
 }  // namespace canbus
 }  // namespace apollo
-
-#endif  // MODULES_CANBUS_VEHICL_GEM_PROTOCOL_GLOBAL_RPT_6A_H_

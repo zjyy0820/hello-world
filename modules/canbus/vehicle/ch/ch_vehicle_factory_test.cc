@@ -25,7 +25,7 @@ class ChVehicleFactoryTest : public ::testing::Test {
  public:
   virtual void SetUp() {
     VehicleParameter parameter;
-    parameter.set_brand(VehicleParameter::CH);
+    parameter.set_brand(apollo::common::CH);
     ch_factory_.SetVehicleParameter(parameter);
   }
   virtual void TearDown() {}

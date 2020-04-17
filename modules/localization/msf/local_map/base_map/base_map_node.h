@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright 2017 The Apollo Authors. All Rights Reserved.
+ * Copyright 2018 The Apollo Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,11 @@
  * limitations under the License.
  *****************************************************************************/
 
-#ifndef MODULES_LOCALIZATION_MSF_LOCAL_MAP_BASE_MAP_BASE_MAP_NODE_H
-#define MODULES_LOCALIZATION_MSF_LOCAL_MAP_BASE_MAP_BASE_MAP_NODE_H
+#pragma once
 
-#include <Eigen/Core>
 #include <string>
 #include <vector>
+
 #include "modules/localization/msf/common/util/compression.h"
 #include "modules/localization/msf/local_map/base_map/base_map_config.h"
 #include "modules/localization/msf/local_map/base_map/base_map_fwd.h"
@@ -33,7 +32,7 @@ namespace msf {
 class BaseMapNode {
  public:
   /**@brief Construct a map node. */
-  explicit BaseMapNode(BaseMapMatrix* matrix, CompressionStrategy* strategy);
+  BaseMapNode(BaseMapMatrix* matrix, CompressionStrategy* strategy);
   /**@brief Destruct a map node. */
   virtual ~BaseMapNode();
 
@@ -193,5 +192,3 @@ class BaseMapNode {
 }  // namespace msf
 }  // namespace localization
 }  // namespace apollo
-
-#endif  // MODULES_LOCALIZATION_MSF_LOCAL_MAP_BASE_MAP_BASE_MAP_NODE_H_

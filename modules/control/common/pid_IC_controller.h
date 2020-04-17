@@ -19,8 +19,7 @@
  * @brief Defines the PIDICController class.
  */
 
-#ifndef MODULES_CONTROL_COMMON_PID_INTEGRAL_CLAMPING_CONTROLLER_H_
-#define MODULES_CONTROL_COMMON_PID_INTEGRAL_CLAMPING_CONTROLLER_H_
+#pragma once
 
 #include "modules/control/common/pid_controller.h"
 #include "modules/control/proto/pid_conf.pb.h"
@@ -34,7 +33,7 @@ namespace control {
 
 /**
  * @class PIDICController
- * @brief A proportional–integral–derivative controller for speed and steering
+ * @brief A proportional-integral-derivative controller for speed and steering
 with integral-clamping-anti-windup
  */
 class PIDICController : public PIDController {
@@ -56,5 +55,3 @@ class PIDICController : public PIDController {
 
 }  // namespace control
 }  // namespace apollo
-
-#endif  // MODULES_CONTROL_COMMON_PID_INTEGRAL_CLAMPING_CONTROLLER_H_

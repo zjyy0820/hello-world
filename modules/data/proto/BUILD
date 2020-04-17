@@ -1,3 +1,5 @@
+load("//tools:py_proto.bzl", "py_proto")
+
 package(default_visibility = ["//visibility:public"])
 
 cc_proto_library(
@@ -17,22 +19,23 @@ proto_library(
 )
 
 proto_library(
-    name = "recorder_info_proto_lib",
-    srcs = ["recorder_info.proto"],
+    name = "tools_frame_proto_lib",
+    srcs = ["frame.proto"],
 )
 
-proto_library(
-    name = "task_proto_lib",
-    srcs = ["task.proto"],
-    deps = [
-        ":static_info_proto_lib",
-    ],
+py_proto(
+    name = "frame_pb2",
+    src = "frame.proto",
 )
 
-proto_library(
-    name = "warehouse_query_proto_lib",
-    srcs = ["warehouse_query.proto"],
+py_proto(
+    name = "static_info_pb2",
+    src = "static_info.proto",
     deps = [
-        ":task_proto_lib",
+        "//modules/canbus/proto:canbus_conf_pb2",
+        "//modules/canbus/proto:chassis_pb2",
+        "//modules/common/configs/proto:vehicle_config_pb2",
+        "//modules/control/proto:control_conf_pb2",
+        "//modules/routing/proto:routing_pb2",
     ],
 )

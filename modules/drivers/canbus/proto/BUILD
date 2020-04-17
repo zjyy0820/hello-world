@@ -1,3 +1,5 @@
+load("//tools:py_proto.bzl", "py_proto")
+
 package(default_visibility = ["//visibility:public"])
 
 cc_proto_library(
@@ -14,7 +16,20 @@ proto_library(
         "sensor_canbus_conf.proto",
     ],
     deps = [
-        "//modules/common/proto:common_proto_lib",
+        "//modules/common/proto:geometry_proto_lib",
         "//modules/common/proto:header_proto_lib",
+    ],
+)
+
+py_proto(
+    name = "can_card_parameter_pb2",
+    src = "can_card_parameter.proto",
+)
+
+py_proto(
+    name = "sensor_canbus_conf_pb2",
+    src = "sensor_canbus_conf.proto",
+    deps = [
+        "//modules/drivers/canbus/proto:can_card_parameter_pb2",
     ],
 )

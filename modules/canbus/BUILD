@@ -4,18 +4,22 @@ package(default_visibility = ["//visibility:public"])
 
 cc_library(
     name = "canbus_lib",
-    srcs = ["canbus.cc"],
-    hdrs = ["canbus.h"],
+    srcs = ["canbus_component.cc"],
+    hdrs = ["canbus_component.h"],
+    copts = ["-DMODULE_NAME=\\\"canbus\\\""],
     deps = [
+        "//cyber",
         "//modules/canbus/common:canbus_common",
         "//modules/canbus/vehicle:vehicle_factory",
-        "//modules/common",
-        "//modules/common:apollo_app",
-        "//modules/common/adapters:adapter_manager",
+        "//modules/common/adapters:adapter_gflags",
         "//modules/common/monitor_log",
+        "//modules/common/status",
+        "//modules/drivers/canbus/can_client",
         "//modules/drivers/canbus/can_client:can_client_factory",
         "//modules/drivers/canbus/can_comm:can_receiver",
         "//modules/drivers/canbus/can_comm:can_sender",
+        "//modules/guardian/proto:guardian_proto",
+        "@com_github_gflags_gflags//:gflags",
     ],
 )
 
@@ -25,22 +29,18 @@ cc_test(
     srcs = ["canbus_test.cc"],
     deps = [
         ":canbus_lib",
-        "@gtest//:main",
+        "//modules/common/status",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
 cc_binary(
-    name = "canbus",
-    srcs = ["main.cc"],
+    name = "libcanbus.so",
+    linkopts = ["-shared"],
+    linkshared = True,
+    linkstatic = False,
     deps = [
         ":canbus_lib",
-        "//external:gflags",
-        "//modules/canbus/common:canbus_common",
-        "//modules/common:log",
-        "//modules/common/monitor_log",
-        "//modules/drivers/canbus/can_client",
-        "//modules/drivers/canbus/common:canbus_common",
-        "@ros//:ros_common",
     ],
 )
 

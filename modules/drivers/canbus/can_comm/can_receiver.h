@@ -19,19 +19,22 @@
  * @brief Defines CanReceiver class.
  */
 
-#ifndef MODULES_DRIVERS_CANBUS_CAN_COMM_CAN_RECEIVER_H_
-#define MODULES_DRIVERS_CANBUS_CAN_COMM_CAN_RECEIVER_H_
+#pragma once
 
+#include <atomic>
 #include <cmath>
+#include <future>
 #include <iostream>
 #include <memory>
 #include <sstream>
 #include <thread>
 #include <vector>
 
-#include "modules/common/log.h"
-#include "modules/common/macro.h"
+#include "cyber/common/macros.h"
+#include "cyber/cyber.h"
+
 #include "modules/common/proto/error_code.pb.h"
+
 #include "modules/drivers/canbus/can_client/can_client.h"
 #include "modules/drivers/canbus/can_comm/message_manager.h"
 #include "modules/drivers/canbus/common/canbus_consts.h"
@@ -97,13 +100,13 @@ class CanReceiver {
   int32_t Start(bool is_blocked);
 
  private:
-  std::unique_ptr<std::thread> thread_;
-  bool is_running_ = false;
+  std::atomic<bool> is_running_ = {false};
   // CanClient, MessageManager pointer life is managed by outer program
   CanClient *can_client_ = nullptr;
   MessageManager<SensorType> *pt_manager_ = nullptr;
   bool enable_log_ = false;
   bool is_init_ = false;
+  std::future<void> async_result_;
 
   DISALLOW_COPY_AND_ASSIGN(CanReceiver);
 };
@@ -136,7 +139,7 @@ void CanReceiver<SensorType>::RecvThreadFunc() {
   int32_t receive_error_count = 0;
   int32_t receive_none_count = 0;
   const int32_t ERROR_COUNT_MAX = 10;
-  std::chrono::duration<double, std::micro> default_period{10 * 1000};
+  auto default_period = 10 * 1000;
 
   while (IsRunning()) {
     std::vector<CanFrame> buf;
@@ -146,7 +149,7 @@ void CanReceiver<SensorType>::RecvThreadFunc() {
       LOG_IF_EVERY_N(ERROR, receive_error_count++ > ERROR_COUNT_MAX,
                      ERROR_COUNT_MAX)
           << "Received " << receive_error_count << " error messages.";
-      std::this_thread::sleep_for(default_period);
+      cyber::USleep(default_period);
       continue;
     }
     receive_error_count = 0;
@@ -161,7 +164,7 @@ void CanReceiver<SensorType>::RecvThreadFunc() {
       LOG_IF_EVERY_N(ERROR, receive_none_count++ > ERROR_COUNT_MAX,
                      ERROR_COUNT_MAX)
           << "Received " << receive_none_count << " empty messages.";
-      std::this_thread::sleep_for(default_period);
+      cyber::USleep(default_period);
       continue;
     }
     receive_none_count = 0;
@@ -175,14 +178,14 @@ void CanReceiver<SensorType>::RecvThreadFunc() {
         ADEBUG << "recv_can_frame#" << frame.CanFrameString();
       }
     }
-    std::this_thread::yield();
+    cyber::Yield();
   }
   AINFO << "Can client receiver thread stopped.";
 }
 
 template <typename SensorType>
 bool CanReceiver<SensorType>::IsRunning() const {
-  return is_running_;
+  return is_running_.load();
 }
 
 template <typename SensorType>
@@ -190,13 +193,9 @@ template <typename SensorType>
   if (is_init_ == false) {
     return ::apollo::common::ErrorCode::CANBUS_ERROR;
   }
-  is_running_ = true;
+  is_running_.exchange(true);
 
-  thread_.reset(new std::thread([this] { RecvThreadFunc(); }));
-  if (thread_ == nullptr) {
-    AERROR << "Unable to create can client receiver thread.";
-    return ::apollo::common::ErrorCode::CANBUS_ERROR;
-  }
+  async_result_ = cyber::Async(&CanReceiver<SensorType>::RecvThreadFunc, this);
   return ::apollo::common::ErrorCode::OK;
 }
 
@@ -204,11 +203,8 @@ template <typename SensorType>
 void CanReceiver<SensorType>::Stop() {
   if (IsRunning()) {
     AINFO << "Stopping can client receiver ...";
-    is_running_ = false;
-    if (thread_ != nullptr && thread_->joinable()) {
-      thread_->join();
-    }
-    thread_.reset();
+    is_running_.exchange(false);
+    async_result_.wait();
   } else {
     AINFO << "Can client receiver is not running.";
   }
@@ -218,5 +214,3 @@ void CanReceiver<SensorType>::Stop() {
 }  // namespace canbus
 }  // namespace drivers
 }  // namespace apollo
-
-#endif  // MODULES_DRIVERS_CANBUS_CAN_COMM_CAN_RECEIVER_H_

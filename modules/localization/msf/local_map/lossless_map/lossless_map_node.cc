@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright 2017 The Apollo Authors. All Rights Reserved.
+ * Copyright 2018 The Apollo Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,7 @@
 
 #include "modules/localization/msf/local_map/lossless_map/lossless_map_node.h"
 
-#include <vector>
-
-#include "modules/common/log.h"
+#include "cyber/common/log.h"
 #include "modules/localization/msf/local_map/lossless_map/lossless_map_config.h"
 
 namespace apollo {
@@ -40,7 +38,7 @@ void LosslessMapNode::SetValue(const Eigen::Vector3d& coordinate,
       static_cast<LosslessMapMatrix*>(map_matrix_)->GetMapCell(y, x);
   map_cell.SetValue(coordinate[2], intensity);
   if (min_altitude_ > coordinate[2]) {
-    min_altitude_ = coordinate[2];
+    min_altitude_ = static_cast<float>(coordinate[2]);
   }
   is_changed_ = true;
 }
@@ -56,7 +54,7 @@ bool LosslessMapNode::SetValueIfInBound(const Eigen::Vector3d& coordinate,
         static_cast<LosslessMapMatrix*>(map_matrix_)->GetMapCell(y, x);
     map_cell.SetValue(coordinate[2], intensity);
     if (min_altitude_ > coordinate[2]) {
-      min_altitude_ = coordinate[2];
+      min_altitude_ = static_cast<float>(coordinate[2]);
     }
     is_changed_ = true;
     return true;

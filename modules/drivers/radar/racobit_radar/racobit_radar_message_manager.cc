@@ -21,6 +21,9 @@
 
 #include "modules/drivers/radar/racobit_radar/racobit_radar_message_manager.h"
 
+#include <utility>
+
+#include "modules/common/util/message_util.h"
 #include "modules/drivers/radar/racobit_radar/protocol/cluster_general_info_701.h"
 #include "modules/drivers/radar/racobit_radar/protocol/cluster_list_status_600.h"
 #include "modules/drivers/radar/racobit_radar/protocol/cluster_quality_info_702.h"
@@ -34,9 +37,9 @@ namespace apollo {
 namespace drivers {
 namespace racobit_radar {
 
-using ::apollo::common::adapter::AdapterManager;
-
-RacobitRadarMessageManager::RacobitRadarMessageManager() {
+RacobitRadarMessageManager::RacobitRadarMessageManager(
+    std::shared_ptr<cyber::Writer<RacobitRadar>> writer)
+    : writer_(std::move(writer)) {
   AddRecvProtocolData<RadarState201, true>();
   AddRecvProtocolData<ClusterListStatus600, true>();
   AddRecvProtocolData<ClusterGeneralInfo701, true>();
@@ -83,6 +86,8 @@ void RacobitRadarMessageManager::Parse(const uint32_t message_id,
     return;
   }
 
+  common::util::FillHeader(FLAGS_sensor_node_name, &sensor_data_);
+
   // trigger publishment
   if (message_id == ClusterListStatus600::ID ||
       message_id == ObjectListStatus60A::ID) {
@@ -90,13 +95,12 @@ void RacobitRadarMessageManager::Parse(const uint32_t message_id,
 
     if (sensor_data_.contiobs_size() <=
         sensor_data_.object_list_status().nof_objects()) {
-      // maybe lost a object_list_status msg
-      AdapterManager::PublishRacobitRadar(sensor_data_);
+      // maybe lost an object_list_status msg
+      common::util::FillHeader("racobit_radar", &sensor_data_);
+      writer_->Write(sensor_data_);
     }
     sensor_data_.Clear();
-    // fill header when recieve the general info message
-    AdapterManager::FillRacobitRadarHeader(FLAGS_sensor_node_name,
-                                           &sensor_data_);
+    // fill header when receive the general info message
   }
 
   sensor_protocol_data->Parse(data, length, &sensor_data_);
@@ -129,11 +133,12 @@ void RacobitRadarMessageManager::Parse(const uint32_t message_id,
   // check if need to check period
   const auto it = check_ids_.find(message_id);
   if (it != check_ids_.end()) {
-    const int64_t time = common::time::AsInt64<micros>(Clock::Now());
+    const int64_t time = absl::ToUnixMicros(Clock::Now());
     it->second.real_period = time - it->second.last_time;
     // if period 1.5 large than base period, inc error_count
     const double period_multiplier = 1.5;
-    if (it->second.real_period > (it->second.period * period_multiplier)) {
+    if (it->second.real_period >
+        (static_cast<double>(it->second.period) * period_multiplier)) {
       it->second.error_count += 1;
     } else {
       it->second.error_count = 0;

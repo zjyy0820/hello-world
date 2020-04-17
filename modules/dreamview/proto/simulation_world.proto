@@ -3,9 +3,10 @@ syntax = "proto2";
 package apollo.dreamview;
 
 import "modules/common/monitor_log/proto/monitor_log.proto";
-import "modules/planning/proto/planning_internal.proto";
-import "modules/perception/proto/perception_obstacle.proto";
 import "modules/common/proto/pnc_point.proto";
+import "modules/perception/proto/perception_obstacle.proto";
+import "modules/planning/proto/planning_internal.proto";
+import "modules/prediction/proto/feature.proto";
 import "modules/routing/proto/routing.proto";
 
 // Next-id: 4
@@ -13,6 +14,9 @@ message PolygonPoint {
   optional double x = 1;
   optional double y = 2;
   optional double z = 3 [default = 0.0];
+
+  // Gaussian probability information
+  optional apollo.common.GaussianInfo gaussian_info = 4;
 }
 
 // Next-id: 3
@@ -24,13 +28,13 @@ message Prediction {
 // Next-id: 13
 message Decision {
   enum Type {
-    IGNORE = 0; // Ignore the object
-    STOP = 1; // Stop at a distance from the object
-    NUDGE = 2; // Go around the object
-    YIELD = 3; // Go after the object
-    OVERTAKE = 4; // Go before the object
-    FOLLOW = 5; // Follow the object in the same lane
-    SIDEPASS = 6; // Pass the object in neighboring lane
+    IGNORE = 0;    // Ignore the object
+    STOP = 1;      // Stop at a distance from the object
+    NUDGE = 2;     // Go around the object
+    YIELD = 3;     // Go after the object
+    OVERTAKE = 4;  // Go before the object
+    FOLLOW = 5;    // Follow the object in the same lane
+    SIDEPASS = 6;  // Pass the object in neighboring lane
   }
   optional Type type = 1 [default = IGNORE];
 
@@ -61,12 +65,13 @@ message Decision {
     STOP_REASON_CROSSWALK = 104;
     STOP_REASON_EMERGENCY = 105;
     STOP_REASON_NOT_READY = 106;
+    STOP_REASON_PULL_OVER = 107;
   }
   optional StopReasonCode stopReason = 11;
   optional apollo.routing.ChangeLaneType change_lane_type = 12;
 }
 
-// Next-id: 33
+// Next-id: 36
 message Object {
   // ID
   optional string id = 1;  // primary identifier for each object
@@ -86,14 +91,15 @@ message Object {
 
   // Motion Info
   // For objects with motion info such as ADC.
-  optional double speed = 11; // in m/s
-  optional double speed_acceleration = 12; // in m/s^2
+  optional double speed = 11;               // in m/s, can be negative
+  optional double speed_acceleration = 12;  // in m/s^2
   optional double speed_jerk = 13;
   optional double spin = 14;
   optional double spin_acceleration = 15;
   optional double spin_jerk = 16;
   optional double speed_heading = 17;
   optional double kappa = 18;
+  optional double dkappa = 35;
 
   // Signal Info
   // For objects with signals set and current signal such as Traffic Light,
@@ -132,17 +138,20 @@ message Object {
     UNKNOWN_MOVABLE = 1;
     UNKNOWN_UNMOVABLE = 2;
     PEDESTRIAN = 3;  // pedestrian, usually determined by moving behavior.
-    BICYCLE = 4;  // bike, motor bike.
-    VEHICLE = 5;  // passenger car or truck.
-    VIRTUAL = 6; // virtual object created by decision module.
-    CIPV = 7; // closest in-path vehicle determined by perception module.
+    BICYCLE = 4;     // bike, motor bike.
+    VEHICLE = 5;     // passenger car or truck.
+    VIRTUAL = 6;     // virtual object created by decision module.
+    CIPV = 7;        // closest in-path vehicle determined by perception module.
   };
 
   optional Type type = 29;  // obstacle type
+  // obstacle sub-type
+  optional apollo.perception.PerceptionObstacle.SubType sub_type = 34;
   repeated Prediction prediction = 30;
 
   // perception confidence level. Range: [0,1]
   optional double confidence = 31 [default = 1];
+  optional apollo.prediction.ObstaclePriority obstacle_priority = 33;
 }
 
 message DelaysInMs {
@@ -150,7 +159,7 @@ message DelaysInMs {
   optional double localization = 3;
   optional double perception_obstacle = 4;
   optional double planning = 5;
-  optional double prediction= 7;
+  optional double prediction = 7;
   optional double traffic_light = 8;
   optional double control = 9;
 }
@@ -159,8 +168,9 @@ message RoutePath {
   repeated PolygonPoint point = 1;
 }
 
-message Latency { // ms
-  optional double planning = 1;
+message Latency {
+  optional double timestamp_sec = 1;
+  optional double total_time_ms = 2;
 }
 
 message MapElementIds {
@@ -173,6 +183,9 @@ message MapElementIds {
   repeated string overlap = 7;
   repeated string road = 8;
   repeated string clear_area = 9;
+  repeated string parking_space = 10;
+  repeated string speed_bump = 11;
+  repeated string pnc_junction = 12;
 }
 
 message ControlData {
@@ -180,6 +193,7 @@ message ControlData {
   optional double station_error = 2;
   optional double lateral_error = 3;
   optional double heading_error = 4;
+  optional apollo.common.TrajectoryPoint current_target_point = 5;
 }
 
 message Notification {
@@ -187,7 +201,7 @@ message Notification {
   optional apollo.common.monitor.MonitorMessageItem item = 2;
 }
 
-// Next-id: 26
+// Next-id: 29
 message SimulationWorld {
   // Timestamp in milliseconds
   optional double timestamp = 1;
@@ -201,7 +215,7 @@ message SimulationWorld {
   // Autonomous driving cars
   optional Object auto_driving_car = 4;
 
-  // Traffic light status
+  // Planning signal
   optional Object traffic_signal = 5;
 
   // Routing paths
@@ -213,42 +227,54 @@ message SimulationWorld {
   repeated Object planning_trajectory = 8;
 
   // Main decision
-  optional Object main_stop = 9 [deprecated=true];
-  optional Object main_decision = 24;
+  optional Object main_stop = 9 [deprecated = true];
+  optional Object main_decision = 10;
 
   // Speed limit
-  optional double speed_limit = 10;
+  optional double speed_limit = 11;
 
   // Module delays
-  optional DelaysInMs delay = 11;
+  optional DelaysInMs delay = 12;
 
   // Notification
-  optional apollo.common.monitor.MonitorMessage monitor = 12 [deprecated=true];
-  repeated Notification notification = 25;
+  optional apollo.common.monitor.MonitorMessage monitor = 13
+      [deprecated = true];
+  repeated Notification notification = 14;
 
   // Engage advice from planning
-  optional string engage_advice = 13;
+  optional string engage_advice = 15;
 
   // Module latency
-  optional Latency latency = 14;
+  map<string, Latency> latency = 16;
 
-  optional MapElementIds map_element_ids = 15;
-  optional uint64 map_hash = 16;
-  optional double map_radius = 17;
+  optional MapElementIds map_element_ids = 17;
+  optional uint64 map_hash = 18;
+  optional double map_radius = 19;
 
   // Planning data
-  optional double planning_time = 18;
-  optional apollo.planning_internal.PlanningData planning_data = 19;
+  optional apollo.planning_internal.PlanningData planning_data = 20;
 
   // GPS
-  optional Object gps = 20;
+  optional Object gps = 21;
 
   // Lane Markers from perception
-  optional apollo.perception.LaneMarkers lane_marker = 21;
+  optional apollo.perception.LaneMarkers lane_marker = 22;
 
   // Control data
-  optional ControlData control_data = 22;
+  optional ControlData control_data = 23;
 
   // Relative Map
-  repeated apollo.common.Path navigation_path = 23;
+  repeated apollo.common.Path navigation_path = 24;
+
+  // RSS info
+  optional bool is_rss_safe = 25 [default = true];
+
+  // Shadow localization
+  optional Object shadow_localization = 26;
+
+  // Perception detected signals
+  repeated Object perceived_signal = 27;
+
+  // A map from a story name to whether it is on
+  map<string, bool> stories = 28;
 }

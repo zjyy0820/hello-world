@@ -19,13 +19,12 @@
  * @brief The class of ProtocolData
  */
 
-#ifndef MODULES_DRIVERS_CANBUS_CAN_COMM_PROTOCOL_DATA_H_
-#define MODULES_DRIVERS_CANBUS_CAN_COMM_PROTOCOL_DATA_H_
+#pragma once
 
 #include <cmath>
 #include <numeric>
 
-#include "modules/common/log.h"
+#include "cyber/common/log.h"
 #include "modules/drivers/canbus/common/canbus_consts.h"
 
 /**
@@ -122,7 +121,7 @@ T ProtocolData<SensorType>::BoundedValue(T lower, T upper, T val) {
 template <typename SensorType>
 uint8_t ProtocolData<SensorType>::CalculateCheckSum(const uint8_t *input,
                                                     const uint32_t length) {
-  return std::accumulate(input, input + length, 0) ^ 0xFF;
+  return static_cast<uint8_t>(std::accumulate(input, input + length, 0) ^ 0xFF);
 }
 
 template <typename SensorType>
@@ -149,5 +148,3 @@ void ProtocolData<SensorType>::Reset() {}
 }  // namespace canbus
 }  // namespace drivers
 }  // namespace apollo
-
-#endif  // MODULES_DRIVERS_CANBUS_CAN_COMM_PROTOCOL_DATA_H_

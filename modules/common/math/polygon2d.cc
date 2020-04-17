@@ -21,7 +21,9 @@
 #include <limits>
 #include <utility>
 
-#include "modules/common/log.h"
+#include "absl/strings/str_cat.h"
+#include "absl/strings/str_join.h"
+#include "cyber/common/log.h"
 #include "modules/common/math/math_utils.h"
 #include "modules/common/util/string_util.h"
 
@@ -193,7 +195,7 @@ int Polygon2d::Next(int at) const { return at >= num_points_ - 1 ? 0 : at + 1; }
 int Polygon2d::Prev(int at) const { return at == 0 ? num_points_ - 1 : at - 1; }
 
 void Polygon2d::BuildFromPoints() {
-  num_points_ = points_.size();
+  num_points_ = static_cast<int>(points_.size());
   CHECK_GE(num_points_, 3);
 
   // Make sure the points are in ccw order.
@@ -240,7 +242,7 @@ void Polygon2d::BuildFromPoints() {
 bool Polygon2d::ComputeConvexHull(const std::vector<Vec2d> &points,
                                   Polygon2d *const polygon) {
   CHECK_NOTNULL(polygon);
-  const int n = points.size();
+  const int n = static_cast<int>(points.size());
   if (n < 3) {
     return false;
   }
@@ -296,13 +298,13 @@ bool Polygon2d::ClipConvexHull(const LineSegment2d &line_segment,
     return true;
   }
   CHECK_NOTNULL(points);
-  const int n = points->size();
+  const size_t n = points->size();
   if (n < 3) {
     return false;
   }
   std::vector<double> prod(n);
   std::vector<int> side(n);
-  for (int i = 0; i < n; ++i) {
+  for (size_t i = 0; i < n; ++i) {
     prod[i] = CrossProd(line_segment.start(), line_segment.end(), (*points)[i]);
     if (std::abs(prod[i]) <= kMathEpsilon) {
       side[i] = 0;
@@ -312,11 +314,11 @@ bool Polygon2d::ClipConvexHull(const LineSegment2d &line_segment,
   }
 
   std::vector<Vec2d> new_points;
-  for (int i = 0; i < n; ++i) {
+  for (size_t i = 0; i < n; ++i) {
     if (side[i] >= 0) {
       new_points.push_back((*points)[i]);
     }
-    const int j = ((i == n - 1) ? 0 : (i + 1));
+    const size_t j = ((i == n - 1) ? 0 : (i + 1));
     if (side[i] * side[j] < 0) {
       const double ratio = prod[j] / (prod[j] - prod[i]);
       new_points.emplace_back(
@@ -333,7 +335,7 @@ bool Polygon2d::ComputeOverlap(const Polygon2d &other_polygon,
                                Polygon2d *const overlap_polygon) const {
   CHECK_GE(points_.size(), 3);
   CHECK_NOTNULL(overlap_polygon);
-  CHECK(is_convex_ && other_polygon.is_convex());
+  ACHECK(is_convex_ && other_polygon.is_convex());
   std::vector<Vec2d> points = other_polygon.points();
   for (int i = 0; i < num_points_; ++i) {
     if (!ClipConvexHull(line_segments_[i], &points)) {
@@ -341,6 +343,16 @@ bool Polygon2d::ComputeOverlap(const Polygon2d &other_polygon,
     }
   }
   return ComputeConvexHull(points, overlap_polygon);
+}
+
+double Polygon2d::ComputeIoU(const Polygon2d &other_polygon) const {
+  Polygon2d overlap_polygon;
+  if (!ComputeOverlap(other_polygon, &overlap_polygon)) {
+    return 0.0;
+  }
+  double intersection_area = overlap_polygon.area();
+  double union_area = area_ + other_polygon.area() - overlap_polygon.area();
+  return intersection_area / union_area;
 }
 
 bool Polygon2d::HasOverlap(const LineSegment2d &line_segment) const {
@@ -405,9 +417,7 @@ void Polygon2d::GetAllVertices(std::vector<Vec2d> *const vertices) const {
   *vertices = points_;
 }
 
-std::vector<Vec2d> Polygon2d::GetAllVertices() const {
-  return points_;
-}
+std::vector<Vec2d> Polygon2d::GetAllVertices() const { return points_; }
 
 std::vector<LineSegment2d> Polygon2d::GetAllOverlaps(
     const LineSegment2d &line_segment) const {
@@ -513,7 +523,7 @@ Box2d Polygon2d::MinAreaBoundingBox() const {
   if (!is_convex_) {
     Polygon2d convex_polygon;
     ComputeConvexHull(points_, &convex_polygon);
-    CHECK(convex_polygon.is_convex());
+    ACHECK(convex_polygon.is_convex());
     return convex_polygon.MinAreaBoundingBox();
   }
   double min_area = std::numeric_limits<double>::infinity();
@@ -571,7 +581,7 @@ Polygon2d Polygon2d::ExpandByDistance(const double distance) const {
   if (!is_convex_) {
     Polygon2d convex_polygon;
     ComputeConvexHull(points_, &convex_polygon);
-    CHECK(convex_polygon.is_convex());
+    ACHECK(convex_polygon.is_convex());
     return convex_polygon.ExpandByDistance(distance);
   }
   const double kMinAngle = 0.1;
@@ -586,23 +596,22 @@ Polygon2d Polygon2d::ExpandByDistance(const double distance) const {
     } else {
       const int count = static_cast<int>(diff / kMinAngle) + 1;
       for (int k = 0; k <= count; ++k) {
-        const double angle =
-            start_angle +
-            diff * static_cast<double>(k) / static_cast<double>(count);
+        const double angle = start_angle + diff * static_cast<double>(k) /
+                                               static_cast<double>(count);
         points.push_back(points_[i] + Vec2d::CreateUnitVec2d(angle) * distance);
       }
     }
   }
   Polygon2d new_polygon;
-  CHECK(ComputeConvexHull(points, &new_polygon));
+  ACHECK(ComputeConvexHull(points, &new_polygon));
   return new_polygon;
 }
 
 std::string Polygon2d::DebugString() const {
-  return util::StrCat("polygon2d (  num_points = ", num_points_, "  points = (",
-                      util::PrintDebugStringIter(points_), " )  ",
-                      is_convex_ ? "convex" : "non-convex", "  area = ", area_,
-                      " )");
+  return absl::StrCat("polygon2d (  num_points = ", num_points_, "  points = (",
+                      absl::StrJoin(points_, " ", util::DebugStringFormatter()),
+                      " )  ", is_convex_ ? "convex" : "non-convex",
+                      "  area = ", area_, " )");
 }
 
 }  // namespace math

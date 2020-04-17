@@ -18,16 +18,11 @@
  * @file:
  **/
 
-#ifndef MODULES_MAP_PNC_MAP_PNC_MAP_H_
-#define MODULES_MAP_PNC_MAP_PNC_MAP_H_
+#pragma once
 
-#include <array>
-#include <limits>
 #include <list>
-#include <memory>
 #include <string>
 #include <unordered_set>
-#include <utility>
 #include <vector>
 
 #include "gflags/gflags.h"
@@ -39,6 +34,10 @@
 #include "modules/map/hdmap/hdmap.h"
 #include "modules/map/pnc_map/path.h"
 #include "modules/map/pnc_map/route_segments.h"
+
+DECLARE_double(look_backward_distance);
+DECLARE_double(look_forward_short_distance);
+DECLARE_double(look_forward_long_distance);
 
 namespace apollo {
 namespace hdmap {
@@ -54,12 +53,16 @@ class PncMap {
 
   const routing::RoutingResponse &routing_response() const;
 
-  static bool CreatePathFromLaneSegments(const RouteSegments &segments,
-                                         Path *const path);
+  static double LookForwardDistance(const double velocity);
 
   bool GetRouteSegments(const common::VehicleState &vehicle_state,
                         const double backward_length,
                         const double forward_length,
+                        std::list<RouteSegments> *const route_segments);
+  /**
+   * @brief use heuristic forward length and backward length
+   */
+  bool GetRouteSegments(const common::VehicleState &vehicle_state,
                         std::list<RouteSegments> *const route_segments);
 
   /**
@@ -223,5 +226,3 @@ class PncMap {
 
 }  // namespace hdmap
 }  // namespace apollo
-
-#endif  // MODULES_MAP_PNC_MAP_PNC_MAP_H_

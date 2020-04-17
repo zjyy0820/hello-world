@@ -16,14 +16,13 @@
 
 #include "modules/localization/msf/local_tool/local_visualization/engine/visualization_manager.h"
 
+#include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/filesystem.hpp>
+
 #include <algorithm>
-#include <string>
-#include <vector>
+#include <thread>
 
-#include "boost/date_time/posix_time/posix_time.hpp"
-#include "boost/filesystem.hpp"
-
-#include "modules/common/log.h"
+#include "cyber/common/log.h"
 
 namespace apollo {
 namespace localization {
@@ -32,7 +31,7 @@ namespace msf {
 // ===================MessageBuffer=======================
 template <class MessageType>
 MessageBuffer<MessageType>::MessageBuffer(int capacity) : capacity_(capacity) {
-  pthread_mutex_init(&buffer_mutex_, NULL);
+  pthread_mutex_init(&buffer_mutex_, nullptr);
 }
 
 template <class MessageType>
@@ -163,7 +162,7 @@ template <class MessageType>
 unsigned int MessageBuffer<MessageType>::BufferSize() {
   unsigned int size = 0;
   pthread_mutex_lock(&buffer_mutex_);
-  size = msg_list_.size();
+  size = static_cast<unsigned int>(msg_list_.size());
   pthread_mutex_unlock(&buffer_mutex_);
 
   return size;
@@ -252,7 +251,7 @@ bool IntepolationMessageBuffer<MessageType>::WaitMessageBufferOk(
 
   while (last_iter->first < timestamp) {
     AINFO << "Waiting new message!";
-    usleep(5000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
     pthread_mutex_lock(&(this->buffer_mutex_));
     msg_list->clear();
     std::copy(this->msg_list_.begin(), this->msg_list_.end(),
@@ -369,7 +368,7 @@ void VisualizationManager::StopVisualization() {
 
 void VisualizationManager::DoVisualize() {
   while (!(stop_visualization_.load())) {
-    usleep(10000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
     // if (!lidar_frame_buffer_.IsEmpty()) {
     if (lidar_frame_buffer_.BufferSize() > 5) {
       LidarVisFrame lidar_frame;

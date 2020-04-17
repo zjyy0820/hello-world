@@ -14,8 +14,7 @@
  * limitations under the License.
  *****************************************************************************/
 
-#ifndef MODULES_DRIVERS_RADAR_RACOBIT_RADAR_PROTOCOL_RADAR_CONFIG_200_H_
-#define MODULES_DRIVERS_RADAR_RACOBIT_RADAR_PROTOCOL_RADAR_CONFIG_200_H_
+#pragma once
 
 #include "modules/drivers/canbus/can_comm/protocol_data.h"
 #include "modules/drivers/proto/racobit_radar.pb.h"
@@ -26,8 +25,8 @@ namespace racobit_radar {
 
 using apollo::drivers::RacobitRadar;
 using apollo::drivers::racobit_radar::OutputType;
-using apollo::drivers::racobit_radar::RcsThreshold;
 using apollo::drivers::racobit_radar::RadarConf;
+using apollo::drivers::racobit_radar::RcsThreshold;
 
 class RadarConfig200
     : public apollo::drivers::canbus::ProtocolData<RacobitRadar> {
@@ -105,5 +104,3 @@ class RadarConfig200
 }  // namespace racobit_radar
 }  // namespace drivers
 }  // namespace apollo
-
-#endif  // MODULES_DRIVERS_RADAR_RACOBIT_RADAR_PROTOCOL_RADAR_CONFIG_200_H_

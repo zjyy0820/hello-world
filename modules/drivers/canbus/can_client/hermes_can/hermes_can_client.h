@@ -14,8 +14,7 @@
  * limitations under the License.
  *****************************************************************************/
 
-#ifndef MODULES_DRIVERS_CANBUS_CAN_CLIENT_CLIENT_HERMES_CAN_CLIENT_H
-#define MODULES_DRIVERS_CANBUS_CAN_CLIENT_CLIENT_HERMES_CAN_CLIENT_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -27,6 +26,7 @@
 #include "modules/drivers/canbus/proto/can_card_parameter.pb.h"
 
 #include "modules/drivers/canbus/can_client/hermes_can/bcan.h"
+
 /**
  * @namespace apollo::drivers::canbus::can
  * @brief apollo::drivers::canbus::can
@@ -117,7 +117,5 @@ class HermesCanClient : public CanClient {
 }  // namespace canbus
 }  // namespace drivers
 }  // namespace apollo
-
-#endif  // MODULES_DRIVERS_CANBUS_CAN_CLIENT_CLIENT_HERMES_CAN_CLIENT_H
 
 /* vim: set expandtab ts=4 sw=4 sts=4 tw=100: */

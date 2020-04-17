@@ -19,11 +19,10 @@
  * @brief the class of Version7f (for lincoln vehicle)
  */
 
-#ifndef MODULES_CANBUS_VEHICL_LINCOLN_PROTOCOL_VERSION_7F_H_
-#define MODULES_CANBUS_VEHICL_LINCOLN_PROTOCOL_VERSION_7F_H_
+#pragma once
 
-#include "modules/drivers/canbus/can_comm/protocol_data.h"
 #include "modules/canbus/proto/chassis_detail.pb.h"
+#include "modules/drivers/canbus/can_comm/protocol_data.h"
 
 /**
  * @namespace apollo::canbus::lincoln
@@ -39,7 +38,7 @@ namespace lincoln {
  * @brief one of the protocol data of lincoln vehicle
  */
 class Version7f : public ::apollo::drivers::canbus::ProtocolData<
-                    ::apollo::canbus::ChassisDetail> {
+                      ::apollo::canbus::ChassisDetail> {
  public:
   static const int32_t ID;
 
@@ -88,5 +87,3 @@ class Version7f : public ::apollo::drivers::canbus::ProtocolData<
 }  // namespace lincoln
 }  // namespace canbus
 }  // namespace apollo
-
-#endif  // MODULES_CANBUS_VEHICL_LINCOLN_PROTOCOL_VERSION_7F_H_

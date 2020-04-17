@@ -19,11 +19,10 @@
  * @brief the class of Throttle62 (for lincoln vehicle)
  */
 
-#ifndef MODULES_CANBUS_VEHICL_LINCOLN_PROTOCOL_THROTTLE_62_H_
-#define MODULES_CANBUS_VEHICL_LINCOLN_PROTOCOL_THROTTLE_62_H_
+#pragma once
 
-#include "modules/drivers/canbus/can_comm/protocol_data.h"
 #include "modules/canbus/proto/chassis_detail.pb.h"
+#include "modules/drivers/canbus/can_comm/protocol_data.h"
 
 /**
  * @namespace apollo::canbus::lincoln
@@ -39,7 +38,7 @@ namespace lincoln {
  * @brief one of the protocol data of lincoln vehicle
  */
 class Throttle62 : public ::apollo::drivers::canbus::ProtocolData<
-                    ::apollo::canbus::ChassisDetail> {
+                       ::apollo::canbus::ChassisDetail> {
  public:
   static const int32_t ID;
 
@@ -132,5 +131,3 @@ class Throttle62 : public ::apollo::drivers::canbus::ProtocolData<
 }  // namespace lincoln
 }  // namespace canbus
 }  // namespace apollo
-
-#endif  // MODULES_CANBUS_VEHICL_LINCOLN_PROTOCOL_THROTTLE_62_H_

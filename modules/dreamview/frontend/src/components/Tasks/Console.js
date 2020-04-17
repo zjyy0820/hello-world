@@ -4,10 +4,10 @@ import classNames from "classnames";
 
 import warnIcon from "assets/images/icons/warning.png";
 import errorIcon from "assets/images/icons/error.png";
-import { timestampMsToTime } from "utils/misc";
+import { timestampMsToTimeString } from "utils/misc";
 
 @observer
-class MonitorItem extends React.Component {
+export class MonitorItem extends React.Component {
     render() {
         const { level, text, time } = this.props;
 
@@ -39,9 +39,9 @@ export default class Console extends React.Component {
                     <ul className="console">
                         {monitor.items.map((item, index) => (
                             <MonitorItem key={index} text={item.msg}
-                                         level={item.logLevel}
-                                         time={timestampMsToTime(item.timestampMs)} />
-                         ))}
+                                level={item.logLevel}
+                                time={timestampMsToTimeString(item.timestampMs)} />
+                        ))}
                     </ul>
                 </div>
             </div>

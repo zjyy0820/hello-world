@@ -4,43 +4,36 @@ package(default_visibility = ["//visibility:public"])
 
 cc_library(
     name = "time",
-    srcs = [
-        "timer.cc",
-    ],
+    srcs = ["timer.cc"],
     hdrs = [
         "time.h",
         "time_util.h",
         "timer.h",
     ],
     deps = [
-        "//modules/common:log",
-        "//modules/common:macro",
+        "//cyber/time",
         "//modules/common/configs:config_gflags",
-        "@ros//:ros_common",
+        "@com_google_absl//absl/time",
     ],
 )
 
 cc_test(
     name = "time_test",
     size = "small",
-    srcs = [
-        "time_test.cc",
-    ],
+    srcs = ["time_test.cc"],
     deps = [
         ":time",
-        "@gtest//:main",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
 cc_test(
     name = "timer_test",
     size = "small",
-    srcs = [
-        "timer_test.cc",
-    ],
+    srcs = ["timer_test.cc"],
     deps = [
         ":time",
-        "@gtest//:main",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 

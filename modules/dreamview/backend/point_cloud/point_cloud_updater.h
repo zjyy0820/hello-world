@@ -18,23 +18,21 @@
  * @file
  */
 
-#ifndef MODULES_DREAMVIEW_BACKEND_POINT_CLOUD_POINT_CLOUD_UPDATER_H_
-#define MODULES_DREAMVIEW_BACKEND_POINT_CLOUD_POINT_CLOUD_UPDATER_H_
+#pragma once
 
-#include <atomic>
-#include <future>
+#include <boost/thread/locks.hpp>
+#include <boost/thread/shared_mutex.hpp>
+#include <memory>
 #include <string>
 
-#include "boost/thread/locks.hpp"
-#include "boost/thread/shared_mutex.hpp"
-
-#include "modules/common/log.h"
+#include "cyber/common/log.h"
+#include "cyber/cyber.h"
 #include "modules/common/util/string_util.h"
 #include "modules/dreamview/backend/handlers/websocket_handler.h"
+#include "modules/drivers/proto/pointcloud.pb.h"
 #include "modules/localization/proto/localization.pb.h"
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
-#include "sensor_msgs/PointCloud2.h"
 
 /**
  * @namespace apollo::dreamview
@@ -58,21 +56,36 @@ class PointCloudUpdater {
   explicit PointCloudUpdater(WebSocketHandler *websocket);
   ~PointCloudUpdater();
 
+  static void LoadLidarHeight(const std::string &file_path);
+
   /**
    * @brief Starts to push PointCloud to frontend.
    */
   void Start();
   void Stop();
 
+  // The height of lidar w.r.t the ground.
+  static float lidar_height_;
+
+  // Mutex to protect concurrent access to point_cloud_str_ and lidar_height_.
+  // NOTE: Use boost until we have std version of rwlock support.
+  static boost::shared_mutex mutex_;
+
  private:
   void RegisterMessageHandlers();
 
-  void UpdatePointCloud(const sensor_msgs::PointCloud2 &point_cloud);
+  void UpdatePointCloud(
+      const std::shared_ptr<drivers::PointCloud> &point_cloud);
 
   void FilterPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_ptr);
 
   void UpdateLocalizationTime(
-      const apollo::localization::LocalizationEstimate &localization);
+      const std::shared_ptr<apollo::localization::LocalizationEstimate>
+          &localization);
+
+  constexpr static float kDefaultLidarHeight = 1.91f;
+
+  std::unique_ptr<cyber::Node> node_;
 
   WebSocketHandler *websocket_;
 
@@ -81,11 +94,13 @@ class PointCloudUpdater {
   // The PointCloud to be pushed to frontend.
   std::string point_cloud_str_;
 
-  // Mutex to protect concurrent access to point_cloud_str_.
-  // NOTE: Use boost until we have std version of rwlock support.
-  boost::shared_mutex mutex_;
   std::future<void> async_future_;
   std::atomic<bool> future_ready_;
+
+  // Cyber messsage readers.
+  std::shared_ptr<cyber::Reader<apollo::localization::LocalizationEstimate>>
+      localization_reader_;
+  std::shared_ptr<cyber::Reader<drivers::PointCloud>> point_cloud_reader_;
 
   double last_point_cloud_time_ = 0.0;
   double last_localization_time_ = 0.0;
@@ -93,5 +108,3 @@ class PointCloudUpdater {
 
 }  // namespace dreamview
 }  // namespace apollo
-
-#endif  // MODULES_DREAMVIEW_BACKEND_POINT_CLOUD_POINT_CLOUD_UPDATER_H_

@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright 2017 The Apollo Authors. All Rights Reserved.
+ * Copyright 2018 The Apollo Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,10 @@
  * limitations under the License.
  *****************************************************************************/
 
-#ifndef MODULES_LOCALIZATION_MSF_LOCAL_MAP_LOSSY_MAP_LOSSY_MAP_CONFIG_2D_H_
-#define MODULES_LOCALIZATION_MSF_LOCAL_MAP_LOSSY_MAP_LOSSY_MAP_CONFIG_2D_H_
+#pragma once
 
 #include <string>
+
 #include "modules/localization/msf/local_map/base_map/base_map_config.h"
 
 namespace apollo {
@@ -54,5 +54,3 @@ class LossyMapConfig2D : public BaseMapConfig {
 }  // namespace msf
 }  // namespace localization
 }  // namespace apollo
-
-#endif  // MODULES_LOCALIZATION_MSF_LOCAL_MAP_LOSSY_MAP_LOSSY_MAP_CONFIG_2D_H_

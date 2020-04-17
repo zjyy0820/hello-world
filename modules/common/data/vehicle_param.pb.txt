@@ -1,0 +1,48 @@
+vehicle_param {
+  brand: LINCOLN_MKZ
+
+  front_edge_to_center: 0.89
+  back_edge_to_center: 0.89
+  left_edge_to_center: 0.43
+  right_edge_to_center: 0.43
+
+  length: 1.78
+  width: 0.86
+  height: 0.48
+  min_turn_radius: 2.50000000
+  max_acceleration: 4.0
+  max_deceleration: -6.0
+  max_steer_angle: 0.52359877559
+  max_steer_angle_rate: 0.52359877559
+  steer_ratio: 1
+  wheel_base: 1.000
+  wheel_rolling_radius: 0.202
+  max_abs_speed_when_stopped: 0.2
+
+  brake_deadzone: 15.5
+  throttle_deadzone: 18.0
+
+  steering_latency_param
+  {
+      dead_time: 0.1
+      rise_time: 0.17
+      peak_time: 0.0
+      settling_time: 0.0
+  }
+
+  throttle_latency_param
+  {
+      dead_time: 0.03
+      rise_time: 0.0
+      peak_time: 0.0
+      settling_time: 0.0
+  }
+
+  brake_latency_param
+  {
+      dead_time: 0.0
+      rise_time: 0.0
+      peak_time: 0.0
+      settling_time: 0.0
+  }
+}

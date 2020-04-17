@@ -1,17 +1,17 @@
 package(default_visibility = ["//visibility:public"])
 
 filegroup(
-    name = "map_sunnyvale_big_loop",
+    name = "map_xiaolan_big_loop",
     testonly = True,
     srcs = glob([
-        "sunnyvale_big_loop/**",
+        "demo/**",
     ]),
 )
 
 filegroup(
-    name = "map_sunnyvale_loop",
+    name = "map_xiaolan_loop",
     testonly = True,
     srcs = glob([
-        "sunnyvale_loop/**",
+        "demo/**",
     ]),
 )

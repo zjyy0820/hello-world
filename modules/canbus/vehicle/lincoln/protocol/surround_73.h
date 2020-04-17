@@ -19,8 +19,7 @@
  * @brief the class of Surround73 (for lincoln vehicle)
  */
 
-#ifndef MODULES_CANBUS_VEHICL_LINCOLN_PROTOCOL_SURROUND_73_H_
-#define MODULES_CANBUS_VEHICL_LINCOLN_PROTOCOL_SURROUND_73_H_
+#pragma once
 
 #include "modules/canbus/proto/chassis_detail.pb.h"
 #include "modules/drivers/canbus/can_comm/protocol_data.h"
@@ -114,5 +113,3 @@ class Surround73 : public ::apollo::drivers::canbus::ProtocolData<
 }  // namespace lincoln
 }  // namespace canbus
 }  // namespace apollo
-
-#endif  // MODULES_CANBUS_VEHICL_LINCOLN_PROTOCOL_SURROUND_73_H_

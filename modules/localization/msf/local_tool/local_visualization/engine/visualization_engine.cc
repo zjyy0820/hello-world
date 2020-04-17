@@ -16,20 +16,17 @@
 
 #include "modules/localization/msf/local_tool/local_visualization/engine/visualization_engine.h"
 
-#include <cstdio>
-#include <fstream>
+#include <boost/filesystem.hpp>
 
-#include "boost/filesystem.hpp"
-
-#include "modules/common/log.h"
-#include "modules/common/util/file.h"
+#include "cyber/common/file.h"
+#include "cyber/common/log.h"
 
 namespace apollo {
 namespace localization {
 namespace msf {
 
-using apollo::common::util::DirectoryExists;
-using apollo::common::util::EnsureDirectory;
+using cyber::common::DirectoryExists;
+using cyber::common::EnsureDirectory;
 
 #define PI 3.1415926535897932346
 
@@ -42,16 +39,10 @@ const char car_img_path[3][1024] = {
 
 // =================VisualizationEngine=================
 bool MapImageKey::operator<(const MapImageKey &key) const {
-  if (level != key.level) {
-    return level < key.level;
-  }
-  if (zone_id != key.zone_id) {
-    return zone_id < key.zone_id;
-  }
-  if (node_north_id != key.node_north_id) {
-    return node_north_id < key.node_north_id;
-  }
-  return node_east_id < key.node_east_id;
+  // Compare elements by priority.
+  return std::forward_as_tuple(level, zone_id, node_north_id, node_east_id) <
+         std::forward_as_tuple(key.level, key.zone_id, key.node_north_id,
+                               key.node_east_id);
 }
 
 // =================MapImageCache=================
@@ -231,11 +222,12 @@ void VisualizationEngine::Preprocess(const std::string &map_folder,
     }
   }
 
-  if (map_bin_path.size() == 0) {
+  if (map_bin_path.empty()) {
     return;
   }
 
-  GenerateMutiResolutionImages(map_bin_path, image_resolution_path.length(),
+  GenerateMutiResolutionImages(map_bin_path,
+                               static_cast<int>(image_resolution_path.length()),
                                image_visual_resolution_path_);
 }
 
@@ -444,8 +436,8 @@ void VisualizationEngine::DrawStd(const cv::Point &bias) {
           unsigned char g = color_table[i % 3][1];
           unsigned char r = color_table[i % 3][2];
 
-          cv::Size size(std::sqrt(std[0]) * 200 + 1.0,
-                        std::sqrt(std[1]) * 200 + 1.0);
+          cv::Size size(static_cast<int>(std::sqrt(std[0]) * 200.0 + 1.0),
+                        static_cast<int>(std::sqrt(std[1]) * 200.0 + 1.0));
           cv::ellipse(big_window_, lt, size, 0, 0, 360, cv::Scalar(b, g, r), 2,
                       8);
         }
@@ -575,10 +567,13 @@ void VisualizationEngine::DrawTips() {
 }
 
 void VisualizationEngine::UpdateLevel() {
-  if (cur_scale_ > max_stride_ * 1.5) SetScale(max_stride_ * 1.5);
-  if (cur_scale_ < 0.5) SetScale(0.5);
-
-  // caculate which image level to use
+  if (cur_scale_ > max_stride_ * 1.5) {
+    SetScale(max_stride_ * 1.5);
+  }
+  if (cur_scale_ < 0.5) {
+    SetScale(0.5);
+  }
+  // calculate which image level to use
   cur_level_ = 0;
   cur_stride_ = 1;
   double radius = cur_scale_ / 2;
@@ -596,8 +591,8 @@ void VisualizationEngine::GenerateMutiResolutionImages(
   int x_max = -1;
   int y_min = INT_MAX;
   int y_max = -1;
-  for (unsigned int i = 0; i < src_files.size(); ++i) {
-    int len = src_files[i].length();
+  for (size_t i = 0; i < src_files.size(); ++i) {
+    int len = static_cast<int>(src_files[i].length());
     // src_file example: image/000/north/50/00034661/00003386.png
     int y = std::stoi(src_files[i].substr(len - 21, 8));
     int x = std::stoi(src_files[i].substr(len - 12, 8));
@@ -610,7 +605,7 @@ void VisualizationEngine::GenerateMutiResolutionImages(
   y_max += 1;
   x_max += 1;
 
-  // caculate how many level need to create
+  // calculate how many level need to create
   int level = 1;
   int range = 1;
   while (range < x_max - x_min || range < y_max - y_min) {
@@ -650,7 +645,7 @@ void VisualizationEngine::GenerateMutiResolutionImages(
             snprintf(ss, sizeof(ss), "%s/%08d/%08d_%d.png",
                      image_visual_path_dst.c_str(), pt_y + i * step,
                      pt_x + j * step, lvl - 1);
-            if (apollo::common::util::PathExists(ss)) {
+            if (cyber::common::PathExists(ss)) {
               flag = true;
               cv::Mat img = cv::imread(ss);
               img.copyTo(large(cv::Rect(j * 1024, i * 1024, 1024, 1024)));
@@ -678,7 +673,6 @@ void VisualizationEngine::GenerateMutiResolutionImages(
               image_visual_path_dst.length() - dst_folder.length() - 3)
        << std::endl;
   outf.close();
-  return;
 }
 
 bool VisualizationEngine::InitOtherParams(const std::string &params_file) {
@@ -739,10 +733,10 @@ void VisualizationEngine::CloudToMat(const Eigen::Affine3d &cur_pose,
   unsigned int img_width = map_param_.map_node_size_x;
   unsigned int img_height = map_param_.map_node_size_y;
   Eigen::Vector3d cen = car_pose_.translation();
-  cloud_img_lt_coord_[0] =
-      cen[0] - map_param_.map_resolutions[resolution_id_] * (img_width / 2.0f);
-  cloud_img_lt_coord_[1] =
-      cen[1] - map_param_.map_resolutions[resolution_id_] * (img_height / 2.0f);
+  cloud_img_lt_coord_[0] = cen[0] - map_param_.map_resolutions[resolution_id_] *
+                                        (static_cast<float>(img_width) / 2.0f);
+  cloud_img_lt_coord_[1] = cen[1] - map_param_.map_resolutions[resolution_id_] *
+                                        (static_cast<float>(img_height) / 2.0f);
 
   cloud_img_.setTo(cv::Scalar(0, 0, 0));
   cloud_img_mask_.setTo(cv::Scalar(0));
@@ -776,18 +770,18 @@ void VisualizationEngine::CoordToImageKey(const Eigen::Vector2d &coord,
   DCHECK_LT(resolution_id_, map_param_.map_resolutions.size());
   key->zone_id = zone_id_;
   int n = static_cast<int>((coord[0] - map_param_.map_min_x) /
-                           (map_param_.map_node_size_x *
+                           (static_cast<float>(map_param_.map_node_size_x) *
                             map_param_.map_resolutions[resolution_id_]));
   int m = static_cast<int>((coord[1] - map_param_.map_min_y) /
-                           (map_param_.map_node_size_y *
+                           (static_cast<float>(map_param_.map_node_size_y) *
                             map_param_.map_resolutions[resolution_id_]));
   int max_n = static_cast<int>((map_param_.map_max_x - map_param_.map_min_x) /
-                               (map_param_.map_node_size_x *
+                               (static_cast<float>(map_param_.map_node_size_x) *
                                 map_param_.map_resolutions[resolution_id_]));
-  int max_m =
-      static_cast<unsigned int>((map_param_.map_max_y - map_param_.map_min_y) /
-                                (map_param_.map_node_size_y *
-                                 map_param_.map_resolutions[resolution_id_]));
+  int max_m = static_cast<unsigned int>(
+      (map_param_.map_max_y - map_param_.map_min_y) /
+      (static_cast<float>(map_param_.map_node_size_y) *
+       map_param_.map_resolutions[resolution_id_]));
 
   if (n >= 0 && m >= 0 && n < max_n && m < max_m) {
     key->node_north_id = m;
@@ -797,11 +791,15 @@ void VisualizationEngine::CoordToImageKey(const Eigen::Vector2d &coord,
   }
 
   m = static_cast<int>(key->node_north_id) - lt_node_index_.y;
-  if (m < 0) m = m - (cur_stride_ - 1);
+  if (m < 0) {
+    m = m - (cur_stride_ - 1);
+  }
   key->node_north_id = m / cur_stride_ * cur_stride_ + lt_node_index_.y;
 
   n = static_cast<int>(key->node_east_id) - lt_node_index_.x;
-  if (n < 0) n = n - (cur_stride_ - 1);
+  if (n < 0) {
+    n = n - (cur_stride_ - 1);
+  }
   key->node_east_id = n / cur_stride_ * cur_stride_ + lt_node_index_.x;
 }
 
@@ -841,7 +839,7 @@ bool VisualizationEngine::LoadImageToCache(const MapImageKey &key) {
     snprintf(path, sizeof(path), "%s/%02d/%08d/%08d_%d.png",
              image_visual_leaf_path_.c_str(), key.zone_id, key.node_north_id,
              key.node_east_id, key.level);
-    if (apollo::common::util::PathExists(path)) {
+    if (cyber::common::PathExists(path)) {
       img = cv::imread(path);
       AINFO << "visualizer load: " << path;
       map_image_cache_.Set(key, img);
@@ -862,7 +860,8 @@ void VisualizationEngine::RotateImg(const cv::Mat &in_img, cv::Mat *out_img,
   in_img.copyTo(
       mat_tem(cv::Rect(width / 2 - in_img.cols / 2, width / 2 - in_img.rows / 2,
                        in_img.cols, in_img.rows)));
-  cv::Point2f pt(width / 2.0f, width / 2.0f);
+  cv::Point2f pt(static_cast<float>(width) / 2.0f,
+                 static_cast<float>(width) / 2.0f);
   cv::Mat rotation_mat = cv::getRotationMatrix2D(pt, angle, 1.0);
   cv::warpAffine(mat_tem, *out_img, rotation_mat, cv::Size(width, width));
 }

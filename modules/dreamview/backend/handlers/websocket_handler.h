@@ -18,8 +18,7 @@
  * @file
  */
 
-#ifndef MODULES_DREAMVIEW_BACKEND_HANDLERS_WEBSOCKET_HANDLER_H_
-#define MODULES_DREAMVIEW_BACKEND_HANDLERS_WEBSOCKET_HANDLER_H_
+#pragma once
 
 #include <memory>
 #include <mutex>
@@ -84,7 +83,7 @@ class WebSocketHandler : public CivetWebSocketHandler {
    * client.
    *
    * @details In the websocket protocol, data is transmitted using a sequence of
-   * frames, and each frame received invokes this callback method. Since the the
+   * frames, and each frame received invokes this callback method. Since the
    * type of opcode (text, binary, etc) is given in the first frame, this method
    * stores the opcode in a thread_local variable named current_opcode_. And
    * data from each frame is accumulated to data_ until the final fragment is
@@ -128,7 +127,7 @@ class WebSocketHandler : public CivetWebSocketHandler {
    * being sent to this connection.
    */
   bool SendData(Connection *conn, const std::string &data,
-                bool skippable = false, int op_code = WEBSOCKET_OPCODE_TEXT);
+                bool skippable = false, int op_code = MG_WEBSOCKET_OPCODE_TEXT);
 
   bool SendBinaryData(Connection *conn, const std::string &data,
                       bool skippable = false);
@@ -161,14 +160,14 @@ class WebSocketHandler : public CivetWebSocketHandler {
   // The mutex guarding the connection set. We are not using read
   // write lock, as the server is not expected to get many clients
   // (connections).
+  // CAVEAT: Execution section while holding this global lock should be as
+  // brief as possible.
   mutable std::mutex mutex_;
 
   // The pool of all maintained connections. Each connection has a lock to
-  // against simultaneous write.
+  // guard against simultaneous write.
   std::unordered_map<Connection *, std::shared_ptr<std::mutex>> connections_;
 };
 
 }  // namespace dreamview
 }  // namespace apollo
-
-#endif /* MODULES_DREAMVIEW_BACKEND_HANDLERS_WEBSOCKET_HANDLER_H_ */

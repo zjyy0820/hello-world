@@ -18,51 +18,41 @@
  * @file conti_radar_message_manager.h
  * @brief The class of ContiRadarMessageManager
  */
-#ifndef MODULES_DRIVERS_RADAR_CONTI_RADAR_CONTI_RADAR_MESSAGE_MANAGER_H_
-#define MODULES_DRIVERS_RADAR_CONTI_RADAR_CONTI_RADAR_MESSAGE_MANAGER_H_
+#pragma once
 
 #include <memory>
+
+#include "cyber/cyber.h"
 #include "modules/drivers/canbus/can_client/can_client_factory.h"
 #include "modules/drivers/canbus/can_comm/can_sender.h"
 #include "modules/drivers/canbus/can_comm/message_manager.h"
-#include "modules/drivers/radar/conti_radar/protocol/radar_config_200.h"
 #include "modules/drivers/proto/conti_radar.pb.h"
-
-#include "modules/common/adapters/adapter_manager.h"
-#include "modules/drivers/canbus/sensor_gflags.h"
+#include "modules/drivers/radar/conti_radar/protocol/radar_config_200.h"
 
 namespace apollo {
 namespace drivers {
 namespace conti_radar {
 
-using ::apollo::drivers::canbus::ProtocolData;
-using ::apollo::common::adapter::AdapterManager;
-using ::apollo::drivers::canbus::MessageManager;
-using Clock = ::apollo::common::time::Clock;
-using micros = std::chrono::microseconds;
-using ::apollo::common::ErrorCode;
-using apollo::drivers::canbus::CanClient;
-using apollo::drivers::canbus::SenderMessage;
-using apollo::drivers::conti_radar::RadarConfig200;
-
-class ContiRadarMessageManager : public MessageManager<ContiRadar> {
+class ContiRadarMessageManager
+    : public apollo::drivers::canbus::MessageManager<ContiRadar> {
  public:
-  ContiRadarMessageManager();
+  explicit ContiRadarMessageManager(
+      const std::shared_ptr<apollo::cyber::Writer<ContiRadar>> &writer);
   virtual ~ContiRadarMessageManager() {}
   void set_radar_conf(RadarConf radar_conf);
-  ProtocolData<ContiRadar> *GetMutableProtocolDataById(
+  apollo::drivers::canbus::ProtocolData<ContiRadar> *GetMutableProtocolDataById(
       const uint32_t message_id);
   void Parse(const uint32_t message_id, const uint8_t *data, int32_t length);
-  void set_can_client(std::shared_ptr<CanClient> can_client);
+  void set_can_client(
+      std::shared_ptr<apollo::drivers::canbus::CanClient> can_client);
 
  private:
   bool is_configured_ = false;
   RadarConfig200 radar_config_;
-  std::shared_ptr<CanClient> can_client_;
+  std::shared_ptr<apollo::drivers::canbus::CanClient> can_client_;
+  std::shared_ptr<apollo::cyber::Writer<ContiRadar>> conti_radar_writer_;
 };
 
 }  // namespace conti_radar
 }  // namespace drivers
 }  // namespace apollo
-
-#endif  // MODULES_DRIVERS_RADAR_CONTI_RADAR_CONTI_RADAR_MESSAGE_MANAGER_H_

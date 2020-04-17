@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright 2017 The Apollo Authors. All Rights Reserved.
+ * Copyright 2018 The Apollo Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,10 @@
  * limitations under the License.
  *****************************************************************************/
 
-#ifndef MODULE_LOCALIZAION_MSF_LOCAL_MAP_LOSSLESS_MAP_LOSSLESS_MAP_NODE_H_
-#define MODULE_LOCALIZAION_MSF_LOCAL_MAP_LOSSLESS_MAP_LOSSLESS_MAP_NODE_H_
+#pragma once
 
 #include <vector>
+
 #include "modules/localization/msf/local_map/base_map/base_map_node.h"
 #include "modules/localization/msf/local_map/lossless_map/lossless_map_matrix.h"
 
@@ -42,7 +42,7 @@ class LosslessMapNode : public BaseMapNode {
    * */
   bool SetValueIfInBound(const Eigen::Vector3d& coordinate,
                          unsigned char intensity);
-  /**@brief Set the vlaue of a pixel in a layer in the map node.
+  /**@brief Set the value of a pixel in a layer in the map node.
    * @param <coordinate> The 3D global coordinate. The z is used as the altitude
    * for the layer match.
    * @param <intensity> The reflectance intensity.
@@ -129,13 +129,9 @@ class LosslessMapNode : public BaseMapNode {
   }
 
   /**@brief Get the min altitude of point cloud in the node. */
-  inline float GetMinAltitude() const {
-    return min_altitude_;
-  }
+  inline float GetMinAltitude() const { return min_altitude_; }
   /**@brief Set the min altitude of point cloud in the node. */
-  inline void SetMinAltitude(float altitude) {
-    min_altitude_ = altitude;
-  }
+  inline void SetMinAltitude(float altitude) { min_altitude_ = altitude; }
 
  protected:
   /**@brief The min altitude of point cloud in the node. */
@@ -145,5 +141,3 @@ class LosslessMapNode : public BaseMapNode {
 }  // namespace msf
 }  // namespace localization
 }  // namespace apollo
-
-#endif  // MODULE_LOCALIZAION_MSF_LOCAL_MAP_LOSSLESS_MAP_LOSSLESS_MAP_NODE_H_

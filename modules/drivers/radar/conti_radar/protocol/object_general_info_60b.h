@@ -14,8 +14,7 @@
  * limitations under the License.
  *****************************************************************************/
 
-#ifndef MODULES_DRIVERS_RADAR_CONTI_RADAR_PROTOCOL_OBJECT_GENERAL_INFO_60B_H_
-#define MODULES_DRIVERS_RADAR_CONTI_RADAR_PROTOCOL_OBJECT_GENERAL_INFO_60B_H_
+#pragma once
 
 #include "modules/drivers/canbus/can_comm/protocol_data.h"
 #include "modules/drivers/proto/conti_radar.pb.h"
@@ -53,5 +52,3 @@ class ObjectGeneralInfo60B
 }  // namespace conti_radar
 }  // namespace drivers
 }  // namespace apollo
-
-#endif  // MODULES_CANBUS_VEHICL_ESR_PROTOCOL_OBJECT_GENERAL_INFO_60B_H_

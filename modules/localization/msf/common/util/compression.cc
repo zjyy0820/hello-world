@@ -17,9 +17,8 @@
 #include "modules/localization/msf/common/util/compression.h"
 
 #include <zlib.h>
-#include <cstdio>
 
-#include "modules/common/log.h"
+#include "cyber/common/log.h"
 
 namespace apollo {
 namespace localization {
@@ -27,15 +26,15 @@ namespace msf {
 
 const unsigned int ZlibStrategy::zlib_chunk = 16384;
 
-unsigned int ZlibStrategy::Encode(BufferStr* buf, BufferStr* buf_compressed) {
+int ZlibStrategy::Encode(BufferStr* buf, BufferStr* buf_compressed) {
   return ZlibCompress(buf, buf_compressed);
 }
 
-unsigned int ZlibStrategy::Decode(BufferStr* buf, BufferStr* buf_uncompressed) {
+int ZlibStrategy::Decode(BufferStr* buf, BufferStr* buf_uncompressed) {
   return ZlibUncompress(buf, buf_uncompressed);
 }
 
-unsigned int ZlibStrategy::ZlibCompress(BufferStr* src, BufferStr* dst) {
+int ZlibStrategy::ZlibCompress(BufferStr* src, BufferStr* dst) {
   dst->resize(zlib_chunk * 2);
   int ret, flush;
   unsigned have;
@@ -50,8 +49,9 @@ unsigned int ZlibStrategy::ZlibCompress(BufferStr* src, BufferStr* dst) {
   stream_data.zfree = Z_NULL;
   stream_data.opaque = Z_NULL;
   ret = deflateInit(&stream_data, Z_BEST_SPEED);
-  if (ret != Z_OK) return ret;
-
+  if (ret != Z_OK) {
+    return ret;
+  }
   /* compress until end of file */
   do {
     in = &((*src)[src_idx]);
@@ -59,7 +59,7 @@ unsigned int ZlibStrategy::ZlibCompress(BufferStr* src, BufferStr* dst) {
       stream_data.avail_in = zlib_chunk;
       flush = Z_NO_FLUSH;
     } else {
-      stream_data.avail_in = src->size() - src_idx;
+      stream_data.avail_in = static_cast<unsigned int>(src->size()) - src_idx;
       flush = Z_FINISH;
     }
     stream_data.next_in = in;
@@ -91,7 +91,7 @@ unsigned int ZlibStrategy::ZlibCompress(BufferStr* src, BufferStr* dst) {
   return Z_OK;
 }
 
-unsigned int ZlibStrategy::ZlibUncompress(BufferStr* src, BufferStr* dst) {
+int ZlibStrategy::ZlibUncompress(BufferStr* src, BufferStr* dst) {
   dst->resize(zlib_chunk * 2);
   int ret;
   unsigned have;
@@ -108,20 +108,22 @@ unsigned int ZlibStrategy::ZlibUncompress(BufferStr* src, BufferStr* dst) {
   stream_data.avail_in = 0;
   stream_data.next_in = Z_NULL;
   ret = inflateInit(&stream_data);
-  if (ret != Z_OK) return ret;
-
+  if (ret != Z_OK) {
+    return ret;
+  }
   /* decompress until deflate stream ends or end of file */
   do {
     in = &((*src)[src_idx]);
     if (src->size() - src_idx > zlib_chunk) {
       stream_data.avail_in = zlib_chunk;
     } else {
-      stream_data.avail_in = src->size() - src_idx;
+      stream_data.avail_in = static_cast<unsigned int>(src->size()) - src_idx;
     }
     stream_data.next_in = in;
     src_idx += stream_data.avail_in;
-    if (stream_data.avail_in == 0) break;
-
+    if (stream_data.avail_in == 0) {
+      break;
+    }
     /* run inflate() on input until output buffer not full */
     do {
       stream_data.avail_out = zlib_chunk;

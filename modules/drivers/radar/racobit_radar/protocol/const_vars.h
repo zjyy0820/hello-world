@@ -14,8 +14,7 @@
  * limitations under the License.
  *****************************************************************************/
 
-#ifndef MODULES_DRIVERS_RADAR_RACOBIT_RADAR_CONST_VARS_H_
-#define MODULES_DRIVERS_RADAR_RACOBIT_RADAR_CONST_VARS_H_
+#pragma once
 
 namespace apollo {
 namespace drivers {
@@ -25,7 +24,7 @@ const int CONTIID_START = 0x600;
 const int CONTIID_END = 0x702;
 const int WAIT_TIME = 4000;
 
-// Try this many times when reciving using bcan, by default.
+// Try this many times when receiving using bcan, by default.
 const int BCAN_RECV_TRIES = 4;
 
 const int RADAR_CONFIG = 0x200;
@@ -83,5 +82,3 @@ const double OBJECT_LENGTH_RES = 0.2;
 }  // namespace racobit_radar
 }  // namespace drivers
 }  // namespace apollo
-
-#endif  // MODULES_DRIVERS_RADAR_RACOBIT_RADAR_CONST_VARS_H_

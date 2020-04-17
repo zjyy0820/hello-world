@@ -14,12 +14,9 @@
  * limitations under the License.
  *****************************************************************************/
 
-#ifndef MODULES_LOCALIZATION_MSF_EXTRACT_GROUND_PLANE_H_
-#define MODULES_LOCALIZATION_MSF_EXTRACT_GROUND_PLANE_H_
+#pragma once
 
-#include <cmath>
 #include <map>
-#include <unordered_map>
 #include <vector>
 
 #include "pcl/sample_consensus/impl/ransac.hpp"
@@ -27,6 +24,7 @@
 #include "pcl/sample_consensus/ransac.h"
 #include "pcl/sample_consensus/sac_model_plane.h"
 
+#include "cyber/common/log.h"
 #include "modules/localization/msf/common/util/voxel_grid_covariance_hdmap.h"
 
 namespace apollo {
@@ -56,7 +54,9 @@ class FeatureXYPlane {
 
   void SetPlaneInlierDistance(double d) { plane_inlier_distance_ = d; }
 
-  void SetMinPlanepointsNumber(double d) { min_planepoints_number_ = d; }
+  void SetMinPlanepointsNumber(double d) {
+    min_planepoints_number_ = static_cast<int>(d);
+  }
 
   void SetPlaneTypeDegree(double d) { plane_type_degree_ = d; }
 
@@ -65,7 +65,7 @@ class FeatureXYPlane {
   float CalculateDegree(const Eigen::Vector3f& tmp0,
                         const Eigen::Vector3f& tmp1) {
     float cos_theta = tmp0.dot(tmp1) / (tmp0.norm() * tmp1.norm());
-    return std::acos(cos_theta) * 180.0 / M_PI;
+    return static_cast<float>(std::acos(cos_theta) * 180.0 / M_PI);
   }
 
   PointCloudPtrT& GetXYPlaneCloud() { return xy_plane_cloud_; }
@@ -76,7 +76,7 @@ class FeatureXYPlane {
     xy_plane_cloud_.reset(new PointCloudT);
     PointCloudPtrT pointcloud_ptr(new PointCloudT);
     pcl::copyPointCloud<PointT>(*cloud, *pointcloud_ptr);
-    int iter_num = log2(max_grid_size_ / min_grid_size_);
+    int iter_num = static_cast<int>(log2(max_grid_size_ / min_grid_size_));
     if (iter_num == 0) {
       iter_num = 1;
     }
@@ -86,7 +86,7 @@ class FeatureXYPlane {
     double power2 = 0.5;  // 2^-1
     for (int iter = 0; iter <= iter_num; ++iter) {
       power2 *= 2;
-      double grid_size = max_grid_size_ / power2;
+      float grid_size = static_cast<float>(max_grid_size_ / power2);
       VoxelGridCovariance<PointT> vgc;
       vgc.setInputCloud(pointcloud_ptr);
       vgc.SetMinPointPerVoxel(min_planepoints_number_);
@@ -109,8 +109,7 @@ class FeatureXYPlane {
           cloud_tmp += it->second.cloud_;
         }
       }
-      std::cerr << "the " << iter << " interation: plane_num = " << plane_num
-                << std::endl;
+      AINFO << "the " << iter << " interation: plane_num = " << plane_num;
       total_plane_num += plane_num;
       pointcloud_ptr.reset(new PointCloudT);
       *pointcloud_ptr = cloud_tmp;
@@ -118,12 +117,10 @@ class FeatureXYPlane {
 
     *non_xy_plane_cloud_ = *pointcloud_ptr;
     plane_time = std::clock() - plane_time;
-    std::cerr << "plane_patch takes:"
-              << static_cast<double>(plane_time) / CLOCKS_PER_SEC << "sec."
-              << std::endl;
-    std::cerr << "total_plane_num = " << total_plane_num << std::endl;
-    std::cerr << "total_points_num = " << xy_plane_cloud_->points.size()
-              << std::endl;
+    AINFO << "plane_patch takes:"
+          << static_cast<double>(plane_time) / CLOCKS_PER_SEC << "sec.";
+    AINFO << "total_plane_num = " << total_plane_num;
+    AINFO << "total_points_num = " << xy_plane_cloud_->points.size();
     return;
   }
 
@@ -148,7 +145,8 @@ class FeatureXYPlane {
     std::vector<int> outliers;
     unsigned int inlier_idx = 0;
     for (unsigned int i = 0; i < cloud_new->points.size(); ++i) {
-      if (static_cast<int>(i) < inliers[inlier_idx]) {
+      if (inlier_idx >= inliers.size() ||
+          static_cast<int>(i) < inliers[inlier_idx]) {
         outliers.push_back(i);
       } else {
         inlier_idx++;
@@ -166,7 +164,7 @@ class FeatureXYPlane {
     // get plane's normal (which is normalized)
     Eigen::VectorXf coeff;
     ransac.getModelCoefficients(coeff);
-    // determin the plane type
+    // determine the plane type
     double tan_theta = 0;
     double tan_refer_theta = std::tan(plane_type_degree_ / 180.0 * M_PI);
     if ((std::abs(coeff(2)) > std::abs(coeff(0))) &&
@@ -198,5 +196,3 @@ class FeatureXYPlane {
 }  // namespace msf
 }  // namespace localization
 }  // namespace apollo
-
-#endif  // MODULES_LOCALIZATION_MSF_EXTRACT_GROUND_PLANE_H_

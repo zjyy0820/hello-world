@@ -16,6 +16,7 @@
 
 #include "modules/dreamview/backend/simulation_world/simulation_world_updater.h"
 
+#include "cyber/common/file.h"
 #include "google/protobuf/util/json_util.h"
 #include "modules/common/util/json_util.h"
 #include "modules/common/util/map_util.h"
@@ -25,27 +26,31 @@
 namespace apollo {
 namespace dreamview {
 
-using apollo::common::adapter::AdapterManager;
 using apollo::common::monitor::MonitorMessageItem;
 using apollo::common::util::ContainsKey;
-using apollo::common::util::GetProtoFromASCIIFile;
-using apollo::common::util::JsonUtil;
+using apollo::cyber::common::GetProtoFromASCIIFile;
 using apollo::hdmap::EndWayPointFile;
+using apollo::relative_map::NavigationInfo;
 using apollo::routing::RoutingRequest;
+
 using Json = nlohmann::json;
 using google::protobuf::util::JsonStringToMessage;
 using google::protobuf::util::MessageToJsonString;
 
-SimulationWorldUpdater::SimulationWorldUpdater(WebSocketHandler *websocket,
-                                               WebSocketHandler *map_ws,
-                                               SimControl *sim_control,
-                                               const MapService *map_service,
-                                               bool routing_from_file)
+SimulationWorldUpdater::SimulationWorldUpdater(
+    WebSocketHandler *websocket, WebSocketHandler *map_ws,
+    WebSocketHandler *camera_ws, SimControl *sim_control,
+    const MapService *map_service,
+    DataCollectionMonitor *data_collection_monitor,
+    PerceptionCameraUpdater *perception_camera_updater, bool routing_from_file)
     : sim_world_service_(map_service, routing_from_file),
       map_service_(map_service),
       websocket_(websocket),
       map_ws_(map_ws),
-      sim_control_(sim_control) {
+      camera_ws_(camera_ws),
+      sim_control_(sim_control),
+      data_collection_monitor_(data_collection_monitor),
+      perception_camera_updater_(perception_camera_updater) {
   RegisterMessageHandlers();
 }
 
@@ -93,11 +98,9 @@ void SimulationWorldUpdater::RegisterMessageHandlers() {
       "Binary",
       [this](const std::string &data, WebSocketHandler::Connection *conn) {
         // Navigation info in binary format
-        apollo::relative_map::NavigationInfo navigation_info;
-        if (navigation_info.ParseFromString(data)) {
-          AdapterManager::FillNavigationHeader(FLAGS_dreamview_module_name,
-                                               &navigation_info);
-          AdapterManager::PublishNavigation(navigation_info);
+        auto navigation_info = std::make_shared<NavigationInfo>();
+        if (navigation_info->ParseFromString(data)) {
+          sim_world_service_.PublishNavigationInfo(navigation_info);
         } else {
           AERROR << "Failed to parse navigation info from string. String size: "
                  << data.size();
@@ -133,19 +136,21 @@ void SimulationWorldUpdater::RegisterMessageHandlers() {
       });
 
   websocket_->RegisterMessageHandler(
+      "CheckRoutingPoint",
+      [this](const Json &json, WebSocketHandler::Connection *conn) {
+        Json response = CheckRoutingPoint(json);
+        response["type"] = "RoutingPointCheckResult";
+        websocket_->SendData(conn, response.dump());
+      });
+
+  websocket_->RegisterMessageHandler(
       "SendRoutingRequest",
       [this](const Json &json, WebSocketHandler::Connection *conn) {
-        RoutingRequest routing_request;
+        auto routing_request = std::make_shared<RoutingRequest>();
 
-        bool succeed = ConstructRoutingRequest(json, &routing_request);
+        bool succeed = ConstructRoutingRequest(json, routing_request.get());
         if (succeed) {
-          AdapterManager::FillRoutingRequestHeader(FLAGS_dreamview_module_name,
-                                                   &routing_request);
-          AdapterManager::PublishRoutingRequest(routing_request);
-        }
-
-        // Publish monitor message.
-        if (succeed) {
+          sim_world_service_.PublishRoutingRequest(routing_request);
           sim_world_service_.PublishMonitorMessage(MonitorMessageItem::INFO,
                                                    "Routing request sent.");
         } else {
@@ -203,6 +208,12 @@ void SimulationWorldUpdater::RegisterMessageHandlers() {
           for (const auto &landmark : poi_.landmark()) {
             Json place;
             place["name"] = landmark.name();
+
+            Json parking_info =
+                apollo::common::util::JsonUtil::ProtoToTypedJson(
+                    "parkingInfo", landmark.parking_info());
+            place["parkingInfo"] = parking_info["data"];
+
             Json waypoint_list;
             for (const auto &waypoint : landmark.waypoint()) {
               Json point;
@@ -211,6 +222,7 @@ void SimulationWorldUpdater::RegisterMessageHandlers() {
               waypoint_list.push_back(point);
             }
             place["waypoint"] = waypoint_list;
+
             poi_list.push_back(place);
           }
         } else {
@@ -232,19 +244,7 @@ void SimulationWorldUpdater::RegisterMessageHandlers() {
 
   websocket_->RegisterMessageHandler(
       "Dump", [this](const Json &json, WebSocketHandler::Connection *conn) {
-        DumpMessage(AdapterManager::GetChassis(), "Chassis");
-        DumpMessage(AdapterManager::GetPrediction(), "Prediction");
-        DumpMessage(AdapterManager::GetRoutingRequest(), "RoutingRequest");
-        DumpMessage(AdapterManager::GetRoutingResponse(), "RoutingResponse");
-        DumpMessage(AdapterManager::GetLocalization(), "Localization");
-        DumpMessage(AdapterManager::GetPlanning(), "Planning");
-        DumpMessage(AdapterManager::GetControlCommand(), "Control");
-        DumpMessage(AdapterManager::GetPerceptionObstacles(), "Perception");
-        DumpMessage(AdapterManager::GetTrafficLightDetection(), "TrafficLight");
-        DumpMessage(AdapterManager::GetRelativeMap(), "RelativeMap");
-        DumpMessage(AdapterManager::GetNavigation(), "Navigation");
-        DumpMessage(AdapterManager::GetContiRadar(), "ContiRadar");
-        DumpMessage(AdapterManager::GetMobileye(), "Mobileye");
+        sim_world_service_.DumpMessages();
       });
 
   websocket_->RegisterMessageHandler(
@@ -259,6 +259,49 @@ void SimulationWorldUpdater::RegisterMessageHandlers() {
           }
         }
       });
+  websocket_->RegisterMessageHandler(
+      "RequestDataCollectionProgress",
+      [this](const Json &json, WebSocketHandler::Connection *conn) {
+        if (!data_collection_monitor_->IsEnabled()) {
+          return;
+        }
+
+        Json response;
+        response["type"] = "DataCollectionProgress";
+        response["data"] = data_collection_monitor_->GetProgressAsJson();
+        websocket_->SendData(conn, response.dump());
+      });
+  camera_ws_->RegisterMessageHandler(
+      "RequestCameraData",
+      [this](const Json &json, WebSocketHandler::Connection *conn) {
+        if (!perception_camera_updater_->IsEnabled()) {
+          return;
+        }
+        std::string to_send;
+        perception_camera_updater_->GetUpdate(&to_send);
+        camera_ws_->SendBinaryData(conn, to_send, true);
+      });
+}
+
+Json SimulationWorldUpdater::CheckRoutingPoint(const Json &json) {
+  Json result;
+  if (!ContainsKey(json, "point")) {
+    result["error"] = "Failed to check routing point: point not found.";
+    AERROR << result["error"];
+    return result;
+  }
+  auto point = json["point"];
+  if (!ValidateCoordinate(point) || !ContainsKey(point, "id")) {
+    result["error"] = "Failed to check routing point: invalid point.";
+    AERROR << result["error"];
+    return result;
+  }
+  if (!map_service_->CheckRoutingPoint(point["x"], point["y"])) {
+    result["pointId"] = point["id"];
+    result["error"] = "Selected point cannot be a routing point.";
+    AWARN << result["error"];
+  }
+  return result;
 }
 
 bool SimulationWorldUpdater::ConstructRoutingRequest(
@@ -275,11 +318,21 @@ bool SimulationWorldUpdater::ConstructRoutingRequest(
     AERROR << "Failed to prepare a routing request: invalid start point.";
     return false;
   }
-  if (!map_service_->ConstructLaneWayPoint(start["x"], start["y"],
-                                           routing_request->add_waypoint())) {
-    AERROR << "Failed to prepare a routing request:"
-           << " cannot locate start point on map.";
-    return false;
+  if (ContainsKey(start, "heading")) {
+    if (!map_service_->ConstructLaneWayPointWithHeading(
+            start["x"], start["y"], start["heading"],
+            routing_request->add_waypoint())) {
+      AERROR << "Failed to prepare a routing request with heading: "
+             << start["heading"] << " cannot locate start point on map.";
+      return false;
+    }
+  } else {
+    if (!map_service_->ConstructLaneWayPoint(start["x"], start["y"],
+                                             routing_request->add_waypoint())) {
+      AERROR << "Failed to prepare a routing request:"
+             << " cannot locate start point on map.";
+      return false;
+    }
   }
 
   // set way point(s) if any
@@ -295,6 +348,7 @@ bool SimulationWorldUpdater::ConstructRoutingRequest(
 
       if (!map_service_->ConstructLaneWayPoint(point["x"], point["y"],
                                                waypoint->Add())) {
+        AERROR << "Failed to construct a LaneWayPoint, skipping.";
         waypoint->RemoveLast();
       }
     }
@@ -318,6 +372,17 @@ bool SimulationWorldUpdater::ConstructRoutingRequest(
     return false;
   }
 
+  // set parking info
+  if (ContainsKey(json, "parkingInfo")) {
+    auto *requested_parking_info = routing_request->mutable_parking_info();
+    if (!JsonStringToMessage(json["parkingInfo"].dump(), requested_parking_info)
+             .ok()) {
+      AERROR << "Failed to prepare a routing request: invalid parking info."
+             << json["parkingInfo"].dump();
+      return false;
+    }
+  }
+
   AINFO << "Constructed RoutingRequest to be sent:\n"
         << routing_request->DebugString();
 
@@ -337,13 +402,12 @@ bool SimulationWorldUpdater::ValidateCoordinate(const nlohmann::json &json) {
 }
 
 void SimulationWorldUpdater::Start() {
-  // start ROS timer, one-shot = false, auto-start = true
-  timer_ =
-      AdapterManager::CreateTimer(ros::Duration(kSimWorldTimeIntervalMs / 1000),
-                                  &SimulationWorldUpdater::OnTimer, this);
+  timer_.reset(new cyber::Timer(kSimWorldTimeIntervalMs,
+                                [this]() { this->OnTimer(); }, false));
+  timer_->Start();
 }
 
-void SimulationWorldUpdater::OnTimer(const ros::TimerEvent &event) {
+void SimulationWorldUpdater::OnTimer() {
   sim_world_service_.Update();
 
   {

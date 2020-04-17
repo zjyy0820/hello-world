@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright 2017 The Apollo Authors. All Rights Reserved.
+ * Copyright 2018 The Apollo Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,11 @@
  * limitations under the License.
  *****************************************************************************/
 
-#ifndef MODULES_LOCALIZATION_MSF_LOCAL_MAP_LOSSLESS_MAP_LOSSLESS_MAP_MATRIX_H_
-#define MODULES_LOCALIZATION_MSF_LOCAL_MAP_LOSSLESS_MAP_LOSSLESS_MAP_MATRIX_H_
+#pragma once
 
 #include <vector>
 
-#include "modules/common/log.h"
+#include "cyber/common/log.h"
 #include "modules/localization/msf/local_map/base_map/base_map_matrix.h"
 #include "modules/localization/msf/local_map/base_map/base_map_node.h"
 
@@ -91,7 +90,7 @@ struct LosslessMapCell {
   /**@brief Get the binary size of the object. */
   unsigned int GetBinarySize() const;
 
-  /**@brief Match a layer in the map cell given a altitude.
+  /**@brief Match a layer in the map cell given an altitude.
    * @return The valid layer ID is 1 ~ N (The layer 0 is the layer includes all
    * the samples). If there is no existing layer, return 0. */
   unsigned int GetLayerId(double altitude) const;
@@ -120,7 +119,7 @@ struct LosslessMapCell {
   inline float GetAltVar() const { return map_cells[0].altitude_var; }
   /**@brief Get the count of the samples in the map cell. */
   inline unsigned int GetCount() const { return map_cells[0].count; }
-  /**@brief Get a perticular layer in the map cell. The layer 0 is the layer
+  /**@brief Get a particular layer in the map cell. The layer 0 is the layer
    * includes all the samples. */
   LosslessMapSingleCell& GetLayer(unsigned int layer_id) {
     DCHECK_LT(layer_id, layer_num);
@@ -202,5 +201,3 @@ class LosslessMapMatrix : public BaseMapMatrix {
 }  // namespace msf
 }  // namespace localization
 }  // namespace apollo
-
-#endif  // LOCALIZATION_MSF_LOCAL_MAP_LOSSLESS_MAP_LOSSLESS_MAP_MATRIX_H_

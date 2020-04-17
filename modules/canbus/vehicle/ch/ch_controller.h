@@ -19,7 +19,6 @@
 #include <memory>
 #include <thread>
 
-#include "modules/common/macro.h"
 #include "modules/canbus/proto/canbus_conf.pb.h"
 #include "modules/canbus/proto/chassis.pb.h"
 #include "modules/canbus/proto/vehicle_parameter.pb.h"

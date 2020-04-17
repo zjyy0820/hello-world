@@ -19,11 +19,11 @@
  * @brief Defines the PIDBCController class.
  */
 
-#ifndef MODULES_CONTROL_COMMON_PID_BACKWARD_CACULATION_CONTROLLER_H_
-#define MODULES_CONTROL_COMMON_PID_BACKWARD_CACULATION_CONTROLLER_H_
+#pragma once
 
 #include "modules/control/common/pid_controller.h"
 #include "modules/control/proto/pid_conf.pb.h"
+
 /**
  * @namespace apollo::control
  * @brief apollo::control
@@ -33,14 +33,14 @@ namespace control {
 
 /**
  * @class PIDBCController
- * @brief A proportional–integral–derivative controller for speed and steering
-with backward-caculation-anti-windup
+ * @brief A proportional-integral-derivative controller for speed and steering
+with backward-calculation-anti-windup
  */
 class PIDBCController : public PIDController {
  public:
   /**
    * @brief compute control value based on the error,
-   with backward-caculation-anti-windup
+   with backward-calculation-anti-windup
    * @param error error value, the difference between
    * a desired value and a measured value
    * @param dt sampling time interval
@@ -55,5 +55,3 @@ class PIDBCController : public PIDController {
 
 }  // namespace control
 }  // namespace apollo
-
-#endif  // MODULES_CONTROL_COMMON_PID_BACKWARD_CACULATION_CONTROLLER_H_

@@ -14,8 +14,7 @@
  * limitations under the License.
  *****************************************************************************/
 
-#ifndef MODULES_LOCALIZATION_MSF_COMMON_SYSTEM_UTILITY_H_
-#define MODULES_LOCALIZATION_MSF_COMMON_SYSTEM_UTILITY_H_
+#pragma once
 
 #include <string>
 #include <vector>
@@ -55,5 +54,3 @@ class system {
 }  // namespace msf
 }  // namespace localization
 }  // namespace apollo
-
-#endif  // MODULES_LOCALIZATION_MSF_COMMON_SYSTEM_UTILITY_H_

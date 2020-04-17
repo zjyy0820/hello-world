@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright 2017 The Apollo Authors. All Rights Reserved.
+ * Copyright 2018 The Apollo Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,11 @@
  *****************************************************************************/
 
 #include "modules/localization/msf/local_tool/data_extraction/pcd_exporter.h"
-#include <pcl/common/time.h>
-#include <pcl_conversions/pcl_conversions.h>
-#include <string>
+
+#include "cyber/cyber.h"
+#include "modules/localization/msf/common/io/pcl_point_types.h"
+#include "pcl/io/pcd_io.h"
+#include "pcl/point_types.h"
 
 namespace apollo {
 namespace localization {
@@ -27,22 +29,21 @@ PCDExporter::PCDExporter(const std::string &pcd_folder) {
   pcd_folder_ = pcd_folder;
   std::string stamp_file = pcd_folder_ + "/pcd_timestamp.txt";
 
-  if ((stamp_file_handle_ = fopen(stamp_file.c_str(), "a")) == NULL) {
-    std::cerr << "Cannot open stamp file!" << std::endl;
+  if ((stamp_file_handle_ = fopen(stamp_file.c_str(), "a")) == nullptr) {
+    AERROR << "Cannot open stamp file!";
   }
 }
 
 PCDExporter::~PCDExporter() {
-  if (stamp_file_handle_ != NULL) {
+  if (stamp_file_handle_ != nullptr) {
     fclose(stamp_file_handle_);
   }
 }
 
-void PCDExporter::CompensatedPcdCallback(
-    const rosbag::MessageInstance &msg_instance) {
-  std::cout << "Compensated pcd callback." << std::endl;
-  sensor_msgs::PointCloud2::ConstPtr msg =
-      msg_instance.instantiate<sensor_msgs::PointCloud2>();
+void PCDExporter::CompensatedPcdCallback(const std::string &msg_string) {
+  AINFO << "Compensated pcd callback.";
+  drivers::PointCloud msg;
+  msg.ParseFromString(msg_string);
 
   static unsigned int index = 1;
 
@@ -51,17 +52,36 @@ void PCDExporter::CompensatedPcdCallback(
   std::string pcd_filename = ss_pcd.str();
 
   WritePcdFile(pcd_filename, msg);
-  fprintf(stamp_file_handle_, "%u %lf\n", index, msg->header.stamp.toSec());
+  double timestamp = cyber::Time(msg.measurement_time()).ToSecond();
+  fprintf(stamp_file_handle_, "%u %lf\n", index, timestamp);
 
   ++index;
 }
 
 void PCDExporter::WritePcdFile(const std::string &filename,
-                               sensor_msgs::PointCloud2::ConstPtr msg) {
-  pcl::PCLPointCloud2 pcl_cloud;
-  pcl_conversions::toPCL(*msg, pcl_cloud);
-  pcl::PCDWriter writer;
-  writer.writeBinaryCompressed(filename, pcl_cloud);
+                               const drivers::PointCloud &msg) {
+  pcl::PointCloud<velodyne::PointXYZIT> cloud;
+  cloud.width = msg.width();
+  cloud.height = msg.height();
+  cloud.is_dense = false;
+  cloud.points.resize(cloud.width * cloud.height);
+
+  if (cloud.width == 0 || cloud.height == 0) {
+    cloud.width = 1;
+    cloud.height = msg.point_size();
+    cloud.points.resize(msg.point_size());
+  }
+
+  for (unsigned int i = 0; i < static_cast<unsigned int>(cloud.points.size());
+       ++i) {
+    cloud.points[i].x = msg.point(i).x();
+    cloud.points[i].y = msg.point(i).y();
+    cloud.points[i].z = msg.point(i).z();
+    cloud.points[i].intensity =
+        static_cast<unsigned char>(msg.point(i).intensity());
+  }
+
+  pcl::io::savePCDFileBinaryCompressed(filename, cloud);
 }
 
 }  // namespace msf

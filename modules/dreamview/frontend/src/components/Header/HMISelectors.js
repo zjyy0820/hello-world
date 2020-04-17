@@ -12,7 +12,7 @@ export default class HMISelectors extends React.Component {
         return (
             <React.Fragment>
                 <Selector name="setup mode"
-                          options={Object.keys(modes).sort()}
+                          options={modes}
                           currentOption={currentMode}
                           onChange={(event) => {
                             WS.changeSetupMode(event.target.value);

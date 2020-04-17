@@ -19,26 +19,19 @@
  * @brief The class of LocalizationInteg
  */
 
-#ifndef MODULES_LOCALIZATION_MSF_LOCALIZATION_INTEG_H_
-#define MODULES_LOCALIZATION_MSF_LOCALIZATION_INTEG_H_
+#pragma once
 
-#include <memory>
-#include <string>
-#include <utility>
-#include <vector>
-#include <list>
-
-#include "sensor_msgs/PointCloud2.h"
+#include "include/gnss_struct.h"
+#include "include/sins_struct.h"
 #include "modules/common/status/status.h"
 #include "modules/drivers/gnss/proto/gnss_best_pose.pb.h"
 #include "modules/drivers/gnss/proto/gnss_raw_observation.pb.h"
-#include "modules/drivers/gnss/proto/imu.pb.h"
 #include "modules/drivers/gnss/proto/heading.pb.h"
-#include "modules/localization/proto/localization.pb.h"
-#include "modules/localization/msf/local_integ/localization_params.h"
+#include "modules/drivers/gnss/proto/imu.pb.h"
+#include "modules/drivers/proto/pointcloud.pb.h"
 #include "modules/localization/msf/local_integ/localization_lidar.h"
-#include "include/sins_struct.h"
-#include "include/gnss_struct.h"
+#include "modules/localization/msf/local_integ/localization_params.h"
+#include "modules/localization/proto/localization.pb.h"
 
 /**
  * @namespace apollo::localization::msf
@@ -61,51 +54,36 @@ class LocalizationInteg {
   LocalizationInteg();
   ~LocalizationInteg();
   // Initialization.
-  common::Status Init(const LocalizationIntegParam& params);
+  common::Status Init(const LocalizationIntegParam &params);
 
   // Lidar pcd process.
-  void PcdProcess(const sensor_msgs::PointCloud2& message);
+  void PcdProcess(const drivers::PointCloud &message);
   // Raw Imu process.
   // void CorrectedImuProcess(const Imu& imu_msg);
-  void RawImuProcessFlu(const drivers::gnss::Imu& imu_msg);
-  void RawImuProcessRfu(const drivers::gnss::Imu& imu_msg);
+  void RawImuProcessFlu(const drivers::gnss::Imu &imu_msg);
+  void RawImuProcessRfu(const drivers::gnss::Imu &imu_msg);
   // Gnss Info process.
   void RawObservationProcess(
-      const drivers::gnss::EpochObservation& raw_obs_msg);
-  void RawEphemerisProcess(const drivers::gnss::GnssEphemeris& gnss_orbit_msg);
+      const drivers::gnss::EpochObservation &raw_obs_msg);
+  void RawEphemerisProcess(const drivers::gnss::GnssEphemeris &gnss_orbit_msg);
   // gnss best pose process
-  void GnssBestPoseProcess(const drivers::gnss::GnssBestPose& bestgnsspos_msg);
+  void GnssBestPoseProcess(const drivers::gnss::GnssBestPose &bestgnsspos_msg);
+  // gnss heading process
+  void GnssHeadingProcess(const drivers::gnss::Heading &gnss_heading_msg);
 
-  void GnssHeadingProcess(const drivers::gnss::Heading &gnssheading_msg);
-
-  void GetLastestLidarLocalization(LocalizationMeasureState *state,
-                                   LocalizationEstimate *lidar_localization);
-
-  void GetLastestIntegLocalization(LocalizationMeasureState *state,
-                                   LocalizationEstimate *integ_localization);
-
-  void GetLastestGnssLocalization(LocalizationMeasureState *state,
-                                  LocalizationEstimate *gnss_localization);
-
-  void GetLidarLocalizationList(std::list<LocalizationResult> *results);
-
-  void GetIntegLocalizationList(std::list<LocalizationResult> *results);
-
-  void GetGnssLocalizationList(std::list<LocalizationResult> *results);
+  const LocalizationResult &GetLastestLidarLocalization() const;
+  const LocalizationResult &GetLastestIntegLocalization() const;
+  const LocalizationResult &GetLastestGnssLocalization() const;
 
  protected:
-  void TransferImuFlu(const drivers::gnss::Imu &imu_msg,
-                      ImuData *imu_data);
+  void TransferImuFlu(const drivers::gnss::Imu &imu_msg, ImuData *imu_data);
 
-  void TransferImuRfu(const drivers::gnss::Imu &imu_msg,
-                      ImuData *imu_rfu);
+  void TransferImuRfu(const drivers::gnss::Imu &imu_msg, ImuData *imu_rfu);
 
  private:
-  LocalizationIntegImpl* localization_integ_impl_;
+  LocalizationIntegImpl *localization_integ_impl_;
 };
 
 }  // namespace msf
 }  // namespace localization
 }  // namespace apollo
-
-#endif  // MODULES_LOCALIZATION_MSF_LOCALIZATION_IMU_PROCESS_H_

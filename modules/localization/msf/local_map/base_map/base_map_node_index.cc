@@ -16,10 +16,7 @@
 
 #include "modules/localization/msf/local_map/base_map/base_map_node_index.h"
 
-#include <sstream>
-#include <string>
-
-#include "modules/common/log.h"
+#include "cyber/common/log.h"
 
 namespace apollo {
 namespace localization {
@@ -28,29 +25,10 @@ namespace msf {
 MapNodeIndex::MapNodeIndex() {}
 
 bool MapNodeIndex::operator<(const MapNodeIndex& index) const {
-  if (resolution_id_ < index.resolution_id_) {
-    return true;
-  } else if (resolution_id_ == index.resolution_id_) {
-    if (zone_id_ < index.zone_id_) {
-      return true;
-    } else if (zone_id_ == index.zone_id_) {
-      if (m_ < index.m_) {
-        return true;
-      } else if (m_ == index.m_) {
-        if (n_ < index.n_) {
-          return true;
-        } else {
-          return false;
-        }
-      } else {
-        return false;
-      }
-    } else {
-      return false;
-    }
-  } else {
-    return false;
-  }
+  // Compare elements by priority.
+  return std::forward_as_tuple(resolution_id_, zone_id_, m_, n_) <
+         std::forward_as_tuple(index.resolution_id_, index.zone_id_, index.m_,
+                               index.n_);
 }
 
 bool MapNodeIndex::operator==(const MapNodeIndex& index) const {
@@ -86,12 +64,12 @@ MapNodeIndex MapNodeIndex::GetMapNodeIndex(const BaseMapConfig& option,
   MapNodeIndex index;
   index.resolution_id_ = resolution_id;
   index.zone_id_ = zone_id;
-  int n = static_cast<int>(
-      (coordinate[0] - option.map_range_.GetMinX()) /
-      (option.map_node_size_x_ * option.map_resolutions_[resolution_id]));
-  int m = static_cast<int>(
-      (coordinate[1] - option.map_range_.GetMinY()) /
-      (option.map_node_size_y_ * option.map_resolutions_[resolution_id]));
+  int n = static_cast<int>((coordinate[0] - option.map_range_.GetMinX()) /
+                           (static_cast<float>(option.map_node_size_x_) *
+                            option.map_resolutions_[resolution_id]));
+  int m = static_cast<int>((coordinate[1] - option.map_range_.GetMinY()) /
+                           (static_cast<float>(option.map_node_size_y_) *
+                            option.map_resolutions_[resolution_id]));
   if (n >= 0 && m >= 0 &&
       n < static_cast<int>(GetMapIndexRangeEast(option, resolution_id)) &&
       m < static_cast<int>(GetMapIndexRangeNorth(option, resolution_id))) {
@@ -107,14 +85,16 @@ unsigned int MapNodeIndex::GetMapIndexRangeEast(const BaseMapConfig& option,
                                                 unsigned int resolution_id) {
   return static_cast<unsigned int>(
       (option.map_range_.GetMaxX() - option.map_range_.GetMinX()) /
-      (option.map_node_size_x_ * option.map_resolutions_[resolution_id]));
+      (static_cast<float>(option.map_node_size_x_) *
+       option.map_resolutions_[resolution_id]));
 }
 
 unsigned int MapNodeIndex::GetMapIndexRangeNorth(const BaseMapConfig& option,
                                                  unsigned int resolution_id) {
   return static_cast<unsigned int>(
       (option.map_range_.GetMaxY() - option.map_range_.GetMinY()) /
-      (option.map_node_size_y_ * option.map_resolutions_[resolution_id]));
+      (static_cast<float>(option.map_node_size_y_) *
+       option.map_resolutions_[resolution_id]));
 }
 
 std::ostream& operator<<(std::ostream& cerr, const MapNodeIndex& index) {

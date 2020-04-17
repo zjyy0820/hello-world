@@ -26,8 +26,8 @@
 #include <limits>
 #include <memory>
 #include <vector>
-#include "modules/common/log.h"
-#include "ros/include/ros/ros.h"
+
+#include "cyber/cyber.h"
 #include "modules/drivers/gnss/parser/novatel_messages.h"
 #include "modules/drivers/gnss/parser/parser.h"
 #include "modules/drivers/gnss/parser/rtcm_decode.h"
@@ -157,8 +157,8 @@ class NewtonM2Parser : public Parser {
 
   double accel_scale_ = 0.0;
 
-  float imu_measurement_span_ = 1.0 / 200.0;
-  float imu_measurement_hz_ = 200.0;
+  float imu_measurement_span_ = 1.0f / 200.0f;
+  float imu_measurement_hz_ = 200.0f;
 
   int imu_frame_mapping_ = 5;
 
@@ -172,12 +172,15 @@ class NewtonM2Parser : public Parser {
 
   config::ImuType imu_type_ = config::ImuType::CPT_XW5651;
 
-  // -1 is an unused value.
+  // NONE is an unused value.
   novatel::SolutionStatus solution_status_ =
-      static_cast<novatel::SolutionStatus>(-1);
-  novatel::SolutionType position_type_ = static_cast<novatel::SolutionType>(-1);
-  novatel::SolutionType velocity_type_ = static_cast<novatel::SolutionType>(-1);
-  novatel::InsStatus ins_status_ = static_cast<novatel::InsStatus>(-1);
+      static_cast<novatel::SolutionStatus>(novatel::SolutionStatus::NONE);
+  novatel::SolutionType position_type_ =
+      static_cast<novatel::SolutionType>(novatel::SolutionType::NONE);
+  novatel::SolutionType velocity_type_ =
+      static_cast<novatel::SolutionType>(novatel::SolutionType::NONE);
+  novatel::InsStatus ins_status_ =
+      static_cast<novatel::InsStatus>(novatel::InsStatus::NONE);
 
   raw_t raw_;  // used for observation data
 
