@@ -37,7 +37,7 @@ bazel build -c opt //modules/perception/tool/offline_visualizer_tool:offline_lid
 The option `-c opt` is used for building the program with optimized performance, which is important for the offline simulation and visualization of the perception module in real time.
 If you'd like to run the perception module with GPU, please use the command below:
 ```
-bazel build -c opt --cxxopt=-DUSE_GPU //modules/perception/tool/offline_visualizer_tool:offline_lidar_visualizer_tool
+bazel build -c opt --cxxopt=-DUSE_CAFFE_GPU //modules/perception/tool/offline_visualizer_tool:offline_lidar_visualizer_tool
 ```
 
 ### 3. Run The Visualizer With Offline Perception Simulation
@@ -45,7 +45,7 @@ Before running the visualizer, you may setup the data directories and the algori
 ```
 /apollo/bazel-bin/modules/perception/tool/offline_visualizer_tool/offline_lidar_visualizer_tool
 ```
-Now you will see a pop-up window showing the perception result with point cloud frame-by-frame. The obstacles are shown with a purple rectangle bounding boxes. There are three modes to visualize the point cloud with/without the ROI area:
-* Showing all the point cloud with grey color;
-* Showing the point cloud of ROI area only with green color;
+Now you will see a pop-up window showing the perception result with point cloud frame-by-frame. The obstacles are shown with a purple rectangle bounding boxes. There are three modes to visualize the point cloud with/without the ROI area: 
+* Showing all the point cloud with grey color; 
+* Showing the point cloud of ROI area only with green color; 
 * Showing the point cloud of ROI area with green color and that of other areas with grey color. You may press the `S` key on keyboard to switch the modes in turn.

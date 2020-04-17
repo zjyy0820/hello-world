@@ -43,7 +43,7 @@ class NewController : public Controller {
 
 To add the new controller configuration complete the following steps:
 
-1. Define a `proto` for the new controller configurations and parameters based on the algorithm requirements. An example `proto` definition of `LatController` can be found at:  `modules/control/proto/lat_controller_conf.proto`
+1. Define a `proto` for the new controller configurations and parameters based on the algorithm requirements. A example `proto` definition of `LatController` can be found at:  `modules/control/proto/lat_controller_conf.proto`
 2. After defining the new controller `proto`, e.g., `new_controller_conf.proto`, type the following:
 
     ```protobuf
@@ -73,7 +73,7 @@ To add the new controller configuration complete the following steps:
       };
     ```
 
-5. When the `protobuf` definition is complete, update the control configuration file accordingly at `modules/control/conf/control_conf.pb.txt`
+5. When the `protobuf` definition is complete, update the control configuration file accordingly at `modules/control/conf/lincoln.pb.txt`
 
 ```
 Note: The above `control/conf` file is the default for Apollo.  Your project may use a different control configuration file.

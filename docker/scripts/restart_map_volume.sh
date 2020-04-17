@@ -22,14 +22,14 @@
 map_name=$1
 map_version=$2
 
-MAP_VOLUME="apollo_map_volume-${map_name}_${USER}"
+MAP_VOLUME="apollo_map_volume-${map_name}"
 if [[ ${MAP_VOLUME_CONF} == *"${MAP_VOLUME}"* ]]; then
   echo "Map ${map_name} has already been included!"
 else
   docker stop ${MAP_VOLUME} > /dev/null 2>&1
 
   MAP_VOLUME_IMAGE=${DOCKER_REPO}:map_volume-${map_name}-${map_version}
-  do_docker_pull ${MAP_VOLUME_IMAGE}
+  docker pull ${MAP_VOLUME_IMAGE}
   docker run -it -d --rm --name ${MAP_VOLUME} ${MAP_VOLUME_IMAGE}
   MAP_VOLUME_CONF="${MAP_VOLUME_CONF} --volumes-from ${MAP_VOLUME}"
 fi
