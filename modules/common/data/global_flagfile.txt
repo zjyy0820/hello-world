@@ -11,7 +11,7 @@
 
 --use_navigation_mode=false
 
---map_dir=/apollo/modules/map/data/demo
+--map_dir=/apollo/modules/map/data/xiaolan
 
 --use_sim_time=false
 
