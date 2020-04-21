@@ -261,7 +261,7 @@ default_task_config: {
             weight_ref_deviation: 1e3
             apply_curvature_constraint: true
             weight_curvature_constraint_slack_var: 1e8
-            curvature_constraint: 0.5
+            curvature_constraint: 0.08
             max_iter: 500
             time_limit: 0.0
             verbose: false
