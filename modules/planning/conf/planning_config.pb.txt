@@ -271,7 +271,7 @@ default_task_config: {
           s_curve_config {
             acc_weight: 1.0
             jerk_weight: 1.0
-            kappa_penalty_weight: 70.0
+            kappa_penalty_weight: 7.0
             ref_s_weight: 10.0
             ref_v_weight: 0.0
           }
