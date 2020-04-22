@@ -261,7 +261,7 @@ default_task_config: {
             weight_ref_deviation: 1e3
             apply_curvature_constraint: true
             weight_curvature_constraint_slack_var: 1e8
-            curvature_constraint: 0.08
+            curvature_constraint: 18
             max_iter: 500
             time_limit: 0.0
             verbose: false
@@ -271,7 +271,7 @@ default_task_config: {
           s_curve_config {
             acc_weight: 1.0
             jerk_weight: 1.0
-            kappa_penalty_weight: 7.0
+            kappa_penalty_weight: 50.0
             ref_s_weight: 10.0
             ref_v_weight: 0.0
           }
