@@ -102,7 +102,7 @@ Status LonController::Init(const ControlConf *control_conf) {
   const LonControllerConf &lon_controller_conf =
       control_conf_->lon_controller_conf();
   double ts = lon_controller_conf.ts();
-  bool enable_leadlag =
+  bool enable_leadlag =                                       //使能滞后超前校正标志位
       lon_controller_conf.enable_reverse_leadlag_compensation();
 
   station_pid_controller_.Init(lon_controller_conf.station_pid_conf());
@@ -126,12 +126,12 @@ Status LonController::Init(const ControlConf *control_conf) {
   return Status::OK();
 }
 
-void LonController::SetDigitalFilterPitchAngle(
+void LonController::SetDigitalFilterPitchAngle(         //设置俯仰角滤波器
     const LonControllerConf &lon_controller_conf) {
   double cutoff_freq =
       lon_controller_conf.pitch_angle_filter_conf().cutoff_freq();
   double ts = lon_controller_conf.ts();
-  SetDigitalFilter(ts, cutoff_freq, &digital_filter_pitch_angle_);
+  SetDigitalFilter(ts, cutoff_freq, &digital_filter_pitch_angle_);     //设置数字滤波器
 }
 
 void LonController::LoadControlCalibrationTable(
@@ -160,13 +160,13 @@ Status LonController::ComputeControlCommand(
   chassis_ = chassis;
 
   trajectory_message_ = planning_published_trajectory;
-  if (!control_interpolation_) {
+  if (!control_interpolation_) {                        //判断标定表指针是否存在
     AERROR << "Fail to initialize calibration table.";
     return Status(ErrorCode::CONTROL_COMPUTE_ERROR,
                   "Fail to initialize calibration table.");
   }
 
-  if (trajectory_analyzer_ == nullptr ||
+  if (trajectory_analyzer_ == nullptr ||                               //如果轨迹规划算法未设定完成或轨迹规划算法序列和估计算法消息序列不相等，则重新设置指针指向轨迹规划算法
       trajectory_analyzer_->seq_num() !=
           trajectory_message_->header().sequence_num()) {
     trajectory_analyzer_.reset(new TrajectoryAnalyzer(trajectory_message_));
@@ -254,7 +254,7 @@ Status LonController::ComputeControlCommand(
         speed_leadlag_controller_.InnerstateSaturationStatus());
   }
 
-  double slope_offset_compenstaion = digital_filter_pitch_angle_.Filter(
+  double slope_offset_compenstaion = digital_filter_pitch_angle_.Filter(     //斜坡加速度坡度补偿
       GRA_ACC * std::sin(VehicleStateProvider::Instance()->pitch()));
 
   if (std::isnan(slope_offset_compenstaion)) {
@@ -262,8 +262,8 @@ Status LonController::ComputeControlCommand(
   }
 
   debug->set_slope_offset_compensation(slope_offset_compenstaion);
-
-  double acceleration_cmd =
+ 
+  double acceleration_cmd =                                                  //加速度=速度补偿的加速度+预览加速度+坡度补偿
       acceleration_cmd_closeloop + debug->preview_acceleration_reference() +
       FLAGS_enable_slope_offset * debug->slope_offset_compensation();
   debug->set_is_full_stop(false);
@@ -271,7 +271,7 @@ Status LonController::ComputeControlCommand(
 
   // At near-stop stage, replace the brake control command with the standstill
   // acceleration if the former is even softer than the latter
-  if ((trajectory_message_->trajectory_type() ==
+  if ((trajectory_message_->trajectory_type() ==                         
        apollo::planning::ADCTrajectory::NORMAL) &&
       ((std::fabs(debug->preview_acceleration_reference()) <=
             control_conf_->max_acceleration_when_stopped() &&

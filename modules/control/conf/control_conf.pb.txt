@@ -133,7 +133,7 @@ lon_controller_conf {
     deadband: 0.0003
     ceff: 0.12
     kp: 0.2
-    ki: 0.0
+    ki: 0.1
     kd: 0.0
     wp: 0.1
     wi: 0.1
@@ -144,20 +144,20 @@ lon_controller_conf {
     integrator_saturation_level: 0.3
     deadband: 0.0003
     ceff: 0.12
-    kp: 0.5
-    ki: 0.3
+    kp: 0.3
+    ki: 0.1
     kd: 0.0
     wp: 0.2
     wi: 0.15
-    wd: 0.3
+    wd: 0.0
   }
   high_speed_pid_conf {
     integrator_enable: true
     integrator_saturation_level: 0.3
     deadband: 0.0003
     ceff: 0.12
-    kp: 1.0
-    ki: 0.3
+    kp: 0.4
+    ki: 0.2
     kd: 0.0
     wp: 0.4
     wi: 0.2
@@ -168,15 +168,25 @@ lon_controller_conf {
     cutoff_freq: 5
   }
   calibration_table {
-    calibration {
+   calibration {
       speed: 0.0
-      acceleration: 0.05
-      command: 33.0
+      acceleration: -1.43
+      command: -35.0
     }
     calibration {
       speed: 0.0
-      acceleration: 0.06
-      command: 10.0
+      acceleration: -1.28
+      command: -27.0
+    }
+    calibration {
+      speed: 0.0
+      acceleration: -1.17
+      command: -25.0
+    }
+    calibration {
+      speed: 0.0
+      acceleration: 0.09
+      command: -20.0
     }
     calibration {
       speed: 0.0
