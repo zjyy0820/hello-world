@@ -132,7 +132,7 @@ lon_controller_conf {
     integrator_saturation_level: 0.3
     deadband: 0.0003
     ceff: 12
-    kp: 20
+    kp: 200
     ki: 0.1
     kd: 0.0
     wp: 0.1
@@ -144,7 +144,7 @@ lon_controller_conf {
     integrator_saturation_level: 0.3
     deadband: 0.0003
     ceff: 12
-    kp: 30
+    kp: 300
     ki: 0.1
     kd: 0.0
     wp: 0.2
@@ -156,7 +156,7 @@ lon_controller_conf {
     integrator_saturation_level: 0.3
     deadband: 0.0003
     ceff: 12
-    kp: 40
+    kp: 400
     ki: 0.2
     kd: 0.0
     wp: 0.4
