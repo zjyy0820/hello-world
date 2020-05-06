@@ -474,31 +474,38 @@ void LonController::SetDigitalFilter(double ts, double cutoff_freq,
 }
 
 // TODO(all): Refactor and simplify
+// /*以下函数为计算剩余规划点的个数，当某个点车速过小且加速度过小时，判断在该点车辆停止。
 void LonController::GetPathRemain(SimpleLongitudinalDebug *debug) {
   int stop_index = 0;
-  static constexpr double kSpeedThreshold = 1e-3;
-  static constexpr double kForwardAccThreshold = -1e-2;
-  static constexpr double kBackwardAccThreshold = 1e-1;
-  static constexpr double kParkingSpeed = 0.1;
+  static constexpr double kSpeedThreshold = 1e-3;   //速度阈值
+  static constexpr double kForwardAccThreshold = -1e-2;  //前馈加速度阈值
+  static constexpr double kBackwardAccThreshold = 1e-1;   //反馈加速度阈值
+  static constexpr double kParkingSpeed = 0.1;    //停车速度
 
-  if (trajectory_message_->gear() == canbus::Chassis::GEAR_DRIVE) {
+  if (trajectory_message_->gear() == canbus::Chassis::GEAR_DRIVE) 
+  {
     while (stop_index < trajectory_message_->trajectory_point_size()) {
       auto &current_trajectory_point =
           trajectory_message_->trajectory_point(stop_index);
       if (fabs(current_trajectory_point.v()) < kSpeedThreshold &&
           current_trajectory_point.a() > kForwardAccThreshold &&
-          current_trajectory_point.a() < 0.0) {
+          current_trajectory_point.a() < 0.0)
+      {
         break;
       }
       ++stop_index;
     }
-  } else {
-    while (stop_index < trajectory_message_->trajectory_point_size()) {
+  }
+   else 
+   {
+    while (stop_index < trajectory_message_->trajectory_point_size()) 
+    {
       auto &current_trajectory_point =
           trajectory_message_->trajectory_point(stop_index);
       if (current_trajectory_point.v() < kSpeedThreshold &&
           current_trajectory_point.a() < kBackwardAccThreshold &&
-          current_trajectory_point.a() > 0.0) {
+          current_trajectory_point.a() > 0.0) 
+      {
         break;
       }
       ++stop_index;
@@ -507,9 +514,11 @@ void LonController::GetPathRemain(SimpleLongitudinalDebug *debug) {
   if (stop_index == trajectory_message_->trajectory_point_size()) {
     --stop_index;
     if (fabs(trajectory_message_->trajectory_point(stop_index).v()) <
-        kParkingSpeed) {
+        kParkingSpeed) 
+    {
       ADEBUG << "the last point is selected as parking point";
-    } else {
+    } 
+    else {
       ADEBUG << "the last point found in path and speed > speed_deadzone";
       debug->set_path_remain(10000);
     }
