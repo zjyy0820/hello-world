@@ -117,7 +117,7 @@ lon_controller_conf {
     integrator_enable: false
     integrator_saturation_level: 0.3
     deadband: 0.0003
-    ceff: 12
+    ceff: 12000
     kp: 20000
     ki: 0.1
     kd: 0.0
@@ -129,7 +129,7 @@ lon_controller_conf {
     integrator_enable: true
     integrator_saturation_level: 0.3
     deadband: 0.0003
-    ceff: 12
+    ceff: 12000
     kp: 30000
     ki: 0.1
     kd: 0.0
@@ -141,7 +141,7 @@ lon_controller_conf {
     integrator_enable: true
     integrator_saturation_level: 0.3
     deadband: 0.0003
-    ceff: 12
+    ceff: 12000
     kp: 40000
     ki: 0.2
     kd: 0.0
