@@ -119,11 +119,11 @@ lon_controller_conf {
     deadband: 0.0003
     ceff: 12000
     kp: 20000
-    ki: 0.1
-    kd: 0.0
-    wp: 0.1
-    wi: 0.1
-    wd: 0.05
+    ki: 1000
+    kd: 100
+    wp: 1
+    wi: 1
+    wd: 5
   }
   low_speed_pid_conf {
     integrator_enable: true
@@ -131,11 +131,11 @@ lon_controller_conf {
     deadband: 0.0003
     ceff: 12000
     kp: 30000
-    ki: 0.1
-    kd: 0.0
-    wp: 0.2
-    wi: 0.15
-    wd: 0.0
+    ki: 1000
+    kd: 100
+    wp: 2
+    wi: 15
+    wd: 5
   }
   high_speed_pid_conf {
     integrator_enable: true
@@ -143,11 +143,11 @@ lon_controller_conf {
     deadband: 0.0003
     ceff: 12000
     kp: 40000
-    ki: 0.2
-    kd: 0.0
-    wp: 0.4
-    wi: 0.2
-    wd: 0.1
+    ki: 2000
+    kd: 200
+    wp: 4
+    wi: 2
+    wd: 1
   }
   switch_speed: 6.0
   pitch_angle_filter_conf {
