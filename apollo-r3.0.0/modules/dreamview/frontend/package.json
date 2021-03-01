@@ -30,7 +30,7 @@
         "react-tabs": "^2.2.1",
         "recorder-js": "^1.0.7",
         "stats.js": "^0.17.0",
-        "three": "~0.84.0",
+        "three": "~0.125.0",
         "three-line-2d": "^1.1.6"
     },
     "devDependencies": {
